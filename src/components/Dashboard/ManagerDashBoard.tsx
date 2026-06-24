@@ -1,0 +1,1318 @@
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+import Sidebar from '../Layout/Sidebar';
+import Header from '../Layout/Header';
+import { 
+  UsersIcon, 
+  ClipboardDocumentCheckIcon, 
+  UserGroupIcon, 
+  ChartBarIcon,
+  PlusIcon,
+  MagnifyingGlassIcon,
+  PaperAirplaneIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  TrashIcon,
+  InboxIcon,
+  EnvelopeIcon,
+  HomeIcon,
+  BuildingOffice2Icon,
+  UserIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
+  DocumentArrowDownIcon,
+  PrinterIcon,
+  ClockIcon,
+  BriefcaseIcon,
+  CalendarIcon,
+  MegaphoneIcon,
+  DocumentTextIcon,
+  BanknotesIcon,
+  ChartPieIcon,
+  PencilIcon,
+  EyeIcon,
+  SunIcon,
+  MoonIcon
+} from '@heroicons/react/24/outline';
+
+// Types
+interface TeamMember {
+  id: string;
+  name: string;
+  role: string;
+  status: 'Active' | 'On Leave' | 'Working';
+  joined: string;
+  initials: string;
+}
+
+interface Task {
+  id: string;
+  title: string;
+  assignee: string;
+  priority: 'Critical' | 'High' | 'Medium' | 'Low';
+  status: 'Pending' | 'In Progress' | 'Completed' | 'Blocked';
+  dueDate: string;
+  project: string;
+}
+
+interface LeaveRequest {
+  id: string;
+  employee: string;
+  type: 'Casual' | 'Sick' | 'Annual';
+  period: string;
+  reason: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+}
+
+interface ProjectTeam {
+  id: string;
+  name: string;
+  members: number;
+  project: string;
+  lead: string;
+  created: string;
+}
+
+interface Message {
+  id: string;
+  sender: string;
+  senderRole: 'Employee' | 'Manager' | 'HR' | 'Super Admin';
+  receiver: string;
+  receiverRole: string;
+  subject: string;
+  content: string;
+  timestamp: string;
+  read: boolean;
+  category: 'General' | 'HR' | 'Payroll' | 'IT' | 'Leave' | 'Other';
+}
+
+const ManagerDashboard = () => {
+  const location = useLocation();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  
+  // Queries state
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: 'MSG-001',
+      sender: 'Aarav Mehta',
+      senderRole: 'Super Admin',
+      receiver: 'Priya Nair',
+      receiverRole: 'Manager',
+      subject: 'Q3 Budget Approval',
+      content: 'Your Q3 budget request for Platform team has been approved. Please proceed with hiring.',
+      timestamp: '2026-06-24 09:30',
+      read: false,
+      category: 'HR'
+    },
+    {
+      id: 'MSG-002',
+      sender: 'Ishita Roy',
+      senderRole: 'Employee',
+      receiver: 'Priya Nair',
+      receiverRole: 'Manager',
+      subject: 'WFH Request',
+      content: 'Requesting WFH for next week due to personal commitments. Have discussed with team.',
+      timestamp: '2026-06-23 16:45',
+      read: false,
+      category: 'Leave'
+    },
+    {
+      id: 'MSG-003',
+      sender: 'Sanya Kapoor',
+      senderRole: 'HR',
+      receiver: 'Priya Nair',
+      receiverRole: 'Manager',
+      subject: 'New Hire Onboarding',
+      content: '3 new engineers joining next month. Please prepare onboarding plan.',
+      timestamp: '2026-06-23 14:20',
+      read: true,
+      category: 'HR'
+    },
+    {
+      id: 'MSG-004',
+      sender: 'Karan Singh',
+      senderRole: 'Employee',
+      receiver: 'Priya Nair',
+      receiverRole: 'Manager',
+      subject: 'Task Update - OAuth Migration',
+      content: 'OAuth migration is 80% complete. Need review on PR #3421.',
+      timestamp: '2026-06-22 11:15',
+      read: true,
+      category: 'IT'
+    },
+    {
+      id: 'MSG-005',
+      sender: 'Rohan Verma',
+      senderRole: 'Employee',
+      receiver: 'Priya Nair',
+      receiverRole: 'Manager',
+      subject: 'Performance Review',
+      content: 'Requesting a 1:1 meeting to discuss performance goals for Q3.',
+      timestamp: '2026-06-21 10:00',
+      read: false,
+      category: 'General'
+    }
+  ]);
+
+  const [newMessage, setNewMessage] = useState({
+    receiver: '',
+    subject: '',
+    content: '',
+    category: 'General' as Message['category']
+  });
+  const [showCompose, setShowCompose] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState<'all' | 'unread' | 'read'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<Message['category'] | 'all'>('all');
+
+  // Determine which tab is active based on route
+  const getActiveTab = () => {
+    const path = location.pathname;
+    if (path === '/dashboard' || path === '/dashboard/overview') return 'overview';
+    if (path === '/dashboard/team') return 'my-team';
+    if (path === '/dashboard/project-teams') return 'project-teams';
+    if (path === '/dashboard/assign-tasks') return 'assign-tasks';
+    if (path === '/dashboard/tasks-board') return 'tasks-board';
+    if (path === '/dashboard/attendance') return 'attendance';
+    if (path === '/dashboard/leave-approvals') return 'leave-approvals';
+    if (path === '/dashboard/performance') return 'performance';
+    if (path === '/dashboard/reports') return 'reports';
+    if (path === '/dashboard/queries') return 'queries';
+    return 'overview';
+  };
+
+  const activeTab = getActiveTab();
+
+  // Load theme from localStorage
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
+    if (savedTheme) {
+      setTheme(savedTheme);
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      setTheme('dark');
+    }
+  }, []);
+
+  // Save theme to localStorage
+  useEffect(() => {
+    localStorage.setItem('theme', theme);
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
+
+  // Theme-aware class helpers
+  const getThemeClasses = () => {
+    if (theme === 'dark') {
+      return {
+        bg: 'bg-[#0a1628]',
+        bgCard: 'bg-[#1a2744]',
+        bgCardHover: 'hover:bg-[#243555]',
+        bgInput: 'bg-[#0d1f3c]',
+        bgTable: 'bg-[#1a2744]',
+        bgTableHover: 'hover:bg-[#243555]',
+        border: 'border-white/10',
+        text: 'text-white',
+        textSecondary: 'text-blue-200/70',
+        textMuted: 'text-blue-300/50',
+        shadow: 'shadow-xl shadow-black/20',
+        gradient: 'bg-gradient-to-br from-[#0a1628] via-[#1a2744] to-[#0d1f3c]',
+        cardGradient: 'bg-gradient-to-br from-[#1a2744] to-[#0d1f3c]',
+        statBg: 'bg-[#0d1f3c]',
+        input: 'bg-[#0d1f3c] border-white/10 text-white placeholder:text-blue-300/40',
+        tableHeader: 'bg-[#0d1f3c] text-blue-300/60',
+        badge: 'bg-indigo-500/20 text-indigo-400',
+        scrollbar: 'scrollbar-thumb-white/10 scrollbar-track-transparent',
+        statusActive: 'bg-green-500/20 text-green-400',
+        statusWorking: 'bg-blue-500/20 text-blue-400',
+        statusLeave: 'bg-yellow-500/20 text-yellow-400',
+        statusPending: 'bg-yellow-500/20 text-yellow-400',
+        statusProgress: 'bg-blue-500/20 text-blue-400',
+        statusCompleted: 'bg-green-500/20 text-green-400',
+        statusBlocked: 'bg-red-500/20 text-red-400',
+        statusApproved: 'bg-green-500/20 text-green-400',
+        statusRejected: 'bg-red-500/20 text-red-400',
+        priorityCritical: 'text-red-400 bg-red-500/20',
+        priorityHigh: 'text-orange-400 bg-orange-500/20',
+        priorityMedium: 'text-blue-400 bg-blue-500/20',
+        priorityLow: 'text-gray-400 bg-gray-500/20',
+      };
+    }
+    return {
+      bg: 'bg-gradient-to-br from-blue-50 via-white to-indigo-50/30',
+      bgCard: 'bg-white/80 backdrop-blur-sm',
+      bgCardHover: 'hover:bg-gray-50/80',
+      bgInput: 'bg-gray-50',
+      bgTable: 'bg-white',
+      bgTableHover: 'hover:bg-gray-50',
+      border: 'border-gray-200/50',
+      text: 'text-gray-800',
+      textSecondary: 'text-gray-500',
+      textMuted: 'text-gray-400',
+      shadow: 'shadow-lg shadow-indigo-500/5',
+      gradient: 'bg-gradient-to-br from-blue-50 via-white to-indigo-50/50',
+      cardGradient: 'bg-gradient-to-br from-white to-indigo-50/30',
+      statBg: 'bg-white',
+      input: 'bg-gray-50 border-gray-200 text-gray-800 placeholder:text-gray-400',
+      tableHeader: 'bg-gray-50 text-gray-500',
+      badge: 'bg-indigo-100 text-indigo-700',
+      scrollbar: 'scrollbar-thumb-gray-200 scrollbar-track-transparent',
+      statusActive: 'bg-green-100 text-green-700',
+      statusWorking: 'bg-blue-100 text-blue-700',
+      statusLeave: 'bg-yellow-100 text-yellow-700',
+      statusPending: 'bg-yellow-100 text-yellow-700',
+      statusProgress: 'bg-blue-100 text-blue-700',
+      statusCompleted: 'bg-green-100 text-green-700',
+      statusBlocked: 'bg-red-100 text-red-700',
+      statusApproved: 'bg-green-100 text-green-700',
+      statusRejected: 'bg-red-100 text-red-700',
+      priorityCritical: 'text-red-600 bg-red-50',
+      priorityHigh: 'text-orange-600 bg-orange-50',
+      priorityMedium: 'text-blue-600 bg-blue-50',
+      priorityLow: 'text-gray-600 bg-gray-50',
+    };
+  };
+
+  const tc = getThemeClasses();
+
+  // Stats data from screenshots
+  const stats = [
+    { label: 'Team Size', value: '4', icon: UsersIcon, subtitle: '2 on leave today' },
+    { label: 'Open Tasks', value: '5', icon: ClipboardDocumentCheckIcon, subtitle: '3 blocked' },
+    { label: 'Attendance', value: '92%', icon: UserGroupIcon, subtitle: '↑ 4% vs last week' },
+    { label: 'Productivity', value: '89', icon: ChartBarIcon, subtitle: 'Team score this month' }
+  ];
+
+  // Team members data
+  const teamMembers: TeamMember[] = [
+    { id: 'SE-042', name: 'Priya Nair', role: 'Engineering Manager', status: 'Active', joined: '2021-09-01', initials: 'PN' },
+    { id: 'SE-101', name: 'Ishita Roy', role: 'Frontend Engineer', status: 'Working', joined: '2022-06-12', initials: 'IR' },
+    { id: 'SE-118', name: 'Karan Singh', role: 'Backend Engineer', status: 'Working', joined: '2022-08-22', initials: 'KS' },
+    { id: 'SE-187', name: 'Rohan Verma', role: 'Senior Software Engineer', status: 'Working', joined: '2023-05-20', initials: 'RV' },
+    { id: 'SE-203', name: 'Sneha Pillai', role: 'Software Engineer', status: 'Working', joined: '2023-09-15', initials: 'SP' },
+    { id: 'SE-215', name: 'Ananya Iyer', role: 'Frontend Engineer', status: 'Active', joined: '2024-01-10', initials: 'AI' },
+    { id: 'SE-228', name: 'Devansh Kapoor', role: 'DevOps Engineer', status: 'Working', joined: '2024-03-05', initials: 'DK' },
+    { id: 'SE-241', name: 'Vikram Shah', role: 'Senior Backend Engineer', status: 'Active', joined: '2024-05-20', initials: 'VS' }
+  ];
+
+  // Tasks data
+  const tasks: Task[] = [
+    { id: 'SE-T-2041', title: 'Migrate auth flow to OAuth 2.1', assignee: 'Ishita Roy', priority: 'Medium', status: 'Pending', dueDate: '2026-06-15', project: 'Atlas Core' },
+    { id: 'SE-T-2042', title: 'Design tokens audit', assignee: 'Ananya Iyer', priority: 'Medium', status: 'Pending', dueDate: '2026-06-08', project: 'Atlas Core' },
+    { id: 'SE-T-2043', title: 'Build payroll PDF service', assignee: 'Karan Singh', priority: 'Critical', status: 'In Progress', dueDate: '2026-06-05', project: 'Orion HR' },
+    { id: 'SE-T-2044', title: 'Add CI smoke tests', assignee: 'Sneha Pillai', priority: 'Medium', status: 'Completed', dueDate: '2026-05-30', project: 'Atlas Core' },
+    { id: 'SE-T-2045', title: 'Resolve K8s pod restart loop', assignee: 'Devansh Kapoor', priority: 'Critical', status: 'Blocked', dueDate: '2026-06-04', project: 'Infra' },
+    { id: 'SE-T-2046', title: 'Quarterly OKR planning', assignee: 'Vikram Shah', priority: 'High', status: 'In Progress', dueDate: '2026-06-12', project: 'Leadership' }
+  ];
+
+  // Leave requests
+  const leaveRequests: LeaveRequest[] = [
+    { id: 'LV-001', employee: 'Ishita Roy', type: 'Casual', period: '2026-06-12', reason: 'Personal errand', status: 'Pending' },
+    { id: 'LV-002', employee: 'Karan Singh', type: 'Sick', period: '2026-06-04 - 2026-06-05', reason: 'Flu recovery', status: 'Pending' }
+  ];
+
+  // Project teams
+  const projectTeams: ProjectTeam[] = [
+    { id: 'PT-ATLAS', name: 'Atlas Auth Migration', members: 4, project: 'Atlas Core', lead: 'Priya Nair', created: '2026-05-20' },
+    { id: 'PT-ORION', name: 'Orion HR Implementation', members: 3, project: 'Orion HR', lead: 'Priya Nair', created: '2026-06-01' },
+    { id: 'PT-INFRA', name: 'Infrastructure Optimization', members: 3, project: 'Infra', lead: 'Priya Nair', created: '2026-06-10' }
+  ];
+
+  // Performance data
+  const performanceData = [
+    { name: 'Priya Nair', role: 'Engineering Manager', kpi: 85, sla: 90, prs: 4, rating: 3.4, done: '6/6' },
+    { name: 'Ishita Roy', role: 'Frontend Engineer', kpi: 86, sla: 88, prs: 5, rating: 3.8, done: '6/7' },
+    { name: 'Karan Singh', role: 'Backend Engineer', kpi: 87, sla: 88, prs: 6, rating: 4.2, done: '6/8' },
+    { name: 'Rohan Verma', role: 'Senior Software Engineer', kpi: 88, sla: 87, prs: 4, rating: 4.6, done: '6/6' }
+  ];
+
+  const getStatusColor = (status: string) => {
+    const colors = {
+      'Active': tc.statusActive,
+      'Working': tc.statusWorking,
+      'On Leave': tc.statusLeave,
+      'Pending': tc.statusPending,
+      'In Progress': tc.statusProgress,
+      'Completed': tc.statusCompleted,
+      'Blocked': tc.statusBlocked,
+      'Approved': tc.statusApproved,
+      'Rejected': tc.statusRejected
+    };
+    return colors[status as keyof typeof colors] || 'bg-gray-500/20 text-gray-400';
+  };
+
+  const getPriorityColor = (priority: string) => {
+    const colors = {
+      'Critical': tc.priorityCritical,
+      'High': tc.priorityHigh,
+      'Medium': tc.priorityMedium,
+      'Low': tc.priorityLow
+    };
+    return colors[priority as keyof typeof colors] || tc.priorityLow;
+  };
+
+  const getSenderRoleColor = (role: string) => {
+    const colors = {
+      'Employee': 'bg-blue-500/20 text-blue-400',
+      'Manager': 'bg-purple-500/20 text-purple-400',
+      'HR': 'bg-pink-500/20 text-pink-400',
+      'Super Admin': 'bg-indigo-500/20 text-indigo-400'
+    };
+    return colors[role as keyof typeof colors] || 'bg-gray-500/20 text-gray-400';
+  };
+
+  const getCategoryColor = (category: string) => {
+    const colors = {
+      'General': 'bg-gray-500/20 text-gray-400',
+      'HR': 'bg-pink-500/20 text-pink-400',
+      'Payroll': 'bg-green-500/20 text-green-400',
+      'IT': 'bg-blue-500/20 text-blue-400',
+      'Leave': 'bg-yellow-500/20 text-yellow-400',
+      'Other': 'bg-purple-500/20 text-purple-400'
+    };
+    return colors[category as keyof typeof colors] || 'bg-gray-500/20 text-gray-400';
+  };
+
+  const handleSendMessage = () => {
+    if (!newMessage.receiver || !newMessage.subject || !newMessage.content) {
+      alert('Please fill in all fields');
+      return;
+    }
+
+    const message: Message = {
+      id: `MSG-${String(messages.length + 1).padStart(3, '0')}`,
+      sender: 'Priya Nair',
+      senderRole: 'Manager',
+      receiver: newMessage.receiver,
+      receiverRole: 'Super Admin',
+      subject: newMessage.subject,
+      content: newMessage.content,
+      timestamp: new Date().toLocaleString(),
+      read: false,
+      category: newMessage.category
+    };
+
+    setMessages([message, ...messages]);
+    setNewMessage({ receiver: '', subject: '', content: '', category: 'General' });
+    setShowCompose(false);
+  };
+
+  const markAsRead = (id: string) => {
+    setMessages(prev =>
+      prev.map(msg =>
+        msg.id === id ? { ...msg, read: true } : msg
+      )
+    );
+  };
+
+  const filteredMessages = messages.filter(msg => {
+    const readFilter = selectedFilter === 'all' ? true : selectedFilter === 'unread' ? !msg.read : msg.read;
+    const categoryFilter = selectedCategory === 'all' || msg.category === selectedCategory;
+    return readFilter && categoryFilter;
+  });
+
+  // Render Overview Tab
+  const renderOverview = () => (
+    <>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        {stats.map((stat, index) => (
+          <div key={index} className={`${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow} hover:${tc.bgCardHover} transition-all duration-300 group cursor-pointer`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className={`text-sm ${tc.textSecondary}`}>{stat.label}</p>
+                <p className={`text-2xl font-bold ${tc.text}`}>{stat.value}</p>
+                <p className={`text-xs ${tc.textMuted}`}>{stat.subtitle}</p>
+              </div>
+              <div className={`p-3 rounded-xl bg-indigo-500/10 group-hover:scale-110 transition-transform duration-300`}>
+                <stat.icon className={`w-6 h-6 text-indigo-400`} />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        {/* Attendance Trend */}
+        <div className={`lg:col-span-2 ${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
+          <h3 className={`font-semibold ${tc.text} mb-4`}>Attendance Trend</h3>
+          <p className={`text-sm ${tc.textSecondary} mb-4`}>Last 7 days - % present</p>
+          <div className="h-48 flex items-end justify-between gap-2">
+            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => {
+              const heights = [85, 78, 92, 88, 95, 70, 75];
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center">
+                  <div 
+                    className="w-full bg-gradient-to-t from-indigo-500 to-indigo-400 rounded-t transition-all duration-500 hover:opacity-80" 
+                    style={{ height: `${heights[i]}%`, minHeight: '20px' }}
+                  />
+                  <span className={`text-xs ${tc.textMuted} mt-2`}>{day}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Activity Feed */}
+        <div className={`${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
+          <h3 className={`font-semibold ${tc.text} mb-4`}>Activity</h3>
+          <p className={`text-sm ${tc.textSecondary} mb-2`}>Updates from your team</p>
+          <div className="space-y-4">
+            <div className={`flex items-start gap-3 p-2 ${tc.bgTableHover} rounded-xl transition-colors`}>
+              <div className="w-8 h-8 bg-indigo-500/20 rounded-full flex items-center justify-center text-indigo-400 text-xs font-bold">RV</div>
+              <div className="flex-1">
+                <p className={`text-sm font-medium ${tc.text}`}>Rohan Verma submitted daily update</p>
+                <p className={`text-xs ${tc.textMuted}`}>12m ago</p>
+              </div>
+            </div>
+            <div className={`flex items-start gap-3 p-2 ${tc.bgTableHover} rounded-xl transition-colors`}>
+              <div className="w-8 h-8 bg-green-500/20 rounded-full flex items-center justify-center text-green-400 text-xs font-bold">KS</div>
+              <div className="flex-1">
+                <p className={`text-sm font-medium ${tc.text}`}>Karan Singh completed ORI-441</p>
+                <p className={`text-xs ${tc.textMuted}`}>1h ago</p>
+              </div>
+            </div>
+            <div className={`flex items-start gap-3 p-2 ${tc.bgTableHover} rounded-xl transition-colors`}>
+              <div className="w-8 h-8 bg-red-500/20 rounded-full flex items-center justify-center text-red-400 text-xs font-bold">SP</div>
+              <div className="flex-1">
+                <p className={`text-sm font-medium ${tc.text}`}>Sneha Pillai flagged blocker on infra</p>
+                <p className={`text-xs ${tc.textMuted}`}>2h ago</p>
+              </div>
+            </div>
+            <div className={`flex items-start gap-3 p-2 ${tc.bgTableHover} rounded-xl transition-colors`}>
+              <div className="w-8 h-8 bg-yellow-500/20 rounded-full flex items-center justify-center text-yellow-400 text-xs font-bold">IR</div>
+              <div className="flex-1">
+                <p className={`text-sm font-medium ${tc.text}`}>Ishita Roy requested leave 12 Jun</p>
+                <p className={`text-xs ${tc.textMuted}`}>5h ago</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* My Team Section */}
+      <div className={`${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className={`font-semibold ${tc.text}`}>My Team</h3>
+            <p className={`text-sm ${tc.textSecondary}`}>Members of the Platform squad</p>
+          </div>
+          <button className="text-sm text-indigo-400 hover:text-indigo-300 font-medium transition-colors">View All →</button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className={`text-left text-xs ${tc.tableHeader} ${tc.border} border-b`}>
+                <th className="pb-3 font-medium">Member</th>
+                <th className="pb-3 font-medium">ID</th>
+                <th className="pb-3 font-medium">Role</th>
+                <th className="pb-3 font-medium">Status</th>
+                <th className="pb-3 font-medium">Joined</th>
+              </tr>
+            </thead>
+            <tbody>
+              {teamMembers.slice(0, 4).map((member) => (
+                <tr key={member.id} className={`${tc.border} border-b last:border-0 ${tc.bgTableHover} transition-colors`}>
+                  <td className="py-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg shadow-indigo-500/25`}>
+                        {member.initials}
+                      </div>
+                      <span className={`font-medium ${tc.text}`}>{member.name}</span>
+                    </div>
+                  </td>
+                  <td className={`py-3 text-sm ${tc.textSecondary}`}>{member.id}</td>
+                  <td className={`py-3 text-sm ${tc.text}`}>{member.role}</td>
+                  <td className="py-3">
+                    <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(member.status)}`}>
+                      {member.status}
+                    </span>
+                  </td>
+                  <td className={`py-3 text-sm ${tc.textSecondary}`}>{member.joined}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  );
+
+  // Render My Team Tab (Full Team View)
+  const renderMyTeam = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className={`text-xl font-bold ${tc.text}`}>My Team</h2>
+          <p className={`text-sm ${tc.textSecondary}`}>Members of the Platform squad</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <MagnifyingGlassIcon className={`w-4 h-4 ${tc.textMuted} absolute left-3 top-1/2 transform -translate-y-1/2`} />
+            <input
+              type="text"
+              placeholder="Search members..."
+              className={`pl-9 pr-4 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <button className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2">
+            <PlusIcon className="w-4 h-4" />
+            Add Member
+          </button>
+        </div>
+      </div>
+
+      <div className={`${tc.bgCard} rounded-2xl ${tc.border} ${tc.shadow} overflow-hidden`}>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className={`text-left text-xs ${tc.tableHeader} ${tc.border} border-b`}>
+                <th className="px-6 py-3 font-medium">Member</th>
+                <th className="px-6 py-3 font-medium">ID</th>
+                <th className="px-6 py-3 font-medium">Role</th>
+                <th className="px-6 py-3 font-medium">Status</th>
+                <th className="px-6 py-3 font-medium">Joined</th>
+                <th className="px-6 py-3 font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {teamMembers.map((member) => (
+                <tr key={member.id} className={`${tc.border} border-b last:border-0 ${tc.bgTableHover} transition-colors`}>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-lg ${
+                        member.status === 'On Leave' ? 'bg-yellow-500' : 'bg-gradient-to-br from-indigo-400 to-purple-500'
+                      }`}>
+                        {member.initials}
+                      </div>
+                      <div>
+                        <p className={`font-medium ${tc.text}`}>{member.name}</p>
+                        <p className={`text-xs ${tc.textSecondary}`}>{member.id}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className={`px-6 py-4 text-sm ${tc.textSecondary}`}>{member.id}</td>
+                  <td className={`px-6 py-4 text-sm ${tc.text}`}>{member.role}</td>
+                  <td className="px-6 py-4">
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(member.status)}`}>
+                      {member.status}
+                    </span>
+                  </td>
+                  <td className={`px-6 py-4 text-sm ${tc.textSecondary}`}>{member.joined}</td>
+                  <td className="px-6 py-4">
+                    <button className="text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors">View</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Render Project Teams Tab
+  const renderProjectTeams = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className={`text-xl font-bold ${tc.text}`}>Project Teams</h2>
+          <p className={`text-sm ${tc.textSecondary}`}>Assemble employees from the directory into project squads you lead</p>
+        </div>
+        <button className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2">
+          <PlusIcon className="w-4 h-4" />
+          Create Team
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {projectTeams.map((team) => (
+          <div key={team.id} className={`${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow} hover:${tc.bgCardHover} transition-all duration-300 group cursor-pointer`}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white text-lg font-bold shadow-lg shadow-indigo-500/25 group-hover:scale-110 transition-transform">
+                {team.name.charAt(0)}
+              </div>
+              <span className={`text-xs ${tc.textMuted}`}>{team.created}</span>
+            </div>
+            <h3 className={`font-semibold ${tc.text}`}>{team.name}</h3>
+            <p className={`text-sm ${tc.textSecondary}`}>{team.members} members</p>
+            <p className={`text-xs ${tc.textMuted} mt-1`}>Project - {team.project}</p>
+            <div className={`mt-3 pt-3 ${tc.border} border-t flex items-center justify-between`}>
+              <p className={`text-xs ${tc.textSecondary}`}>Lead - {team.lead}</p>
+              <button className="text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors">Manage →</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  // Render Assign Tasks Tab
+  const renderAssignTasks = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className={`text-xl font-bold ${tc.text}`}>Assign Tasks</h2>
+          <p className={`text-sm ${tc.textSecondary}`}>Create and route tasks to your team members</p>
+        </div>
+      </div>
+
+      {/* Create Task Form */}
+      <div className={`${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
+        <h3 className={`font-semibold ${tc.text} mb-4`}>Create New Task</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
+            <label className={`block text-sm ${tc.textSecondary} mb-1`}>Task title</label>
+            <input
+              type="text"
+              placeholder="Enter task title..."
+              className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
+            />
+          </div>
+          <div>
+            <label className={`block text-sm ${tc.textSecondary} mb-1`}>Assignee</label>
+            <select className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}>
+              <option>Select team member</option>
+              {teamMembers.map((member) => (
+                <option key={member.id} value={member.id}>{member.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={`block text-sm ${tc.textSecondary} mb-1`}>Priority</label>
+            <select className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}>
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+              <option value="Critical">Critical</option>
+            </select>
+          </div>
+          <div>
+            <label className={`block text-sm ${tc.textSecondary} mb-1`}>Due Date</label>
+            <input
+              type="date"
+              className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
+            />
+          </div>
+        </div>
+        <div className="mt-4 flex justify-end">
+          <button className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2">
+            <PaperAirplaneIcon className="w-4 h-4" />
+            Assign Task
+          </button>
+        </div>
+      </div>
+
+      {/* Recent Tasks */}
+      <div className={`${tc.bgCard} rounded-2xl ${tc.border} ${tc.shadow} overflow-hidden`}>
+        <div className={`px-6 py-4 ${tc.border} border-b`}>
+          <h3 className={`font-semibold ${tc.text}`}>Recent Tasks</h3>
+        </div>
+        <div className={`divide-y ${tc.border}`}>
+          {tasks.map((task) => (
+            <div key={task.id} className={`px-6 py-4 ${tc.bgTableHover} transition-colors`}>
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3">
+                    <p className={`font-medium ${tc.text}`}>{task.title}</p>
+                    <span className={`text-xs ${tc.textMuted}`}>{task.id}</span>
+                  </div>
+                  <div className="flex items-center gap-3 mt-1 flex-wrap">
+                    <span className={`text-sm ${tc.textSecondary}`}>{task.assignee}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
+                      {task.priority}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.status)}`}>
+                      {task.status}
+                    </span>
+                    <span className={`text-xs ${tc.textMuted}`}>{task.dueDate}</span>
+                  </div>
+                </div>
+                <button className="text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors">Edit</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  // Render Tasks Board Tab
+  const renderTasksBoard = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className={`text-xl font-bold ${tc.text}`}>Tasks Board</h2>
+          <p className={`text-sm ${tc.textSecondary}`}>Across your team's projects</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {['Pending', 'In Progress', 'Completed', 'Blocked'].map((status) => (
+          <div key={status} className={`${tc.bgCard} rounded-2xl p-4 ${tc.border} ${tc.shadow}`}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className={`font-semibold ${tc.text}`}>{status}</h3>
+              <span className={`text-xs ${tc.textMuted} ${tc.bgTableHover} px-2 py-1 rounded-full`}>
+                {tasks.filter(t => t.status === status).length}
+              </span>
+            </div>
+            <div className="space-y-3">
+              {tasks.filter(task => task.status === status).map((task) => (
+                <div key={task.id} className={`${tc.bgCard} p-4 rounded-xl ${tc.border} ${tc.shadow} hover:${tc.bgCardHover} transition-all duration-300`}>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className={`text-sm font-medium ${tc.text}`}>{task.title}</p>
+                      <p className={`text-xs ${tc.textMuted} mt-1`}>{task.project}</p>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
+                      {task.priority}
+                    </span>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 bg-indigo-500/20 rounded-full flex items-center justify-center text-indigo-400 text-xs font-bold">
+                        {task.assignee.split(' ').map(n => n[0]).join('')}
+                      </div>
+                      <span className={`text-xs ${tc.textSecondary}`}>{task.assignee}</span>
+                    </div>
+                    <span className={`text-xs ${tc.textMuted}`}>{task.dueDate}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  // Render Attendance Tab
+  const renderAttendance = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className={`text-xl font-bold ${tc.text}`}>Team Attendance</h2>
+          <p className={`text-sm ${tc.textSecondary}`}>Real-time presence</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {teamMembers.map((member) => (
+          <div key={member.id} className={`${tc.bgCard} p-4 rounded-2xl ${tc.border} ${tc.shadow} flex items-center gap-4 hover:${tc.bgCardHover} transition-all duration-300`}>
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg ${
+              member.status === 'On Leave' ? 'bg-yellow-500' : 'bg-gradient-to-br from-indigo-400 to-purple-500'
+            }`}>
+              {member.initials}
+            </div>
+            <div className="flex-1">
+              <p className={`font-medium ${tc.text}`}>{member.name}</p>
+              <p className={`text-xs ${tc.textSecondary}`}>{member.role}</p>
+              <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(member.status)}`}>
+                {member.status === 'On Leave' ? 'Leave' : 'Working'}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className={`${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
+        <h3 className={`font-semibold ${tc.text} mb-4`}>Attendance Trend</h3>
+        <p className={`text-sm ${tc.textSecondary} mb-4`}>Last 7 days - % present</p>
+        <div className="h-48 flex items-end justify-between gap-2">
+          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => {
+            const heights = [85, 78, 92, 88, 95, 70, 75];
+            return (
+              <div key={i} className="flex-1 flex flex-col items-center">
+                <div 
+                  className="w-full bg-gradient-to-t from-indigo-500 to-indigo-400 rounded-t transition-all duration-500 hover:opacity-80" 
+                  style={{ height: `${heights[i]}%`, minHeight: '20px' }}
+                />
+                <span className={`text-xs ${tc.textMuted} mt-2`}>{day}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+
+  // Render Leave Approvals Tab
+  const renderLeaveApprovals = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className={`text-xl font-bold ${tc.text}`}>Leave Approvals</h2>
+          <p className={`text-sm ${tc.textSecondary}`}>Approve or reject employee leave requests</p>
+        </div>
+        <span className="px-3 py-1 bg-amber-500/20 text-amber-400 rounded-full text-sm font-medium">
+          {leaveRequests.filter(l => l.status === 'Pending').length} pending
+        </span>
+      </div>
+
+      <div className={`${tc.bgCard} rounded-2xl ${tc.border} ${tc.shadow} overflow-hidden`}>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className={`text-left text-xs ${tc.tableHeader} ${tc.border} border-b`}>
+                <th className="px-6 py-3 font-medium">Request</th>
+                <th className="px-6 py-3 font-medium">Type</th>
+                <th className="px-6 py-3 font-medium">Period</th>
+                <th className="px-6 py-3 font-medium">Reason</th>
+                <th className="px-6 py-3 font-medium">Status</th>
+                <th className="px-6 py-3 font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {leaveRequests.map((request) => (
+                <tr key={request.id} className={`${tc.border} border-b last:border-0 ${tc.bgTableHover} transition-colors`}>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-indigo-500/20 rounded-full flex items-center justify-center text-indigo-400 text-xs font-bold">
+                        {request.employee.split(' ').map(n => n[0]).join('')}
+                      </div>
+                      <span className={`font-medium ${tc.text}`}>{request.employee}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-sm">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      request.type === 'Sick' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'
+                    }`}>
+                      {request.type}
+                    </span>
+                  </td>
+                  <td className={`px-6 py-4 text-sm ${tc.textSecondary}`}>{request.period}</td>
+                  <td className={`px-6 py-4 text-sm ${tc.textSecondary}`}>{request.reason}</td>
+                  <td className="px-6 py-4">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(request.status)}`}>
+                      {request.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <button className="px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-xl text-xs font-medium hover:bg-emerald-500/30 transition-colors flex items-center gap-1">
+                        <CheckCircleIcon className="w-3 h-3" />
+                        Approve
+                      </button>
+                      <button className="px-3 py-1 bg-rose-500/20 text-rose-400 rounded-xl text-xs font-medium hover:bg-rose-500/30 transition-colors flex items-center gap-1">
+                        <XCircleIcon className="w-3 h-3" />
+                        Reject
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Render Performance Tab
+  const renderPerformance = () => (
+    <div className="space-y-6">
+      <div>
+        <h2 className={`text-xl font-bold ${tc.text}`}>Performance Tracking</h2>
+        <p className={`text-sm ${tc.textSecondary}`}>Goal completion, KPIs and ratings for your team</p>
+      </div>
+
+      <div className="space-y-4">
+        {performanceData.map((member) => (
+          <div key={member.name} className={`${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow} hover:${tc.bgCardHover} transition-all duration-300`}>
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-indigo-500/25">
+                  {member.name.split(' ').map(n => n[0]).join('')}
+                </div>
+                <div>
+                  <p className={`font-semibold ${tc.text}`}>{member.name}</p>
+                  <p className={`text-sm ${tc.textSecondary}`}>{member.role}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-6 flex-wrap">
+                <div className="text-center">
+                  <p className={`text-sm ${tc.textSecondary}`}>KPI</p>
+                  <p className={`font-semibold ${tc.text}`}>{member.kpi}</p>
+                </div>
+                <div className="text-center">
+                  <p className={`text-sm ${tc.textSecondary}`}>SLA</p>
+                  <p className={`font-semibold ${tc.text}`}>{member.sla}%</p>
+                </div>
+                <div className="text-center">
+                  <p className={`text-sm ${tc.textSecondary}`}>PRs/wk</p>
+                  <p className={`font-semibold ${tc.text}`}>{member.prs}</p>
+                </div>
+                <div className="text-center">
+                  <p className={`text-sm ${tc.textSecondary}`}>Rating</p>
+                  <p className="font-semibold text-indigo-400">{member.rating}★</p>
+                </div>
+                <div className="text-center">
+                  <p className={`text-sm ${tc.textSecondary}`}>Goals</p>
+                  <p className="font-semibold text-emerald-400">{member.done}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Productivity Trend */}
+      <div className={`${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
+        <h3 className={`font-semibold ${tc.text} mb-4`}>Productivity Trend</h3>
+        <p className={`text-sm ${tc.textSecondary} mb-6`}>Team score over 6 months</p>
+        <div className="h-64">
+          <div className="flex items-end justify-between gap-4 h-full">
+            {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'].map((month, i) => {
+              const heights = [65, 72, 80, 78, 85, 89];
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center">
+                  <div className="w-full flex flex-col items-center gap-1">
+                    <div 
+                      className="w-full bg-gradient-to-t from-indigo-500 to-indigo-300 rounded-t transition-all duration-500 hover:from-indigo-600" 
+                      style={{ height: `${heights[i]}px`, minHeight: '20px' }}
+                    />
+                    <span className={`text-xs ${tc.textMuted}`}>{month}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div className={`mt-4 flex items-center justify-between text-sm ${tc.textSecondary}`}>
+          <span>↑ 4% vs last month</span>
+          <div className="flex items-center gap-4">
+            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-indigo-500 rounded"></span> KPI</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-indigo-300 rounded"></span> SLA</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-indigo-100 rounded"></span> PRs/wk</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Submit Report */}
+      <div className={`${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h3 className={`font-semibold ${tc.text}`}>Submit to Super Admin</h3>
+            <p className={`text-sm ${tc.textSecondary}`}>Weekly team report</p>
+          </div>
+          <button className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2">
+            <PaperAirplaneIcon className="w-4 h-4" />
+            Send Report
+          </button>
+        </div>
+        <p className={`text-xs ${tc.textMuted} mt-2`}>Last sent - 5 days ago to Aarav Mehta</p>
+      </div>
+    </div>
+  );
+
+  // Render Reports Tab
+  const renderReports = () => (
+    <div className="space-y-6">
+      <div>
+        <h2 className={`text-xl font-bold ${tc.text}`}>Reports</h2>
+        <p className={`text-sm ${tc.textSecondary}`}>Team analytics and insights</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className={`${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow} hover:${tc.bgCardHover} transition-all duration-300 group cursor-pointer`}>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+              <ChartBarIcon className="w-5 h-5 text-indigo-400" />
+            </div>
+            <div>
+              <h3 className={`font-semibold ${tc.text}`}>Weekly Report</h3>
+              <p className={`text-xs ${tc.textSecondary}`}>Team performance summary</p>
+            </div>
+          </div>
+          <p className={`text-sm ${tc.textSecondary}`}>Platform team delivered 18/22 sprint points. OAuth migration on-track. Need DevOps support for K8s pod restart loop.</p>
+          <button className="mt-4 text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors">View Report →</button>
+        </div>
+
+        <div className={`${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow} hover:${tc.bgCardHover} transition-all duration-300 group cursor-pointer`}>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+              <UsersIcon className="w-5 h-5 text-emerald-400" />
+            </div>
+            <div>
+              <h3 className={`font-semibold ${tc.text}`}>Attendance Report</h3>
+              <p className={`text-xs ${tc.textSecondary}`}>Monthly attendance summary</p>
+            </div>
+          </div>
+          <p className={`text-sm ${tc.textSecondary}`}>92% attendance rate this month. 4% increase from last week.</p>
+          <button className="mt-4 text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors">View Report →</button>
+        </div>
+
+        <div className={`${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow} hover:${tc.bgCardHover} transition-all duration-300 group cursor-pointer`}>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-purple-500/10 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+              <ClipboardDocumentCheckIcon className="w-5 h-5 text-purple-400" />
+            </div>
+            <div>
+              <h3 className={`font-semibold ${tc.text}`}>Task Report</h3>
+              <p className={`text-xs ${tc.textSecondary}`}>Task completion overview</p>
+            </div>
+          </div>
+          <p className={`text-sm ${tc.textSecondary}`}>5 open tasks, 3 blocked. Critical tasks in progress.</p>
+          <button className="mt-4 text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors">View Report →</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Render Queries Tab
+  const renderQueries = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className={`text-xl font-bold ${tc.text}`}>Queries & Messages</h2>
+          <p className={`text-sm ${tc.textSecondary}`}>View and respond to messages from employees, managers, and HR</p>
+        </div>
+        <button 
+          onClick={() => setShowCompose(true)}
+          className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2"
+        >
+          <PaperAirplaneIcon className="w-4 h-4" />
+          Compose Message
+        </button>
+      </div>
+
+      {/* Compose Message Modal */}
+      {showCompose && (
+        <div className={`${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className={`font-semibold ${tc.text}`}>Compose New Message</h3>
+            <button 
+              onClick={() => setShowCompose(false)}
+              className={`${tc.textMuted} hover:${tc.text}`}
+            >
+              <XCircleIcon className="w-6 h-6" />
+            </button>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <label className={`block text-sm ${tc.textSecondary} mb-1`}>Recipient</label>
+              <select 
+                className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
+                value={newMessage.receiver}
+                onChange={(e) => setNewMessage({ ...newMessage, receiver: e.target.value })}
+              >
+                <option value="">Select recipient</option>
+                <option value="Aarav Mehta">Aarav Mehta (Super Admin)</option>
+                <option value="Sanya Kapoor">Sanya Kapoor (HR)</option>
+              </select>
+            </div>
+            <div>
+              <label className={`block text-sm ${tc.textSecondary} mb-1`}>Category</label>
+              <select 
+                className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
+                value={newMessage.category}
+                onChange={(e) => setNewMessage({ ...newMessage, category: e.target.value as Message['category'] })}
+              >
+                <option value="General">General</option>
+                <option value="HR">HR</option>
+                <option value="Payroll">Payroll</option>
+                <option value="IT">IT</option>
+                <option value="Leave">Leave</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div>
+              <label className={`block text-sm ${tc.textSecondary} mb-1`}>Subject</label>
+              <input
+                type="text"
+                placeholder="Enter subject..."
+                className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
+                value={newMessage.subject}
+                onChange={(e) => setNewMessage({ ...newMessage, subject: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className={`block text-sm ${tc.textSecondary} mb-1`}>Message</label>
+              <textarea
+                rows={4}
+                placeholder="Type your message here..."
+                className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all resize-none`}
+                value={newMessage.content}
+                onChange={(e) => setNewMessage({ ...newMessage, content: e.target.value })}
+              />
+            </div>
+            <div className="flex items-center justify-end gap-3">
+              <button 
+                onClick={() => setShowCompose(false)}
+                className={`px-4 py-2 ${tc.border} ${tc.textSecondary} rounded-xl text-sm font-medium ${tc.bgTableHover} transition-colors`}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleSendMessage}
+                className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2"
+              >
+                <PaperAirplaneIcon className="w-4 h-4" />
+                Send Message
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className={`${tc.bgCard} p-4 rounded-2xl ${tc.border} ${tc.shadow} flex items-center justify-between flex-wrap gap-4`}>
+        <div className="flex items-center gap-4">
+          <div>
+            <label className={`text-xs ${tc.textSecondary} block mb-1`}>Status</label>
+            <select 
+              className={`px-3 py-1.5 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
+              value={selectedFilter}
+              onChange={(e) => setSelectedFilter(e.target.value as 'all' | 'unread' | 'read')}
+            >
+              <option value="all">All</option>
+              <option value="unread">Unread</option>
+              <option value="read">Read</option>
+            </select>
+          </div>
+          <div>
+            <label className={`text-xs ${tc.textSecondary} block mb-1`}>Category</label>
+            <select 
+              className={`px-3 py-1.5 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value as Message['category'] | 'all')}
+            >
+              <option value="all">All Categories</option>
+              <option value="General">General</option>
+              <option value="HR">HR</option>
+              <option value="Payroll">Payroll</option>
+              <option value="IT">IT</option>
+              <option value="Leave">Leave</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div className={`text-sm ${tc.textSecondary}`}>
+          {filteredMessages.filter(m => !m.read).length} unread • {filteredMessages.length} total
+        </div>
+      </div>
+
+      {/* Messages List */}
+      <div className="space-y-3">
+        {filteredMessages.length === 0 ? (
+          <div className={`${tc.bgCard} p-12 rounded-2xl ${tc.border} ${tc.shadow} text-center`}>
+            <InboxIcon className={`w-12 h-12 ${tc.textMuted} mx-auto mb-3`} />
+            <p className={tc.textSecondary}>No messages found</p>
+          </div>
+        ) : (
+          filteredMessages.map((msg) => (
+            <div 
+              key={msg.id} 
+              className={`${tc.bgCard} p-5 rounded-2xl ${tc.border} ${tc.shadow} ${!msg.read ? 'border-indigo-500/30 bg-indigo-500/5' : ''} hover:${tc.bgCardHover} transition-all cursor-pointer`}
+              onClick={() => markAsRead(msg.id)}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2 flex-wrap">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getSenderRoleColor(msg.senderRole)}`}>
+                      {msg.senderRole}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(msg.category)}`}>
+                      {msg.category}
+                    </span>
+                    {!msg.read && (
+                      <span className="px-2 py-0.5 bg-indigo-500/20 text-indigo-400 rounded-full text-xs font-medium animate-pulse">
+                        New
+                      </span>
+                    )}
+                  </div>
+                  <h3 className={`font-semibold ${tc.text}`}>{msg.subject}</h3>
+                  <p className={`text-sm ${tc.textSecondary} mt-1`}>{msg.content}</p>
+                  <div className={`mt-3 flex items-center gap-4 text-xs ${tc.textMuted}`}>
+                    <span><strong className={tc.textSecondary}>From:</strong> {msg.sender}</span>
+                    <span><strong className={tc.textSecondary}>To:</strong> {msg.receiver} ({msg.receiverRole})</span>
+                    <span>{msg.timestamp}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 ml-4">
+                  <button 
+                    className={`p-1.5 text-indigo-400 ${tc.bgTableHover} rounded-xl transition-colors`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setNewMessage({ 
+                        receiver: msg.sender, 
+                        subject: `Re: ${msg.subject}`,
+                        content: '',
+                        category: msg.category
+                      });
+                      setShowCompose(true);
+                    }}
+                  >
+                    <PaperAirplaneIcon className="w-4 h-4" />
+                  </button>
+                  <button 
+                    className={`p-1.5 ${tc.textMuted} ${tc.bgTableHover} rounded-xl transition-colors hover:text-rose-400`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm('Delete this message?')) {
+                        setMessages(messages.filter(m => m.id !== msg.id));
+                      }
+                    }}
+                  >
+                    <TrashIcon className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+
+  // Main render with sidebar navigation
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'overview':
+        return renderOverview();
+      case 'my-team':
+        return renderMyTeam();
+      case 'project-teams':
+        return renderProjectTeams();
+      case 'assign-tasks':
+        return renderAssignTasks();
+      case 'tasks-board':
+        return renderTasksBoard();
+      case 'attendance':
+        return renderAttendance();
+      case 'leave-approvals':
+        return renderLeaveApprovals();
+      case 'performance':
+        return renderPerformance();
+      case 'reports':
+        return renderReports();
+      case 'queries':
+        return renderQueries();
+      default:
+        return renderOverview();
+    }
+  };
+
+  return (
+    <div className={`flex h-screen ${tc.bg} transition-colors duration-300`}>
+      <Sidebar role="manager" />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header 
+          title="Platform Team Overview"
+          subtitle="Led by Priya Nair - 14 engineers - 6 active projects"
+          theme={theme}
+          onThemeToggle={toggleTheme}
+        />
+        <div className={`flex-1 overflow-y-auto p-8 ${tc.scrollbar} scrollbar-thin`}>
+          {renderContent()}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ManagerDashboard;
