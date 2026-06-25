@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from '../Layout/Sidebar';
 import Header from '../Layout/Header';
 import { 
-  ClockIcon, 
+  ClockIcon,
   CheckCircleIcon, 
   CalendarDaysIcon,
   UserGroupIcon,

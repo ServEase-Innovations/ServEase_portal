@@ -499,7 +499,12 @@ const ManagerDashboard = () => {
             <h3 className={`font-semibold ${tc.text}`}>My Team</h3>
             <p className={`text-sm ${tc.textSecondary}`}>Members of the Platform squad</p>
           </div>
-          <button className="text-sm text-indigo-400 hover:text-indigo-300 font-medium transition-colors">View All →</button>
+          <button 
+            className="text-sm text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
+            aria-label="View all team members"
+          >
+            View All →
+          </button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -557,9 +562,13 @@ const ManagerDashboard = () => {
               className={`pl-9 pr-4 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Search team members"
             />
           </div>
-          <button className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2">
+          <button 
+            className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2"
+            aria-label="Add new team member"
+          >
             <PlusIcon className="w-4 h-4" />
             Add Member
           </button>
@@ -604,7 +613,12 @@ const ManagerDashboard = () => {
                   </td>
                   <td className={`px-6 py-4 text-sm ${tc.textSecondary}`}>{member.joined}</td>
                   <td className="px-6 py-4">
-                    <button className="text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors">View</button>
+                    <button 
+                      className="text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors"
+                      aria-label={`View ${member.name}'s profile`}
+                    >
+                      View
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -623,7 +637,10 @@ const ManagerDashboard = () => {
           <h2 className={`text-xl font-bold ${tc.text}`}>Project Teams</h2>
           <p className={`text-sm ${tc.textSecondary}`}>Assemble employees from the directory into project squads you lead</p>
         </div>
-        <button className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2">
+        <button 
+          className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2"
+          aria-label="Create new project team"
+        >
           <PlusIcon className="w-4 h-4" />
           Create Team
         </button>
@@ -643,7 +660,12 @@ const ManagerDashboard = () => {
             <p className={`text-xs ${tc.textMuted} mt-1`}>Project - {team.project}</p>
             <div className={`mt-3 pt-3 ${tc.border} border-t flex items-center justify-between`}>
               <p className={`text-xs ${tc.textSecondary}`}>Lead - {team.lead}</p>
-              <button className="text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors">Manage →</button>
+              <button 
+                className="text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors"
+                aria-label={`Manage ${team.name} team`}
+              >
+                Manage →
+              </button>
             </div>
           </div>
         ))}
@@ -671,12 +693,16 @@ const ManagerDashboard = () => {
               type="text"
               placeholder="Enter task title..."
               className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
+              aria-label="Task title"
             />
           </div>
           <div>
             <label className={`block text-sm ${tc.textSecondary} mb-1`}>Assignee</label>
-            <select className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}>
-              <option>Select team member</option>
+            <select 
+              className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
+              aria-label="Select assignee for task"
+            >
+              <option value="">Select team member</option>
               {teamMembers.map((member) => (
                 <option key={member.id} value={member.id}>{member.name}</option>
               ))}
@@ -684,7 +710,10 @@ const ManagerDashboard = () => {
           </div>
           <div>
             <label className={`block text-sm ${tc.textSecondary} mb-1`}>Priority</label>
-            <select className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}>
+            <select 
+              className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
+              aria-label="Select task priority"
+            >
               <option value="Low">Low</option>
               <option value="Medium">Medium</option>
               <option value="High">High</option>
@@ -696,11 +725,15 @@ const ManagerDashboard = () => {
             <input
               type="date"
               className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
+              aria-label="Task due date"
             />
           </div>
         </div>
         <div className="mt-4 flex justify-end">
-          <button className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2">
+          <button 
+            className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2"
+            aria-label="Assign task to team member"
+          >
             <PaperAirplaneIcon className="w-4 h-4" />
             Assign Task
           </button>
@@ -732,7 +765,12 @@ const ManagerDashboard = () => {
                     <span className={`text-xs ${tc.textMuted}`}>{task.dueDate}</span>
                   </div>
                 </div>
-                <button className="text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors">Edit</button>
+                <button 
+                  className="text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors"
+                  aria-label={`Edit task ${task.title}`}
+                >
+                  Edit
+                </button>
               </div>
             </div>
           ))}
@@ -893,11 +931,17 @@ const ManagerDashboard = () => {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
-                      <button className="px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-xl text-xs font-medium hover:bg-emerald-500/30 transition-colors flex items-center gap-1">
+                      <button 
+                        className="px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-xl text-xs font-medium hover:bg-emerald-500/30 transition-colors flex items-center gap-1"
+                        aria-label={`Approve ${request.employee}'s leave request`}
+                      >
                         <CheckCircleIcon className="w-3 h-3" />
                         Approve
                       </button>
-                      <button className="px-3 py-1 bg-rose-500/20 text-rose-400 rounded-xl text-xs font-medium hover:bg-rose-500/30 transition-colors flex items-center gap-1">
+                      <button 
+                        className="px-3 py-1 bg-rose-500/20 text-rose-400 rounded-xl text-xs font-medium hover:bg-rose-500/30 transition-colors flex items-center gap-1"
+                        aria-label={`Reject ${request.employee}'s leave request`}
+                      >
                         <XCircleIcon className="w-3 h-3" />
                         Reject
                       </button>
@@ -999,7 +1043,10 @@ const ManagerDashboard = () => {
             <h3 className={`font-semibold ${tc.text}`}>Submit to Super Admin</h3>
             <p className={`text-sm ${tc.textSecondary}`}>Weekly team report</p>
           </div>
-          <button className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2">
+          <button 
+            className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2"
+            aria-label="Submit weekly team report to Super Admin"
+          >
             <PaperAirplaneIcon className="w-4 h-4" />
             Send Report
           </button>
@@ -1029,7 +1076,12 @@ const ManagerDashboard = () => {
             </div>
           </div>
           <p className={`text-sm ${tc.textSecondary}`}>Platform team delivered 18/22 sprint points. OAuth migration on-track. Need DevOps support for K8s pod restart loop.</p>
-          <button className="mt-4 text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors">View Report →</button>
+          <button 
+            className="mt-4 text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors"
+            aria-label="View weekly report"
+          >
+            View Report →
+          </button>
         </div>
 
         <div className={`${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow} hover:${tc.bgCardHover} transition-all duration-300 group cursor-pointer`}>
@@ -1043,7 +1095,12 @@ const ManagerDashboard = () => {
             </div>
           </div>
           <p className={`text-sm ${tc.textSecondary}`}>92% attendance rate this month. 4% increase from last week.</p>
-          <button className="mt-4 text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors">View Report →</button>
+          <button 
+            className="mt-4 text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors"
+            aria-label="View attendance report"
+          >
+            View Report →
+          </button>
         </div>
 
         <div className={`${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow} hover:${tc.bgCardHover} transition-all duration-300 group cursor-pointer`}>
@@ -1057,7 +1114,12 @@ const ManagerDashboard = () => {
             </div>
           </div>
           <p className={`text-sm ${tc.textSecondary}`}>5 open tasks, 3 blocked. Critical tasks in progress.</p>
-          <button className="mt-4 text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors">View Report →</button>
+          <button 
+            className="mt-4 text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors"
+            aria-label="View task report"
+          >
+            View Report →
+          </button>
         </div>
       </div>
     </div>
@@ -1074,6 +1136,7 @@ const ManagerDashboard = () => {
         <button 
           onClick={() => setShowCompose(true)}
           className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2"
+          aria-label="Compose new message"
         >
           <PaperAirplaneIcon className="w-4 h-4" />
           Compose Message
@@ -1088,6 +1151,7 @@ const ManagerDashboard = () => {
             <button 
               onClick={() => setShowCompose(false)}
               className={`${tc.textMuted} hover:${tc.text}`}
+              aria-label="Close compose message"
             >
               <XCircleIcon className="w-6 h-6" />
             </button>
@@ -1099,6 +1163,7 @@ const ManagerDashboard = () => {
                 className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
                 value={newMessage.receiver}
                 onChange={(e) => setNewMessage({ ...newMessage, receiver: e.target.value })}
+                aria-label="Select message recipient"
               >
                 <option value="">Select recipient</option>
                 <option value="Aarav Mehta">Aarav Mehta (Super Admin)</option>
@@ -1111,6 +1176,7 @@ const ManagerDashboard = () => {
                 className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
                 value={newMessage.category}
                 onChange={(e) => setNewMessage({ ...newMessage, category: e.target.value as Message['category'] })}
+                aria-label="Select message category"
               >
                 <option value="General">General</option>
                 <option value="HR">HR</option>
@@ -1128,6 +1194,7 @@ const ManagerDashboard = () => {
                 className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
                 value={newMessage.subject}
                 onChange={(e) => setNewMessage({ ...newMessage, subject: e.target.value })}
+                aria-label="Message subject"
               />
             </div>
             <div>
@@ -1138,18 +1205,21 @@ const ManagerDashboard = () => {
                 className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all resize-none`}
                 value={newMessage.content}
                 onChange={(e) => setNewMessage({ ...newMessage, content: e.target.value })}
+                aria-label="Message content"
               />
             </div>
             <div className="flex items-center justify-end gap-3">
               <button 
                 onClick={() => setShowCompose(false)}
                 className={`px-4 py-2 ${tc.border} ${tc.textSecondary} rounded-xl text-sm font-medium ${tc.bgTableHover} transition-colors`}
+                aria-label="Cancel composing message"
               >
                 Cancel
               </button>
               <button 
                 onClick={handleSendMessage}
                 className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2"
+                aria-label="Send message"
               >
                 <PaperAirplaneIcon className="w-4 h-4" />
                 Send Message
@@ -1168,6 +1238,7 @@ const ManagerDashboard = () => {
               className={`px-3 py-1.5 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
               value={selectedFilter}
               onChange={(e) => setSelectedFilter(e.target.value as 'all' | 'unread' | 'read')}
+              aria-label="Filter messages by read status"
             >
               <option value="all">All</option>
               <option value="unread">Unread</option>
@@ -1180,6 +1251,7 @@ const ManagerDashboard = () => {
               className={`px-3 py-1.5 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value as Message['category'] | 'all')}
+              aria-label="Filter messages by category"
             >
               <option value="all">All Categories</option>
               <option value="General">General</option>
@@ -1209,6 +1281,15 @@ const ManagerDashboard = () => {
               key={msg.id} 
               className={`${tc.bgCard} p-5 rounded-2xl ${tc.border} ${tc.shadow} ${!msg.read ? 'border-indigo-500/30 bg-indigo-500/5' : ''} hover:${tc.bgCardHover} transition-all cursor-pointer`}
               onClick={() => markAsRead(msg.id)}
+              role="button"
+              tabIndex={0}
+              aria-label={`Message: ${msg.subject} from ${msg.sender}`}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  markAsRead(msg.id);
+                }
+              }}
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -1246,6 +1327,7 @@ const ManagerDashboard = () => {
                       });
                       setShowCompose(true);
                     }}
+                    aria-label={`Reply to ${msg.sender} about ${msg.subject}`}
                   >
                     <PaperAirplaneIcon className="w-4 h-4" />
                   </button>
@@ -1257,6 +1339,7 @@ const ManagerDashboard = () => {
                         setMessages(messages.filter(m => m.id !== msg.id));
                       }
                     }}
+                    aria-label={`Delete message: ${msg.subject}`}
                   >
                     <TrashIcon className="w-4 h-4" />
                   </button>

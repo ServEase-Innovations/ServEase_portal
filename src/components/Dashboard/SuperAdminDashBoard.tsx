@@ -922,7 +922,11 @@ const SuperAdminDashboard = () => {
           <h2 className={`text-xl font-bold ${tc.text}`}>Employee Management</h2>
           <p className={`text-sm ${tc.textSecondary}`}>Create, search, suspend or activate users</p>
         </div>
-        <button className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 flex items-center gap-2">
+        <button 
+          className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 flex items-center gap-2"
+          aria-label="Add new employee"
+          title="Add new employee"
+        >
           <UserPlusIcon className="w-4 h-4" />
           Add Employee
         </button>
@@ -938,6 +942,7 @@ const SuperAdminDashboard = () => {
               className={`w-full pl-9 pr-4 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Search employees"
             />
           </div>
         </div>
@@ -979,10 +984,18 @@ const SuperAdminDashboard = () => {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
-                      <button aria-label="Edit employee" title="Edit employee" className={`p-1 ${tc.bgTableHover} rounded transition-colors`}>
+                      <button 
+                        aria-label={`Edit ${emp.name}`} 
+                        title={`Edit ${emp.name}`} 
+                        className={`p-1 ${tc.bgTableHover} rounded transition-colors`}
+                      >
                         <PencilIcon className={`w-4 h-4 ${tc.textMuted}`} />
                       </button>
-                      <button className={`p-1 ${tc.bgTableHover} rounded transition-colors ${emp.status === 'Suspended' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      <button 
+                        className={`p-1 ${tc.bgTableHover} rounded transition-colors ${emp.status === 'Suspended' ? 'text-emerald-400' : 'text-rose-400'}`}
+                        aria-label={emp.status === 'Suspended' ? `Activate ${emp.name}` : `Suspend ${emp.name}`}
+                        title={emp.status === 'Suspended' ? `Activate ${emp.name}` : `Suspend ${emp.name}`}
+                      >
                         {emp.status === 'Suspended' ? 'Activate' : 'Suspend'}
                       </button>
                     </div>
@@ -996,219 +1009,6 @@ const SuperAdminDashboard = () => {
     </div>
   );
 
-  // Render Queries Tab
-  const renderQueries = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className={`text-xl font-bold ${tc.text}`}>Queries & Messages</h2>
-          <p className={`text-sm ${tc.textSecondary}`}>View and respond to messages from employees, managers, and HR</p>
-        </div>
-        <button 
-          onClick={() => setShowCompose(true)}
-          className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 flex items-center gap-2"
-        >
-          <PaperAirplaneIcon className="w-4 h-4" />
-          Compose Message
-        </button>
-      </div>
-
-      {/* Compose Message Modal */}
-      {showCompose && (
-        <div className={`${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className={`font-semibold ${tc.text}`}>Compose New Message</h3>
-            <button 
-              onClick={() => setShowCompose(false)}
-              aria-label="Close compose modal"
-              title="Close compose modal"
-              className={`${tc.textMuted} hover:${tc.text}`}
-            >
-              <XCircleIcon className="w-6 h-6" />
-            </button>
-          </div>
-          <div className="space-y-4">
-            <div>
-              <label className={`block text-sm ${tc.textSecondary} mb-1`}>Recipient</label>
-              <select 
-                className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
-                value={newMessage.receiver}
-                onChange={(e) => setNewMessage({ ...newMessage, receiver: e.target.value })}
-              >
-                <option value="">Select recipient</option>
-                {employees.filter(e => e.id !== 'SE-001').map(emp => (
-                  <option key={emp.id} value={emp.id}>{emp.name} ({emp.designation})</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={`block text-sm ${tc.textSecondary} mb-1`}>Category</label>
-              <select 
-                className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
-                value={newMessage.category}
-                onChange={(e) => setNewMessage({ ...newMessage, category: e.target.value as Message['category'] })}
-              >
-                <option value="General">General</option>
-                <option value="HR">HR</option>
-                <option value="Payroll">Payroll</option>
-                <option value="IT">IT</option>
-                <option value="Leave">Leave</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-            <div>
-              <label className={`block text-sm ${tc.textSecondary} mb-1`}>Subject</label>
-              <input
-                type="text"
-                placeholder="Enter subject..."
-                className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
-                value={newMessage.subject}
-                onChange={(e) => setNewMessage({ ...newMessage, subject: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className={`block text-sm ${tc.textSecondary} mb-1`}>Message</label>
-              <textarea
-                rows={4}
-                placeholder="Type your message here..."
-                className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all resize-none`}
-                value={newMessage.content}
-                onChange={(e) => setNewMessage({ ...newMessage, content: e.target.value })}
-              />
-            </div>
-            <div className="flex items-center justify-end gap-3">
-              <button 
-                onClick={() => setShowCompose(false)}
-                className={`px-4 py-2 ${tc.border} ${tc.textSecondary} rounded-xl text-sm font-medium ${tc.bgTableHover} transition-colors`}
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleSendMessage}
-                className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2"
-              >
-                <PaperAirplaneIcon className="w-4 h-4" />
-                Send Message
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Filters */}
-      <div className={`${tc.bgCard} p-4 rounded-2xl ${tc.border} ${tc.shadow} flex items-center justify-between flex-wrap gap-4`}>
-        <div className="flex items-center gap-4">
-          <div>
-            <label className={`text-xs ${tc.textSecondary} block mb-1`}>Status</label>
-            <select 
-              className={`px-3 py-1.5 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
-              value={selectedFilter}
-              onChange={(e) => setSelectedFilter(e.target.value as 'all' | 'unread' | 'read')}
-            >
-              <option value="all">All</option>
-              <option value="unread">Unread</option>
-              <option value="read">Read</option>
-            </select>
-          </div>
-          <div>
-            <label className={`text-xs ${tc.textSecondary} block mb-1`}>Category</label>
-            <select 
-              className={`px-3 py-1.5 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value as Message['category'] | 'all')}
-            >
-              <option value="all">All Categories</option>
-              <option value="General">General</option>
-              <option value="HR">HR</option>
-              <option value="Payroll">Payroll</option>
-              <option value="IT">IT</option>
-              <option value="Leave">Leave</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-        </div>
-        <div className={`text-sm ${tc.textSecondary}`}>
-          {filteredMessages.filter(m => !m.read).length} unread • {filteredMessages.length} total
-        </div>
-      </div>
-
-      {/* Messages List */}
-      <div className="space-y-3">
-        {filteredMessages.length === 0 ? (
-          <div className={`${tc.bgCard} p-12 rounded-2xl ${tc.border} ${tc.shadow} text-center`}>
-            <InboxIcon className={`w-12 h-12 ${tc.textMuted} mx-auto mb-3`} />
-            <p className={tc.textSecondary}>No messages found</p>
-          </div>
-        ) : (
-          filteredMessages.map((msg) => (
-            <div 
-              key={msg.id} 
-              className={`${tc.bgCard} p-5 rounded-2xl ${tc.border} ${tc.shadow} ${!msg.read ? 'border-indigo-500/30 bg-indigo-500/5' : ''} hover:${tc.bgCardHover} transition-all cursor-pointer`}
-              onClick={() => markAsRead(msg.id)}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2 flex-wrap">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getSenderRoleColor(msg.senderRole)}`}>
-                      {msg.senderRole}
-                    </span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(msg.category)}`}>
-                      {msg.category}
-                    </span>
-                    {!msg.read && (
-                      <span className="px-2 py-0.5 bg-indigo-500/20 text-indigo-400 rounded-full text-xs font-medium animate-pulse">
-                        New
-                      </span>
-                    )}
-                  </div>
-                  <h3 className={`font-semibold ${tc.text}`}>{msg.subject}</h3>
-                  <p className={`text-sm ${tc.textSecondary} mt-1`}>{msg.content}</p>
-                  <div className={`mt-3 flex items-center gap-4 text-xs ${tc.textMuted}`}>
-                    <span><strong className={tc.textSecondary}>From:</strong> {msg.sender}</span>
-                    <span><strong className={tc.textSecondary}>To:</strong> {msg.receiver} ({msg.receiverRole})</span>
-                    <span>{msg.timestamp}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 ml-4">
-                  <button 
-                    aria-label="Reply to message"
-                    title="Reply to message"
-                    className={`p-1.5 text-indigo-400 ${tc.bgTableHover} rounded-xl transition-colors`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setNewMessage({ 
-                        receiver: employees.find(e => e.name === msg.sender)?.id || '', 
-                        subject: `Re: ${msg.subject}`,
-                        content: '',
-                        category: msg.category
-                      });
-                      setShowCompose(true);
-                    }}
-                  >
-                    <PaperAirplaneIcon className="w-4 h-4" />
-                  </button>
-                  <button 
-                    aria-label="Delete message"
-                    title="Delete message"
-                    className={`p-1.5 ${tc.textMuted} ${tc.bgTableHover} rounded-xl transition-colors hover:text-rose-400`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (confirm('Delete this message?')) {
-                        setMessages(messages.filter(m => m.id !== msg.id));
-                      }
-                    }}
-                  >
-                    <TrashIcon className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-
   // Render Departments Tab
   const renderDepartments = () => (
     <div className="space-y-6">
@@ -1217,7 +1017,11 @@ const SuperAdminDashboard = () => {
           <h2 className={`text-xl font-bold ${tc.text}`}>Departments</h2>
           <p className={`text-sm ${tc.textSecondary}`}>Create and govern company departments</p>
         </div>
-        <button className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2">
+        <button 
+          className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2"
+          aria-label="Add new department"
+          title="Add new department"
+        >
           <PlusIcon className="w-4 h-4" />
           Add Department
         </button>
@@ -1253,7 +1057,11 @@ const SuperAdminDashboard = () => {
           <h2 className={`text-xl font-bold ${tc.text}`}>Teams</h2>
           <p className={`text-sm ${tc.textSecondary}`}>Manage company teams and squads</p>
         </div>
-        <button className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2">
+        <button 
+          className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2"
+          aria-label="Create new team"
+          title="Create new team"
+        >
           <UserGroupIcon className="w-4 h-4" />
           Create Team
         </button>
@@ -1274,7 +1082,13 @@ const SuperAdminDashboard = () => {
                 <p className={`text-sm font-medium ${tc.text}`}>{team.members} Members</p>
                 <p className={`text-xs ${tc.textMuted}`}>{team.projects} Projects</p>
               </div>
-              <button className="text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors">Manage →</button>
+              <button 
+                className="text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors"
+                aria-label={`Manage ${team.name} team`}
+                title={`Manage ${team.name} team`}
+              >
+                Manage →
+              </button>
             </div>
           </div>
         ))}
@@ -1293,6 +1107,8 @@ const SuperAdminDashboard = () => {
         <button 
           className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2"
           onClick={() => setShowCreateTeam(true)}
+          aria-label="Create new project team"
+          title="Create new project team"
         >
           <PlusIcon className="w-4 h-4" />
           Create Team
@@ -1309,6 +1125,7 @@ const SuperAdminDashboard = () => {
                 type="text"
                 placeholder="e.g. Orion Web Revamp"
                 className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
+                aria-label="Team name"
               />
             </div>
             <div>
@@ -1316,6 +1133,8 @@ const SuperAdminDashboard = () => {
               <select
                 id="assign-manager"
                 className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
+                aria-label="Assign manager"
+                title="Select manager"
               >
                 <option>Select manager</option>
                 {employees.filter(e => e.role === 'Manager' || e.role === 'Super Admin').map(e => (
@@ -1331,11 +1150,12 @@ const SuperAdminDashboard = () => {
                 type="text"
                 placeholder="Search employees..."
                 className={`w-full px-3 py-1.5 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all mb-2`}
+                aria-label="Search employees to add"
               />
               <div className="space-y-1">
                 {employees.slice(3, 7).map(emp => (
                   <div key={emp.id} className={`flex items-center gap-2 p-2 ${tc.bgTableHover} rounded-xl`}>
-                    <input type="checkbox" className="rounded border-gray-300 dark:border-white/10" />
+                    <input type="checkbox" className="rounded border-gray-300 dark:border-white/10" aria-label={`Select ${emp.name}`} />
                     <span className={`text-sm ${tc.text}`}>{emp.name}</span>
                     <span className={`text-xs ${tc.textMuted}`}>• {emp.team}</span>
                   </div>
@@ -1347,10 +1167,16 @@ const SuperAdminDashboard = () => {
             <button 
               className={`px-4 py-2 ${tc.border} ${tc.textSecondary} rounded-xl text-sm font-medium ${tc.bgTableHover} transition-colors`}
               onClick={() => setShowCreateTeam(false)}
+              aria-label="Cancel creating team"
+              title="Cancel creating team"
             >
               Cancel
             </button>
-            <button className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25">
+            <button 
+              className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25"
+              aria-label="Create project team"
+              title="Create project team"
+            >
               Create Team
             </button>
           </div>
@@ -1373,7 +1199,13 @@ const SuperAdminDashboard = () => {
             </div>
             <div className={`mt-3 pt-3 ${tc.border} border-t flex items-center justify-between`}>
               <span className={`text-xs ${tc.textMuted}`}>{team.id}</span>
-              <button className="text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors">Manage →</button>
+              <button 
+                className="text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors"
+                aria-label={`Manage ${team.name}`}
+                title={`Manage ${team.name}`}
+              >
+                Manage →
+              </button>
             </div>
           </div>
         ))}
@@ -1448,6 +1280,8 @@ const SuperAdminDashboard = () => {
               className={`px-3 py-1.5 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
               value={attendanceView}
               onChange={(e) => setAttendanceView(e.target.value as 'weekly' | 'monthly')}
+              aria-label="Select attendance view"
+              title="Select attendance view"
             >
               <option value="weekly">Weekly</option>
               <option value="monthly">Monthly</option>
@@ -1460,6 +1294,8 @@ const SuperAdminDashboard = () => {
               className={`px-3 py-1.5 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
+              aria-label="Select attendance period"
+              title="Select attendance period"
             >
               <option value="June 2026">June 2026</option>
               <option value="May 2026">May 2026</option>
@@ -1471,6 +1307,8 @@ const SuperAdminDashboard = () => {
             <select
               id="attendance-team"
               className={`px-3 py-1.5 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
+              aria-label="Filter attendance by team"
+              title="Filter attendance by team"
             >
               <option value="all">All Teams</option>
               <option value="platform">Platform</option>
@@ -1482,11 +1320,19 @@ const SuperAdminDashboard = () => {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <button className={`px-3 py-1.5 text-sm ${tc.textSecondary} ${tc.border} rounded-xl ${tc.bgTableHover} transition-colors flex items-center gap-1`}>
+          <button 
+            className={`px-3 py-1.5 text-sm ${tc.textSecondary} ${tc.border} rounded-xl ${tc.bgTableHover} transition-colors flex items-center gap-1`}
+            aria-label="Export attendance data"
+            title="Export attendance data"
+          >
             <DocumentArrowDownIcon className="w-4 h-4" />
             Export
           </button>
-          <button className={`px-3 py-1.5 text-sm ${tc.textSecondary} ${tc.border} rounded-xl ${tc.bgTableHover} transition-colors flex items-center gap-1`}>
+          <button 
+            className={`px-3 py-1.5 text-sm ${tc.textSecondary} ${tc.border} rounded-xl ${tc.bgTableHover} transition-colors flex items-center gap-1`}
+            aria-label="Print attendance report"
+            title="Print attendance report"
+          >
             <PrinterIcon className="w-4 h-4" />
             Print
           </button>
@@ -1610,6 +1456,8 @@ const SuperAdminDashboard = () => {
             <button 
               onClick={() => setSelectedEmployee(null)}
               className={`text-sm ${tc.textSecondary} hover:${tc.text}`}
+              aria-label="Close weekly breakdown"
+              title="Close weekly breakdown"
             >
               Close
             </button>
@@ -1687,11 +1535,19 @@ const SuperAdminDashboard = () => {
                   <td className="px-6 py-4">
                     {request.status === 'Pending' ? (
                       <div className="flex items-center gap-2">
-                        <button className="px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-xl text-xs font-medium hover:bg-emerald-500/30 transition-colors flex items-center gap-1">
+                        <button 
+                          className="px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-xl text-xs font-medium hover:bg-emerald-500/30 transition-colors flex items-center gap-1"
+                          aria-label={`Approve ${request.employee}'s leave request`}
+                          title={`Approve ${request.employee}'s leave request`}
+                        >
                           <CheckCircleIcon className="w-3 h-3" />
                           Approve
                         </button>
-                        <button className="px-3 py-1 bg-rose-500/20 text-rose-400 rounded-xl text-xs font-medium hover:bg-rose-500/30 transition-colors flex items-center gap-1">
+                        <button 
+                          className="px-3 py-1 bg-rose-500/20 text-rose-400 rounded-xl text-xs font-medium hover:bg-rose-500/30 transition-colors flex items-center gap-1"
+                          aria-label={`Reject ${request.employee}'s leave request`}
+                          title={`Reject ${request.employee}'s leave request`}
+                        >
                           <XCircleIcon className="w-3 h-3" />
                           Reject
                         </button>
@@ -1717,7 +1573,11 @@ const SuperAdminDashboard = () => {
           <h2 className={`text-xl font-bold ${tc.text}`}>Holiday Calendar</h2>
           <p className={`text-sm ${tc.textSecondary}`}>Manage national, regional and optional holidays for FY26</p>
         </div>
-        <button className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2">
+        <button 
+          className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2"
+          aria-label="Add new holiday"
+          title="Add new holiday"
+        >
           <PlusIcon className="w-4 h-4" />
           Add Holiday
         </button>
@@ -1777,7 +1637,11 @@ const SuperAdminDashboard = () => {
           <h2 className={`text-xl font-bold ${tc.text}`}>Announcements</h2>
           <p className={`text-sm ${tc.textSecondary}`}>Broadcast company-wide updates</p>
         </div>
-        <button className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2">
+        <button 
+          className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2"
+          aria-label="Create new announcement"
+          title="Create new announcement"
+        >
           <MegaphoneIcon className="w-4 h-4" />
           New Announcement
         </button>
@@ -1792,6 +1656,7 @@ const SuperAdminDashboard = () => {
                 type="text"
                 placeholder="Enter title..."
                 className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
+                aria-label="Announcement title"
               />
             </div>
             <div>
@@ -1800,6 +1665,7 @@ const SuperAdminDashboard = () => {
                 rows={4}
                 placeholder="Share the details..."
                 className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all resize-none`}
+                aria-label="Announcement content"
               />
             </div>
             <div>
@@ -1807,11 +1673,17 @@ const SuperAdminDashboard = () => {
               <select
                 id="announcement-audience"
                 className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
+                aria-label="Select announcement audience"
+                title="Select announcement audience"
               >
                 <option>All</option>
               </select>
             </div>
-            <button className="w-full bg-gradient-to-r from-indigo-500 to-indigo-600 text-white py-2.5 rounded-xl hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2">
+            <button 
+              className="w-full bg-gradient-to-r from-indigo-500 to-indigo-600 text-white py-2.5 rounded-xl hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2"
+              aria-label="Publish announcement"
+              title="Publish announcement"
+            >
               <MegaphoneIcon className="w-4 h-4" />
               Publish
             </button>
@@ -1901,13 +1773,25 @@ const SuperAdminDashboard = () => {
               <span className={`text-2xl font-bold ${person.score >= 80 ? 'text-emerald-400' : person.score >= 70 ? 'text-amber-400' : 'text-rose-400'}`}>{person.score}</span>
             </div>
             <div className="flex gap-2">
-              <button className="flex-1 px-3 py-1.5 bg-emerald-500/20 text-emerald-400 rounded-xl text-xs font-medium hover:bg-emerald-500/30 transition-colors">
+              <button 
+                className="flex-1 px-3 py-1.5 bg-emerald-500/20 text-emerald-400 rounded-xl text-xs font-medium hover:bg-emerald-500/30 transition-colors"
+                aria-label={`Appraise ${person.name}`}
+                title={`Appraise ${person.name}`}
+              >
                 Appraise
               </button>
-              <button className="flex-1 px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-xl text-xs font-medium hover:bg-blue-500/30 transition-colors">
+              <button 
+                className="flex-1 px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-xl text-xs font-medium hover:bg-blue-500/30 transition-colors"
+                aria-label={`Promote ${person.name}`}
+                title={`Promote ${person.name}`}
+              >
                 Promote
               </button>
-              <button className="flex-1 px-3 py-1.5 bg-rose-500/20 text-rose-400 rounded-xl text-xs font-medium hover:bg-rose-500/30 transition-colors">
+              <button 
+                className="flex-1 px-3 py-1.5 bg-rose-500/20 text-rose-400 rounded-xl text-xs font-medium hover:bg-rose-500/30 transition-colors"
+                aria-label={`Issue warning to ${person.name}`}
+                title={`Issue warning to ${person.name}`}
+              >
                 Warn
               </button>
             </div>
@@ -1958,6 +1842,8 @@ const SuperAdminDashboard = () => {
                       <button 
                         onClick={() => handleAppraisalChange(record.id, -5)}
                         className={`p-1 ${tc.bgTableHover} rounded transition-colors`}
+                        aria-label={`Decrease ${record.employee}'s appraisal by 5%`}
+                        title={`Decrease ${record.employee}'s appraisal by 5%`}
                       >
                         <ArrowDownIcon className="w-4 h-4 text-rose-400" />
                       </button>
@@ -1965,6 +1851,8 @@ const SuperAdminDashboard = () => {
                       <button 
                         onClick={() => handleAppraisalChange(record.id, 5)}
                         className={`p-1 ${tc.bgTableHover} rounded transition-colors`}
+                        aria-label={`Increase ${record.employee}'s appraisal by 5%`}
+                        title={`Increase ${record.employee}'s appraisal by 5%`}
                       >
                         <ArrowUpIcon className="w-4 h-4 text-emerald-400" />
                       </button>
@@ -1974,6 +1862,8 @@ const SuperAdminDashboard = () => {
                     <button 
                       onClick={() => handleDownloadPayslip(record.id, record.employee)}
                       className="px-3 py-1.5 bg-indigo-500/20 text-indigo-400 rounded-xl text-xs font-medium hover:bg-indigo-500/30 transition-colors flex items-center gap-1"
+                      aria-label={`Download payslip for ${record.employee}`}
+                      title={`Download payslip for ${record.employee}`}
                     >
                       <DocumentArrowDownIcon className="w-3 h-3" />
                       Payslip
@@ -2007,8 +1897,20 @@ const SuperAdminDashboard = () => {
                   <ChartBarIcon className="w-5 h-5 text-indigo-400" />
                 </div>
                 <div className="flex gap-1">
-                  <button className={`p-1 ${tc.bgTableHover} rounded text-xs ${tc.textSecondary}`}>PDF</button>
-                  <button className={`p-1 ${tc.bgTableHover} rounded text-xs ${tc.textSecondary}`}>CSV</button>
+                  <button 
+                    className={`p-1 ${tc.bgTableHover} rounded text-xs ${tc.textSecondary}`}
+                    aria-label={`Download ${report} report as PDF`}
+                    title={`Download ${report} report as PDF`}
+                  >
+                    PDF
+                  </button>
+                  <button 
+                    className={`p-1 ${tc.bgTableHover} rounded text-xs ${tc.textSecondary}`}
+                    aria-label={`Download ${report} report as CSV`}
+                    title={`Download ${report} report as CSV`}
+                  >
+                    CSV
+                  </button>
                 </div>
               </div>
               <h3 className={`font-semibold ${tc.text}`}>{report}</h3>
@@ -2016,6 +1918,244 @@ const SuperAdminDashboard = () => {
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+
+  // Render Queries Tab
+  const renderQueries = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className={`text-xl font-bold ${tc.text}`}>Queries & Messages</h2>
+          <p className={`text-sm ${tc.textSecondary}`}>View and respond to messages from employees, managers, and HR</p>
+        </div>
+        <button 
+          onClick={() => setShowCompose(true)}
+          className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 flex items-center gap-2"
+          aria-label="Compose new message"
+          title="Compose new message"
+        >
+          <PaperAirplaneIcon className="w-4 h-4" />
+          Compose Message
+        </button>
+      </div>
+
+      {/* Compose Message Modal */}
+      {showCompose && (
+        <div className={`${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className={`font-semibold ${tc.text}`}>Compose New Message</h3>
+            <button 
+              onClick={() => setShowCompose(false)}
+              aria-label="Close compose modal"
+              title="Close compose modal"
+              className={`${tc.textMuted} hover:${tc.text}`}
+            >
+              <XCircleIcon className="w-6 h-6" />
+            </button>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <label className={`block text-sm ${tc.textSecondary} mb-1`}>Recipient</label>
+              <select 
+                className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
+                value={newMessage.receiver}
+                onChange={(e) => setNewMessage({ ...newMessage, receiver: e.target.value })}
+                aria-label="Select message recipient"
+                title="Select message recipient"
+              >
+                <option value="">Select recipient</option>
+                {employees.filter(e => e.id !== 'SE-001').map(emp => (
+                  <option key={emp.id} value={emp.id}>{emp.name} ({emp.designation})</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={`block text-sm ${tc.textSecondary} mb-1`}>Category</label>
+              <select 
+                className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
+                value={newMessage.category}
+                onChange={(e) => setNewMessage({ ...newMessage, category: e.target.value as Message['category'] })}
+                aria-label="Select message category"
+                title="Select message category"
+              >
+                <option value="General">General</option>
+                <option value="HR">HR</option>
+                <option value="Payroll">Payroll</option>
+                <option value="IT">IT</option>
+                <option value="Leave">Leave</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div>
+              <label className={`block text-sm ${tc.textSecondary} mb-1`}>Subject</label>
+              <input
+                type="text"
+                placeholder="Enter subject..."
+                className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
+                value={newMessage.subject}
+                onChange={(e) => setNewMessage({ ...newMessage, subject: e.target.value })}
+                aria-label="Message subject"
+              />
+            </div>
+            <div>
+              <label className={`block text-sm ${tc.textSecondary} mb-1`}>Message</label>
+              <textarea
+                rows={4}
+                placeholder="Type your message here..."
+                className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all resize-none`}
+                value={newMessage.content}
+                onChange={(e) => setNewMessage({ ...newMessage, content: e.target.value })}
+                aria-label="Message content"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-3">
+              <button 
+                onClick={() => setShowCompose(false)}
+                className={`px-4 py-2 ${tc.border} ${tc.textSecondary} rounded-xl text-sm font-medium ${tc.bgTableHover} transition-colors`}
+                aria-label="Cancel composing message"
+                title="Cancel composing message"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleSendMessage}
+                className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2"
+                aria-label="Send message"
+                title="Send message"
+              >
+                <PaperAirplaneIcon className="w-4 h-4" />
+                Send Message
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className={`${tc.bgCard} p-4 rounded-2xl ${tc.border} ${tc.shadow} flex items-center justify-between flex-wrap gap-4`}>
+        <div className="flex items-center gap-4">
+          <div>
+            <label className={`text-xs ${tc.textSecondary} block mb-1`}>Status</label>
+            <select 
+              className={`px-3 py-1.5 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
+              value={selectedFilter}
+              onChange={(e) => setSelectedFilter(e.target.value as 'all' | 'unread' | 'read')}
+              aria-label="Filter messages by read status"
+              title="Filter messages by read status"
+            >
+              <option value="all">All</option>
+              <option value="unread">Unread</option>
+              <option value="read">Read</option>
+            </select>
+          </div>
+          <div>
+            <label className={`text-xs ${tc.textSecondary} block mb-1`}>Category</label>
+            <select 
+              className={`px-3 py-1.5 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value as Message['category'] | 'all')}
+              aria-label="Filter messages by category"
+              title="Filter messages by category"
+            >
+              <option value="all">All Categories</option>
+              <option value="General">General</option>
+              <option value="HR">HR</option>
+              <option value="Payroll">Payroll</option>
+              <option value="IT">IT</option>
+              <option value="Leave">Leave</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div className={`text-sm ${tc.textSecondary}`}>
+          {filteredMessages.filter(m => !m.read).length} unread • {filteredMessages.length} total
+        </div>
+      </div>
+
+      {/* Messages List */}
+      <div className="space-y-3">
+        {filteredMessages.length === 0 ? (
+          <div className={`${tc.bgCard} p-12 rounded-2xl ${tc.border} ${tc.shadow} text-center`}>
+            <InboxIcon className={`w-12 h-12 ${tc.textMuted} mx-auto mb-3`} />
+            <p className={tc.textSecondary}>No messages found</p>
+          </div>
+        ) : (
+          filteredMessages.map((msg) => (
+            <div 
+              key={msg.id} 
+              className={`${tc.bgCard} p-5 rounded-2xl ${tc.border} ${tc.shadow} ${!msg.read ? 'border-indigo-500/30 bg-indigo-500/5' : ''} hover:${tc.bgCardHover} transition-all cursor-pointer`}
+              onClick={() => markAsRead(msg.id)}
+              role="button"
+              tabIndex={0}
+              aria-label={`Message: ${msg.subject} from ${msg.sender}`}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  markAsRead(msg.id);
+                }
+              }}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2 flex-wrap">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getSenderRoleColor(msg.senderRole)}`}>
+                      {msg.senderRole}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(msg.category)}`}>
+                      {msg.category}
+                    </span>
+                    {!msg.read && (
+                      <span className="px-2 py-0.5 bg-indigo-500/20 text-indigo-400 rounded-full text-xs font-medium animate-pulse">
+                        New
+                      </span>
+                    )}
+                  </div>
+                  <h3 className={`font-semibold ${tc.text}`}>{msg.subject}</h3>
+                  <p className={`text-sm ${tc.textSecondary} mt-1`}>{msg.content}</p>
+                  <div className={`mt-3 flex items-center gap-4 text-xs ${tc.textMuted}`}>
+                    <span><strong className={tc.textSecondary}>From:</strong> {msg.sender}</span>
+                    <span><strong className={tc.textSecondary}>To:</strong> {msg.receiver} ({msg.receiverRole})</span>
+                    <span>{msg.timestamp}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 ml-4">
+                  <button 
+                    aria-label="Reply to message"
+                    title="Reply to message"
+                    className={`p-1.5 text-indigo-400 ${tc.bgTableHover} rounded-xl transition-colors`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setNewMessage({ 
+                        receiver: employees.find(e => e.name === msg.sender)?.id || '', 
+                        subject: `Re: ${msg.subject}`,
+                        content: '',
+                        category: msg.category
+                      });
+                      setShowCompose(true);
+                    }}
+                  >
+                    <PaperAirplaneIcon className="w-4 h-4" />
+                  </button>
+                  <button 
+                    aria-label="Delete message"
+                    title="Delete message"
+                    className={`p-1.5 ${tc.textMuted} ${tc.bgTableHover} rounded-xl transition-colors hover:text-rose-400`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm('Delete this message?')) {
+                        setMessages(messages.filter(m => m.id !== msg.id));
+                      }
+                    }}
+                  >
+                    <TrashIcon className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

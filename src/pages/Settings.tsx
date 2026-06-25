@@ -277,6 +277,8 @@ const Settings: React.FC = () => {
                         </div>
                         <button
                           onClick={() => handleNotificationToggle(item.key as keyof SettingsData['notifications'])}
+                          title={`${isEnabled ? 'Disable' : 'Enable'} ${item.title}`}
+                          aria-label={`${isEnabled ? 'Disable' : 'Enable'} ${item.title}`}
                           className={`relative w-14 h-7 rounded-full transition-all duration-300 ${
                             isEnabled ? 'bg-gradient-to-r from-blue-500 to-cyan-500 shadow-lg shadow-blue-500/25' : 'bg-gray-300'
                           }`}
@@ -367,6 +369,8 @@ const Settings: React.FC = () => {
                         ...prev,
                         appearance: { ...prev.appearance, compactMode: !prev.appearance.compactMode }
                       }))}
+                      title="Toggle compact mode"
+                      aria-label="Toggle compact mode"
                       className={`relative w-14 h-7 rounded-full transition-all duration-300 ${
                         settings.appearance.compactMode ? 'bg-gradient-to-r from-green-500 to-emerald-500 shadow-lg shadow-green-500/25' : 'bg-gray-300'
                       }`}
@@ -406,6 +410,8 @@ const Settings: React.FC = () => {
                           className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 pr-10"
                         />
                         <button
+                          title={showPassword ? 'Hide password' : 'Show password'}
+                          aria-label={showPassword ? 'Hide password' : 'Show password'}
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
                           className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
@@ -451,6 +457,8 @@ const Settings: React.FC = () => {
                       ...prev,
                       security: { ...prev.security, twoFactorAuth: !prev.security.twoFactorAuth }
                     }))}
+                    title="Toggle two-factor authentication"
+                    aria-label="Toggle two-factor authentication"
                     className={`relative w-14 h-7 rounded-full transition-all duration-300 ${
                       settings.security.twoFactorAuth ? 'bg-gradient-to-r from-red-500 to-pink-500 shadow-lg shadow-red-500/25' : 'bg-gray-300'
                     }`}
@@ -469,6 +477,8 @@ const Settings: React.FC = () => {
                     <p className="text-sm text-gray-500">Automatically log out after inactivity</p>
                   </div>
                   <select
+                    title="Session timeout"
+                    aria-label="Session timeout"
                     value={settings.security.sessionTimeout}
                     onChange={(e) => setSettings(prev => ({
                       ...prev,
@@ -499,8 +509,9 @@ const Settings: React.FC = () => {
                     { label: 'Date Format', key: 'dateFormat', options: ['DD-MM-YYYY', 'MM-DD-YYYY', 'YYYY-MM-DD'] },
                   ].map((field) => (
                     <div key={field.key} className="p-4 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-100 hover:shadow-md hover:border-orange-200 transition-all duration-300">
-                      <label className="block text-sm text-gray-600 mb-1.5 font-medium">{field.label}</label>
+                      <label htmlFor={`${field.key}-select`} className="block text-sm text-gray-600 mb-1.5 font-medium">{field.label}</label>
                       <select
+                        id={`${field.key}-select`}
                         value={settings.preferences[field.key as keyof SettingsData['preferences']]}
                         onChange={(e) => setSettings(prev => ({
                           ...prev,

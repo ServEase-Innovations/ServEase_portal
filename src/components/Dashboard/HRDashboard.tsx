@@ -32,8 +32,21 @@ import {
   ChartBarIcon,
   ChartPieIcon,
   SunIcon,
-  MoonIcon
+  MoonIcon,
+  LockClosedIcon,
+  EyeSlashIcon,
+  DevicePhoneMobileIcon,
+  ShieldCheckIcon,
+  BuildingOfficeIcon,
+  BriefcaseIcon as BriefcaseIconSolid,
+  ArrowRightIcon,
+  SparklesIcon,
+  GlobeAltIcon
 } from '@heroicons/react/24/outline';
+import { useAuth } from '../../context/AuthContext';
+import toast from 'react-hot-toast';
+import { Role } from '../../types';
+import OnboardNewHireModal from '../../pages/CreateAccountPage';
 
 // Types
 interface OnboardingEmployee {
@@ -102,6 +115,10 @@ const HRDashboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('All');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+
+  // Modal state
+  const [showOnboardModal, setShowOnboardModal] = useState(false);
+  const { createAccount } = useAuth();
 
   // Queries state
   const [messages, setMessages] = useState<Message[]>([
@@ -298,12 +315,12 @@ const HRDashboard = () => {
   ];
 
   // Onboarding data
-  const onboardingList: OnboardingEmployee[] = [
+  const [onboardingList, setOnboardingList] = useState<OnboardingEmployee[]>([
     { id: 'ONB-001', name: 'Tanvi Bhatia', role: 'Frontend Engineer - Platform', startDate: '2026-06-10', progress: 70, department: 'Platform' },
     { id: 'ONB-002', name: 'Rahul Khanna', role: 'Data Analyst - Product', startDate: '2026-06-15', progress: 40, department: 'Product' },
     { id: 'ONB-003', name: 'Naina Sethi', role: 'Product Designer - Design', startDate: '2026-06-17', progress: 90, department: 'Design' },
     { id: 'ONB-004', name: 'Aditya Rao', role: 'SRE Engineer - DevOps', startDate: '2026-07-01', progress: 15, department: 'DevOps' }
-  ];
+  ]);
 
   // Leave requests data
   const leaveRequests: LeaveRequest[] = [
@@ -456,6 +473,12 @@ const HRDashboard = () => {
     return readFilter && categoryFilter;
   });
 
+  // Handle successful onboarding
+  const handleOnboardSuccess = () => {
+    // You can add additional logic here if needed
+    // The new employee will be added to the onboarding list by the parent component
+  };
+
   // Render Overview Tab
   const renderOverview = () => (
     <>
@@ -516,6 +539,7 @@ const HRDashboard = () => {
           </div>
           <button 
             type="button"
+            onClick={() => setShowOnboardModal(true)}
             className="w-full mt-4 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white py-2.5 rounded-xl hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2"
           >
             <UserPlusIcon className="w-4 h-4" />
@@ -639,6 +663,7 @@ const HRDashboard = () => {
         </div>
         <button 
           type="button"
+          onClick={() => setShowOnboardModal(true)}
           className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2"
         >
           <UserPlusIcon className="w-4 h-4" />
@@ -1395,6 +1420,14 @@ const HRDashboard = () => {
           {renderContent()}
         </div>
       </div>
+
+      {/* Onboard New Hire Modal */}
+      <OnboardNewHireModal 
+        isOpen={showOnboardModal}
+        onClose={() => setShowOnboardModal(false)}
+        onSuccess={handleOnboardSuccess}
+        theme={theme}
+      />
     </div>
   );
 };
