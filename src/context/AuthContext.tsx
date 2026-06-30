@@ -1,13 +1,13 @@
 // src/context/AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { User, Role, CreateAccountData } from '../types';
+import { User, CreateAccountData } from '../types';
 import { authService } from '../services/api';
 import toast from 'react-hot-toast';
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
   logout: () => void;
   createAccount: (userData: CreateAccountData) => Promise<void>;
   loading: boolean;
@@ -19,48 +19,56 @@ interface AuthContextType {
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Demo users for offline testing
-const DEMO_USERS = [
-  {
-    id: '1',
-    name: 'Sanya Kapoor',
-    email: 'sanya.kapoor@servease.com',
-    password: 'password123',
-    role: 'super-admin' as Role,
-    mobileNumber: '9876543210',
-  },
-  {
-    id: '2',
-    name: 'Priya Sharma',
-    email: 'priya.sharma@servease.com',
-    password: 'password123',
-    role: 'hr-partner' as Role,
-    mobileNumber: '9876543211',
-  },
-  {
-    id: '3',
-    name: 'Priya Nair',
-    email: 'priya.nair@servease.com',
-    password: 'password123',
-    role: 'manager' as Role,
-    mobileNumber: '9876543212',
-  },
-  {
-    id: '4',
-    name: 'Rohan Verma',
-    email: 'rohan.verma@servease.com',
-    password: 'password123',
-    role: 'employee' as Role,
-    mobileNumber: '9876543213',
-  },
-];
-
-// Initialize demo users in localStorage if not already present
-const initializeDemoUsers = () => {
-  const existingUsers = localStorage.getItem('servease_users');
-  if (!existingUsers) {
-    localStorage.setItem('servease_users', JSON.stringify(DEMO_USERS));
+// Helper function to map role from API to app role
+const mapRole = (apiRole: string): 'super-admin' | 'hr-partner' | 'manager' | 'employee' => {
+  const roleMap: Record<string, 'super-admin' | 'hr-partner' | 'manager' | 'employee'> = {
+    // Super Admin variations
+    'SUPERADMIN': 'super-admin',
+    'SUPER ADMIN': 'super-admin',
+    'super-admin': 'super-admin',
+    'SuperAdmin': 'super-admin',
+    'Super Admin': 'super-admin',
+    'superadmin': 'super-admin',
+    
+    // HR variations
+    'HR': 'hr-partner',
+    'hr': 'hr-partner',
+    'HR_PARTNER': 'hr-partner',
+    'hr-partner': 'hr-partner',
+    'Hr': 'hr-partner',
+    'human resources': 'hr-partner',
+    
+    // Manager variations
+    'MANAGER': 'manager',
+    'manager': 'manager',
+    'Manager': 'manager',
+    'Project Manager': 'manager',
+    'Team Manager': 'manager',
+    
+    // Employee variations - these all map to employee dashboard
+    'DEVELOPER': 'employee',
+    'Developer': 'employee',
+    'developer': 'employee',
+    'MARKETING': 'employee',
+    'Marketing': 'employee',
+    'marketing': 'employee',
+    'CUSTOMSTAFF': 'employee',
+    'CustomStaff': 'employee',
+    'customstaff': 'employee',
+    'Custom Staff': 'employee',
+    'EMPLOYEE': 'employee',
+    'employee': 'employee',
+    'Employee': 'employee',
+    'Staff': 'employee',
+    'staff': 'employee',
+  };
+  
+  const mappedRole = roleMap[apiRole];
+  if (!mappedRole) {
+    console.warn(`Unknown role "${apiRole}" from API, defaulting to employee`);
+    return 'employee';
   }
+  return mappedRole;
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -69,11 +77,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  // Initialize demo users on mount
-  useEffect(() => {
-    initializeDemoUsers();
-  }, []);
 
   // Load user from localStorage on mount
   useEffect(() => {
@@ -86,7 +89,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setToken(storedToken);
         setUser(parsedUser);
         setIsAuthenticated(true);
+        console.log('User loaded from localStorage:', parsedUser);
       } catch (e) {
+        console.error('Error loading user from localStorage:', e);
         localStorage.removeItem('servease_token');
         localStorage.removeItem('servease_user');
       }
@@ -97,83 +102,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
+  // Login function - handles API response structure
+  const login = useCallback(async (username: string, password: string) => {
     setLoading(true);
     setError(null);
     
     try {
-      // Try to login via API first
-      try {
-        const response = await authService.login(email, password);
-        
-        if (response.error) {
-          throw new Error(response.error);
-        }
-
-        const { user: userData, token: authToken } = response.data!;
-        
-        // Store token and user
-        localStorage.setItem('servease_token', authToken);
-        localStorage.setItem('servease_user', JSON.stringify(userData));
-        
-        setToken(authToken);
-        setUser(userData);
-        setIsAuthenticated(true);
-        
-        toast.success(`Welcome back, ${userData.name || 'User'}!`);
-        setLoading(false);
-        return;
-      } catch (apiError) {
-        // If API fails, try demo login locally
-        console.log('API login failed, trying demo login...');
-        
-        const demoUser = DEMO_USERS.find(
-          (u) => u.email === email && u.password === password
-        );
-
-        if (!demoUser) {
-          // Check if user exists in localStorage
-          const users = JSON.parse(localStorage.getItem('servease_users') || '[]');
-          const localUser = users.find(
-            (u: any) => u.email === email && u.password === password
-          );
-
-          if (!localUser) {
-            throw new Error('Invalid email or password');
-          }
-
-          // Login with local user
-          const { password: _, ...userWithoutPassword } = localUser;
-          const authToken = `local_token_${Date.now()}`;
-          
-          localStorage.setItem('servease_token', authToken);
-          localStorage.setItem('servease_user', JSON.stringify(userWithoutPassword));
-          
-          setToken(authToken);
-          setUser(userWithoutPassword);
-          setIsAuthenticated(true);
-          
-          toast.success(`Welcome back, ${userWithoutPassword.name || 'User'}!`);
-          setLoading(false);
-          return;
-        }
-
-        // Login with demo user
-        const { password: _, ...userWithoutPassword } = demoUser;
-        const authToken = `demo_token_${Date.now()}`;
-        
-        localStorage.setItem('servease_token', authToken);
-        localStorage.setItem('servease_user', JSON.stringify(userWithoutPassword));
-        
-        setToken(authToken);
-        setUser(userWithoutPassword);
-        setIsAuthenticated(true);
-        
-        toast.success(`Welcome back, ${userWithoutPassword.name || 'User'}!`);
-        setLoading(false);
-        return;
+      console.log('Attempting login with username:', username);
+      const response = await authService.login(username, password);
+      console.log('Login response:', response);
+      
+      // Handle the API response structure
+      const employeeData = response.data?.employee || response.employee;
+      const accessToken = response.data?.accessToken || response.accessToken;
+      
+      if (!employeeData || !accessToken) {
+        throw new Error('Invalid response from server');
       }
+
+      // Map the employee data to your User type
+      const userData: User = {
+        id: employeeData.employeeId || employeeData.id,
+        name: employeeData.fullName || employeeData.name,
+        username: employeeData.username || username,
+        email: employeeData.emailAddress || employeeData.email || '',
+        role: mapRole(employeeData.assignedRole || employeeData.role),
+        mobileNumber: employeeData.mobileNumber || '',
+        isActive: true,
+      };
+      
+      console.log('Mapped user data:', userData);
+      console.log('Mapped role:', userData.role);
+      
+      // Store token and user
+      localStorage.setItem('servease_token', accessToken);
+      localStorage.setItem('servease_user', JSON.stringify(userData));
+      
+      setToken(accessToken);
+      setUser(userData);
+      setIsAuthenticated(true);
+      
+      console.log('Auth state updated - isAuthenticated:', true);
+      toast.success(`Welcome back, ${userData.name || 'User'}!`);
+      setLoading(false);
     } catch (err: any) {
+      console.error('Login error:', err);
       const errorMessage = err.response?.data?.error || err.message || 'Login failed';
       setError(errorMessage);
       toast.error(errorMessage);
@@ -182,70 +155,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
+  // Create account function
   const createAccount = useCallback(async (userData: CreateAccountData) => {
     setLoading(true);
     setError(null);
     
     try {
-      // Try to register via API first
-      try {
-        const response = await authService.register(userData);
-        
-        if (response.error) {
-          throw new Error(response.error);
-        }
-
-        const { user: newUser, token: authToken } = response.data!;
-        
-        // Store token and user
-        localStorage.setItem('servease_token', authToken);
-        localStorage.setItem('servease_user', JSON.stringify(newUser));
-        
-        setToken(authToken);
-        setUser(newUser);
-        setIsAuthenticated(true);
-        
-        toast.success(`Account created successfully! Welcome, ${newUser.name || 'User'}!`);
-        setLoading(false);
-        return;
-      } catch (apiError) {
-        // If API fails, save locally
-        console.log('API registration failed, saving locally...');
-        
-        const users = JSON.parse(localStorage.getItem('servease_users') || '[]');
-        
-        // Check if email already exists
-        if (users.some((u: any) => u.email === userData.email)) {
-          throw new Error('Email already registered');
-        }
-
-        const newUser: User & { password: string } = {
-          id: `user_${Date.now()}`,
-          name: userData.name,
-          email: userData.email,
-          role: userData.role,
-          mobileNumber: userData.mobileNumber || '',
-          password: userData.password,
-        };
-
-        users.push(newUser);
-        localStorage.setItem('servease_users', JSON.stringify(users));
-
-        const { password: _, ...userWithoutPassword } = newUser;
-        const authToken = `local_token_${Date.now()}`;
-        
-        localStorage.setItem('servease_token', authToken);
-        localStorage.setItem('servease_user', JSON.stringify(userWithoutPassword));
-        
-        setToken(authToken);
-        setUser(userWithoutPassword);
-        setIsAuthenticated(true);
-        
-        toast.success(`Account created successfully! Welcome, ${userWithoutPassword.name || 'User'}!`);
-        setLoading(false);
-        return;
+      console.log('Creating account with data:', userData);
+      const response = await authService.register(userData);
+      console.log('Registration response:', response);
+      
+      if (response.error) {
+        throw new Error(response.error);
       }
+
+      const employeeData = response.data?.employee || response.employee;
+      const accessToken = response.data?.accessToken || response.accessToken;
+      
+      if (!employeeData || !accessToken) {
+        throw new Error('Invalid response from server');
+      }
+
+      const newUser: User = {
+        id: employeeData.employeeId || employeeData.id,
+        name: employeeData.fullName || employeeData.name,
+        username: employeeData.username || userData.username,
+        email: employeeData.emailAddress || employeeData.email || userData.email || '',
+        role: mapRole(employeeData.assignedRole || employeeData.role),
+        mobileNumber: employeeData.mobileNumber || userData.mobileNumber || '',
+        isActive: true,
+      };
+      
+      localStorage.setItem('servease_token', accessToken);
+      localStorage.setItem('servease_user', JSON.stringify(newUser));
+      
+      setToken(accessToken);
+      setUser(newUser);
+      setIsAuthenticated(true);
+      
+      toast.success(`Account created successfully! Welcome, ${newUser.name || 'User'}!`);
+      setLoading(false);
     } catch (err: any) {
+      console.error('Account creation error:', err);
       const errorMessage = err.response?.data?.error || err.message || 'Account creation failed';
       setError(errorMessage);
       toast.error(errorMessage);

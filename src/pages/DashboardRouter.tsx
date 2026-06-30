@@ -1,11 +1,7 @@
-// DashboardRouter.tsx
+// src/pages/DashboardRouter.tsx
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-// import ManagerDashboard from './ManagerDashboard';
-// import HRDashboard from './HRDashboard';
-// import SuperAdminDashboard from './SuperAdminDashboard';
-// import EmployeeDashboard from './EmployeeDashboard';
 import Profile from './Profile';
 import Settings from './Settings';
 import ManagerDashboard from '../components/Dashboard/ManagerDashBoard';
@@ -14,21 +10,26 @@ import SuperAdminDashboard from '../components/Dashboard/SuperAdminDashBoard';
 import EmployeeDashboard from '../components/Dashboard/EmployeeDashboard';
 
 const DashboardRouter: React.FC = () => {
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
+  
+  console.log('DashboardRouter - user:', user, 'isAuthenticated:', isAuthenticated);
 
   // Get the appropriate dashboard based on user role
   const getDashboard = () => {
+    console.log('DashboardRouter - rendering dashboard for role:', user?.role);
+    
     switch (user?.role) {
-      case 'manager':
-        return <ManagerDashboard />;
-      case 'hr-partner':
-        return <HRDashboard />;
       case 'super-admin':
         return <SuperAdminDashboard />;
+      case 'hr-partner':
+        return <HRDashboard />;
+      case 'manager':
+        return <ManagerDashboard />;
       case 'employee':
         return <EmployeeDashboard />;
       default:
-        return <ManagerDashboard />;
+        console.log('DashboardRouter - Unknown role, defaulting to EmployeeDashboard');
+        return <EmployeeDashboard />;
     }
   };
 

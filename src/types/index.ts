@@ -4,7 +4,8 @@ export type Role = 'super-admin' | 'hr-partner' | 'manager' | 'employee';
 export interface User {
   id: string;
   name?: string;
-  email: string;
+  username: string; // Changed from 'email' to 'username'
+  email?: string; // Made email optional
   mobileNumber?: string;
   role: Role;
   isActive?: boolean;
@@ -15,14 +16,15 @@ export interface User {
 }
 
 export interface LoginCredentials {
-  email: string;
+  username: string; // Changed from 'email' to 'username'
   password: string;
   role?: Role;
 }
 
 export interface CreateAccountData {
   name: string;
-  email: string;
+  username: string; // Changed from 'email' to 'username'
+  email?: string; // Made email optional
   password: string;
   role: Role;
   mobileNumber?: string;

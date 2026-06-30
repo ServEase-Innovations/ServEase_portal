@@ -1,4 +1,4 @@
-// App.tsx - Updated with Profile and Settings routes
+// src/App.tsx
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
@@ -11,7 +11,9 @@ import DashboardRouter from './pages/DashboardRouter';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
+  
+  console.log('ProtectedRoute - isAuthenticated:', isAuthenticated, 'loading:', loading, 'user:', user);
   
   if (loading) {
     return (
@@ -25,13 +27,15 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   }
   
   if (!isAuthenticated) {
+    console.log('ProtectedRoute - Not authenticated, redirecting to login');
     return <Navigate to="/login" replace />;
   }
   
+  console.log('ProtectedRoute - Authenticated, rendering children');
   return <>{children}</>;
 };
 
-// Public Route Component (redirects to dashboard if already authenticated)
+// Public Route Component
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
   
@@ -55,26 +59,21 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
-      
       <Route path="/login" element={
         <PublicRoute>
           <LoginPage />
         </PublicRoute>
       } />
-      
       <Route path="/create-account" element={
         <PublicRoute>
           <CreateAccountPage />
         </PublicRoute>
       } />
-      
       <Route path="/dashboard/*" element={
         <ProtectedRoute>
           <DashboardRouter />
         </ProtectedRoute>
       } />
-      
-      {/* Catch all - redirect to home */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
@@ -82,6 +81,7 @@ const AppRoutes = () => {
 
 // Main App Component
 const App = () => {
+  console.log('App rendering with AuthProvider');
   return (
     <AuthProvider>
       <BrowserRouter>

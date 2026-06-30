@@ -2,33 +2,24 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Role } from '../types';
 import toast from 'react-hot-toast';
 import {
-  EnvelopeIcon,
+  UserIcon,
   LockClosedIcon,
   EyeIcon,
   EyeSlashIcon,
   ArrowLeftIcon,
-  HomeIcon,
-  UserGroupIcon,
-  ShieldCheckIcon,
-  BuildingOfficeIcon,
-  BriefcaseIcon,
   CheckCircleIcon,
   MagnifyingGlassIcon,
   GlobeAltIcon,
-  UserIcon,
-  DevicePhoneMobileIcon,
   ArrowRightIcon,
   SunIcon,
-  MoonIcon,
-  SparklesIcon
+  MoonIcon
 } from '@heroicons/react/24/outline';
 
 const LoginPage = () => {
   // Login state
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
@@ -54,10 +45,10 @@ const LoginPage = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const trimmedEmail = email.trim();
+    const trimmedUsername = username.trim();
     const trimmedPassword = password.trim();
 
-    if (!trimmedEmail || !trimmedPassword) {
+    if (!trimmedUsername || !trimmedPassword) {
       toast.error('Please fill in all fields');
       return;
     }
@@ -68,23 +59,7 @@ const LoginPage = () => {
     }
 
     try {
-      await login(trimmedEmail, trimmedPassword);
-      navigate('/dashboard');
-    } catch (err) {
-      // Error handled in auth context
-    }
-  };
-
-  // Handle Demo Click
-  const handleDemoClick = async (role: Role) => {
-    try {
-      const demoEmails: Record<Role, string> = {
-        'super-admin': 'sanya.kapoor@servease.com',
-        'hr-partner': 'priya.sharma@servease.com',
-        'manager': 'priya.nair@servease.com',
-        'employee': 'rohan.verma@servease.com'
-      };
-      await login(demoEmails[role], 'password123');
+      await login(trimmedUsername, trimmedPassword);
       navigate('/dashboard');
     } catch (err) {
       // Error handled in auth context
@@ -96,118 +71,30 @@ const LoginPage = () => {
     setIsDarkMode(!isDarkMode);
   };
 
-  // Professional role icons with gradient backgrounds
-  const roleIcons = {
-    'super-admin': <ShieldCheckIcon className="w-5 h-5" />,
-    'hr-partner': <BuildingOfficeIcon className="w-5 h-5" />,
-    'manager': <BriefcaseIcon className="w-5 h-5" />,
-    'employee': <UserGroupIcon className="w-5 h-5" />
-  };
-
-  // Refined professional color palette
-  const roleColors = {
-    'super-admin': 'border-indigo-400 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-400 dark:text-indigo-400 dark:hover:bg-indigo-900/20',
-    'hr-partner': 'border-cyan-400 text-cyan-600 hover:bg-cyan-50 dark:border-cyan-400 dark:text-cyan-400 dark:hover:bg-cyan-900/20',
-    'manager': 'border-emerald-400 text-emerald-600 hover:bg-emerald-50 dark:border-emerald-400 dark:text-emerald-400 dark:hover:bg-emerald-900/20',
-    'employee': 'border-amber-400 text-amber-600 hover:bg-amber-50 dark:border-amber-400 dark:text-amber-400 dark:hover:bg-amber-900/20'
-  };
-
-  const roleBgColors = {
-    'super-admin': 'bg-indigo-50 dark:bg-indigo-900/20',
-    'hr-partner': 'bg-cyan-50 dark:bg-cyan-900/20',
-    'manager': 'bg-emerald-50 dark:bg-emerald-900/20',
-    'employee': 'bg-amber-50 dark:bg-amber-900/20'
-  };
-
-  const roleGradients = {
-    'super-admin': 'from-indigo-100 to-indigo-200 dark:from-indigo-900/30 dark:to-indigo-800/20',
-    'hr-partner': 'from-cyan-100 to-cyan-200 dark:from-cyan-900/30 dark:to-cyan-800/20',
-    'manager': 'from-emerald-100 to-emerald-200 dark:from-emerald-900/30 dark:to-emerald-800/20',
-    'employee': 'from-amber-100 to-amber-200 dark:from-amber-900/30 dark:to-amber-800/20'
-  };
-
-  const roleLabels = {
-    'super-admin': 'Super Admin',
-    'hr-partner': 'HR Partner',
-    'manager': 'Manager',
-    'employee': 'Employee'
-  };
-
-  const roleDescriptions = {
-    'super-admin': 'Full system access',
-    'hr-partner': 'HR management',
-    'manager': 'Team management',
-    'employee': 'Employee portal'
-  };
-
-  // Demo roles selection component
-  const DemoRoleSelection = () => {
-    return (
-      <div className="space-y-3">
-        <p className={`text-center text-sm font-medium ${
-          isDarkMode ? 'text-gray-300' : 'text-gray-700'
-        }`}>
-          OR TRY A DEMO ROLE
-        </p>
-        <div className="grid grid-cols-2 gap-3">
-          {(['super-admin', 'hr-partner', 'manager', 'employee'] as Role[]).map((role) => (
-            <button
-              key={role}
-              onClick={() => handleDemoClick(role)}
-              disabled={loading}
-              className={`relative p-3.5 border-2 rounded-xl transition-all duration-300 text-left group hover:shadow-md ${
-                roleColors[role]
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
-            >
-              <div className="flex items-center space-x-3">
-                <div className={`p-2 rounded-lg bg-gradient-to-br ${roleGradients[role]} ${roleBgColors[role]} group-hover:scale-105 transition-transform duration-200`}>
-                  {roleIcons[role]}
-                </div>
-                <div>
-                  <div className={`text-sm font-semibold ${
-                    isDarkMode ? 'text-gray-200' : 'text-gray-800'
-                  }`}>
-                    {roleLabels[role]}
-                  </div>
-                  <div className="text-xs text-gray-400 dark:text-gray-500">
-                    One-click demo
-                  </div>
-                </div>
-              </div>
-              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                <SparklesIcon className="w-4 h-4 text-amber-400" />
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className={`min-h-screen flex items-center justify-center p-4 transition-colors duration-300 ${
       isDarkMode 
         ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' 
         : 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50'
     }`}>
-      <div className={`w-full max-w-4xl overflow-hidden flex flex-col lg:flex-row rounded-3xl shadow-2xl transition-colors duration-300 ${
+      <div className={`w-full max-w-md overflow-hidden flex flex-col rounded-3xl shadow-2xl transition-colors duration-300 ${
         isDarkMode ? 'bg-gray-800' : 'bg-white'
       }`}>
         {/* Left Section - Brand & Features */}
-        <div className="lg:w-2/5 bg-gradient-to-br from-[#0a1628] via-[#1a2744] to-[#2a3f6a] p-8 lg:p-12 text-white relative overflow-hidden">
+        <div className="bg-gradient-to-br from-[#0a1628] via-[#1a2744] to-[#2a3f6a] p-8 text-white relative overflow-hidden">
           {/* Decorative elements */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2"></div>
           
           <div className="relative z-10">
             {/* Back to Home */}
-            <Link to="/" className="inline-flex items-center text-blue-300 hover:text-white transition-colors mb-8 text-sm">
+            <Link to="/" className="inline-flex items-center text-blue-300 hover:text-white transition-colors mb-6 text-sm">
               <ArrowLeftIcon className="w-4 h-4 mr-2" />
               Back to home
             </Link>
 
             {/* Logo */}
-            <div className="flex items-center mb-6">
+            <div className="flex items-center mb-4">
               <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center mr-3 backdrop-blur-sm">
                 <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -220,11 +107,11 @@ const LoginPage = () => {
             </div>
 
             <h2 className="text-3xl font-bold mb-2">Welcome back.</h2>
-            <p className="text-blue-200 text-sm mb-8">
+            <p className="text-blue-200 text-sm mb-6">
               Sign in to your account to manage your work efficiently.
             </p>
 
-            <div className="space-y-4">
+            <div className="space-y-3">
               <h3 className="text-xs font-semibold text-blue-300 uppercase tracking-wider">
                 WELCOME TO
               </h3>
@@ -232,13 +119,13 @@ const LoginPage = () => {
                 The ServEase employee portal.
               </p>
               <p className="text-sm text-blue-200">
-                Sign in to your account or jump in with a one-click demo role.
+                Sign in to your account to get started.
               </p>
 
-              <div className="space-y-2.5 mt-6">
+              <div className="space-y-2.5 mt-4">
                 <div className="flex items-center space-x-3">
                   <CheckCircleIcon className="w-5 h-5 text-blue-300 flex-shrink-0" />
-                  <span className="text-sm text-blue-100">Email & password sign-in</span>
+                  <span className="text-sm text-blue-100">Username & password sign-in</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircleIcon className="w-5 h-5 text-blue-300 flex-shrink-0" />
@@ -251,7 +138,7 @@ const LoginPage = () => {
               </div>
             </div>
 
-            <div className="mt-8 pt-6 border-t border-white/10">
+            <div className="mt-6 pt-4 border-t border-white/10">
               <p className="text-xs text-blue-300">
                 © 2026 ServEase Innovation Private Limited
               </p>
@@ -260,19 +147,11 @@ const LoginPage = () => {
         </div>
 
         {/* Right Section - Login Form */}
-        <div className={`lg:w-3/5 p-6 lg:p-10 transition-colors duration-300 ${
+        <div className={`p-8 transition-colors duration-300 ${
           isDarkMode ? 'bg-gray-800' : 'bg-white'
         }`}>
           {/* Top Bar */}
-          <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center space-x-2">
-              <span className={`text-xs font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`}>
-                Demo mode
-              </span>
-              <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-xs rounded-full font-medium">
-                Active
-              </span>
-            </div>
+          <div className="flex justify-end items-center mb-6">
             <div className="flex items-center space-x-3">
               <button 
                 onClick={toggleDarkMode}
@@ -315,24 +194,25 @@ const LoginPage = () => {
               <label className={`block text-sm font-medium mb-1.5 ${
                 isDarkMode ? 'text-gray-300' : 'text-gray-700'
               }`}>
-                Email
+                Username
               </label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <EnvelopeIcon className={`h-5 w-5 ${isDarkMode ? 'text-gray-500 group-hover:text-indigo-400' : 'text-gray-400 group-hover:text-indigo-500'} transition-colors`} />
+                  <UserIcon className={`h-5 w-5 ${isDarkMode ? 'text-gray-500 group-hover:text-indigo-400' : 'text-gray-400 group-hover:text-indigo-500'} transition-colors`} />
                 </div>
                 <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all duration-200 ${
                     isDarkMode 
                       ? 'bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-400' 
                       : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
                   }`}
-                  placeholder="you@serveasein.com"
+                  placeholder="Enter your username"
                   required
                   disabled={loading}
+                  autoComplete="username"
                 />
               </div>
             </div>
@@ -360,11 +240,13 @@ const LoginPage = () => {
                   required
                   minLength={6}
                   disabled={loading}
+                  autoComplete="current-password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
                     <EyeSlashIcon className={`h-5 w-5 ${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'} transition-colors`} />
@@ -409,17 +291,12 @@ const LoginPage = () => {
                 </>
               )}
             </button>
-
-            <div className="text-center">
-              <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                Tip: any demo email works (e.g. rohan.verma@serveasein.com).
-              </p>
-            </div>
           </form>
 
-          {/* Demo Roles */}
-          <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <DemoRoleSelection />
+          <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 text-center">
+            <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              Need an account? Contact your HR administrator.
+            </p>
           </div>
 
           {/* Weather and Footer */}
