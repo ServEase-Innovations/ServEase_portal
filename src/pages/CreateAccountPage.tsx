@@ -13,7 +13,11 @@ import {
   ShieldCheckIcon,
   BuildingOfficeIcon,
   BriefcaseIcon,
-  UserGroupIcon
+  UserGroupIcon,
+  ChartBarIcon,
+  BuildingOffice2Icon,
+  BanknotesIcon,
+  CurrencyRupeeIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import { Role } from '../types';
@@ -26,13 +30,90 @@ interface OnboardNewHireModalProps {
   theme: 'light' | 'dark';
 }
 
+// Department options matching backend
+const departments = [
+  'Engineering',
+  'Product',
+  'Design',
+  'Marketing',
+  'Sales',
+  'Human Resources',
+  'Finance',
+  'DevOps',
+  'Quality Assurance',
+  'Operations',
+  'Legal',
+  'Administration'
+];
+
+// Role options mapping to backend roles
+const employeeRoleOptions: Record<string, { label: string; description: string; icon: React.ReactNode }> = {
+  'SuperAdmin': { 
+    label: 'Super Admin', 
+    description: 'Full system access',
+    icon: <ShieldCheckIcon className="w-5 h-5" />
+  },
+  'HR': { 
+    label: 'HR Partner', 
+    description: 'HR management',
+    icon: <BuildingOfficeIcon className="w-5 h-5" />
+  },
+  'Manager': { 
+    label: 'Manager', 
+    description: 'Team management',
+    icon: <BriefcaseIcon className="w-5 h-5" />
+  },
+  'Developer': { 
+    label: 'Developer', 
+    description: 'Software development',
+    icon: <UserGroupIcon className="w-5 h-5" />
+  },
+  'Marketing': { 
+    label: 'Marketing', 
+    description: 'Marketing & Growth',
+    icon: <ChartBarIcon className="w-5 h-5" />
+  },
+  'CustomStaff': { 
+    label: 'Custom Staff', 
+    description: 'Specialized role',
+    icon: <BuildingOffice2Icon className="w-5 h-5" />
+  },
+};
+
+const roleGradients: Record<string, string> = {
+  'SuperAdmin': 'from-indigo-100 to-indigo-200 dark:from-indigo-900/30 dark:to-indigo-800/20',
+  'HR': 'from-cyan-100 to-cyan-200 dark:from-cyan-900/30 dark:to-cyan-800/20',
+  'Manager': 'from-emerald-100 to-emerald-200 dark:from-emerald-900/30 dark:to-emerald-800/20',
+  'Developer': 'from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/20',
+  'Marketing': 'from-amber-100 to-amber-200 dark:from-amber-900/30 dark:to-amber-800/20',
+  'CustomStaff': 'from-purple-100 to-purple-200 dark:from-purple-900/30 dark:to-purple-800/20',
+};
+
+const roleBgColors: Record<string, string> = {
+  'SuperAdmin': 'bg-indigo-50 dark:bg-indigo-900/20',
+  'HR': 'bg-cyan-50 dark:bg-cyan-900/20',
+  'Manager': 'bg-emerald-50 dark:bg-emerald-900/20',
+  'Developer': 'bg-blue-50 dark:bg-blue-900/20',
+  'Marketing': 'bg-amber-50 dark:bg-amber-900/20',
+  'CustomStaff': 'bg-purple-50 dark:bg-purple-900/20',
+};
+
+const roleSelectedBg: Record<string, string> = {
+  'SuperAdmin': 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-200/50 dark:shadow-indigo-900/30',
+  'HR': 'bg-gradient-to-r from-cyan-500 to-cyan-600 text-white border-cyan-600 shadow-lg shadow-cyan-200/50 dark:shadow-cyan-900/30',
+  'Manager': 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-200/50 dark:shadow-emerald-900/30',
+  'Developer': 'bg-gradient-to-r from-blue-500 to-blue-600 text-white border-blue-600 shadow-lg shadow-blue-200/50 dark:shadow-blue-900/30',
+  'Marketing': 'bg-gradient-to-r from-amber-500 to-amber-600 text-white border-amber-600 shadow-lg shadow-amber-200/50 dark:shadow-amber-900/30',
+  'CustomStaff': 'bg-gradient-to-r from-purple-500 to-purple-600 text-white border-purple-600 shadow-lg shadow-purple-200/50 dark:shadow-purple-900/30',
+};
+
 const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({ 
   isOpen, 
   onClose, 
   onSuccess,
   theme 
 }) => {
-  // Form state
+  // Form state - matching backend schema
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
@@ -40,7 +121,11 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [createAccountRole, setCreateAccountRole] = useState<Role>('employee');
+  const [selectedRole, setSelectedRole] = useState<string>('Developer');
+  const [selectedDepartment, setSelectedDepartment] = useState('Engineering');
+  const [baseSalary, setBaseSalary] = useState('60000');
+  const [allowances, setAllowances] = useState('5000');
+  const [deductions, setDeductions] = useState('1000');
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null);
@@ -50,49 +135,6 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
   const emailTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { createAccount } = useAuth();
-
-  // Professional role icons with gradient backgrounds
-  const roleIcons = {
-    'super-admin': <ShieldCheckIcon className="w-5 h-5" />,
-    'hr-partner': <BuildingOfficeIcon className="w-5 h-5" />,
-    'manager': <BriefcaseIcon className="w-5 h-5" />,
-    'employee': <UserGroupIcon className="w-5 h-5" />
-  };
-
-  const roleGradients = {
-    'super-admin': 'from-indigo-100 to-indigo-200 dark:from-indigo-900/30 dark:to-indigo-800/20',
-    'hr-partner': 'from-cyan-100 to-cyan-200 dark:from-cyan-900/30 dark:to-cyan-800/20',
-    'manager': 'from-emerald-100 to-emerald-200 dark:from-emerald-900/30 dark:to-emerald-800/20',
-    'employee': 'from-amber-100 to-amber-200 dark:from-amber-900/30 dark:to-amber-800/20'
-  };
-
-  const roleBgColors = {
-    'super-admin': 'bg-indigo-50 dark:bg-indigo-900/20',
-    'hr-partner': 'bg-cyan-50 dark:bg-cyan-900/20',
-    'manager': 'bg-emerald-50 dark:bg-emerald-900/20',
-    'employee': 'bg-amber-50 dark:bg-amber-900/20'
-  };
-
-  const roleSelectedBg = {
-    'super-admin': 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-200/50 dark:shadow-indigo-900/30',
-    'hr-partner': 'bg-gradient-to-r from-cyan-500 to-cyan-600 text-white border-cyan-600 shadow-lg shadow-cyan-200/50 dark:shadow-cyan-900/30',
-    'manager': 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-200/50 dark:shadow-emerald-900/30',
-    'employee': 'bg-gradient-to-r from-amber-500 to-amber-600 text-white border-amber-600 shadow-lg shadow-amber-200/50 dark:shadow-amber-900/30'
-  };
-
-  const roleLabels = {
-    'super-admin': 'Super Admin',
-    'hr-partner': 'HR Partner',
-    'manager': 'Manager',
-    'employee': 'Employee'
-  };
-
-  const roleDescriptions = {
-    'super-admin': 'Full system access',
-    'hr-partner': 'HR management',
-    'manager': 'Team management',
-    'employee': 'Employee portal'
-  };
 
   // Theme-aware class helpers
   const getThemeClasses = () => {
@@ -109,6 +151,7 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
         shadow: 'shadow-xl shadow-black/20',
         input: 'bg-[#0d1f3c] border-white/10 text-white placeholder:text-blue-300/40',
         tableHeader: 'bg-[#0d1f3c] text-blue-300/60',
+        scrollbar: 'scrollbar-thumb-white/10 scrollbar-track-transparent',
       };
     }
     return {
@@ -123,12 +166,13 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
       shadow: 'shadow-lg shadow-indigo-500/5',
       input: 'bg-gray-50 border-gray-200 text-gray-800 placeholder:text-gray-400',
       tableHeader: 'bg-gray-50 text-gray-500',
+      scrollbar: 'scrollbar-thumb-gray-200 scrollbar-track-transparent',
     };
   };
 
   const tc = getThemeClasses();
 
-  // Check email uniqueness with loading
+  // Check email uniqueness with debounce
   const checkEmailUniqueness = async (emailValue: string) => {
     const trimmedEmail = emailValue.trim();
     if (!trimmedEmail || !trimmedEmail.includes('@')) {
@@ -153,17 +197,15 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
     }
   };
 
-  // Handle email change with debounce - FIXED: Proper cleanup
+  // Handle email change with debounce
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setEmail(value);
     
-    // Clear existing timeout
     if (emailTimeoutRef.current) {
       clearTimeout(emailTimeoutRef.current);
     }
     
-    // Set new timeout
     emailTimeoutRef.current = setTimeout(() => {
       checkEmailUniqueness(value);
     }, 500);
@@ -184,7 +226,13 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
     setMobileNumber(value);
   };
 
-  // Handle Onboard New Hire
+  // Handle salary input - only allow numbers
+  const handleSalaryChange = (e: React.ChangeEvent<HTMLInputElement>, setter: React.Dispatch<React.SetStateAction<string>>) => {
+    const value = e.target.value.replace(/\D/g, '');
+    setter(value);
+  };
+
+  // Handle Onboard New Hire - matching backend schema
   const handleOnboardNewHire = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -192,10 +240,9 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
     const trimmedEmail = email.trim();
     const trimmedPassword = password.trim();
     const trimmedConfirmPassword = confirmPassword.trim();
-    const trimmedMobileNumber = mobileNumber.trim();
 
     if (!trimmedFullName || !trimmedEmail || !trimmedPassword || !trimmedConfirmPassword) {
-      toast.error('Please fill in all fields');
+      toast.error('Please fill in all required fields');
       return;
     }
 
@@ -222,13 +269,21 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
     setOnboardLoading(true);
 
     try {
-      await createAccount({
+      // Prepare data matching backend schema
+      const payload = {
         name: trimmedFullName,
         email: trimmedEmail,
-        role: createAccountRole,
+        role: selectedRole as any,
         password: trimmedPassword,
-        mobileNumber: trimmedMobileNumber || undefined,
-      });
+        confirmPassword: trimmedConfirmPassword,
+        mobileNumber: mobileNumber.trim() || undefined,
+        department: selectedDepartment,
+        baseSalary: parseFloat(baseSalary) || 0,
+        allowances: parseFloat(allowances) || 0,
+        deductions: parseFloat(deductions) || 0,
+      };
+
+      await createAccount(payload);
 
       toast.success(`${trimmedFullName} has been onboarded successfully!`);
       
@@ -238,7 +293,11 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
       setMobileNumber('');
       setPassword('');
       setConfirmPassword('');
-      setCreateAccountRole('employee');
+      setSelectedRole('Developer');
+      setSelectedDepartment('Engineering');
+      setBaseSalary('60000');
+      setAllowances('5000');
+      setDeductions('1000');
       setAgreeTerms(false);
       setEmailAvailable(null);
       
@@ -246,8 +305,9 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
         onSuccess();
       }
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       // Error handled in auth context
+      console.error('Onboarding error:', err);
     } finally {
       setOnboardLoading(false);
     }
@@ -257,7 +317,7 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className={`w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl ${tc.bgCard} ${tc.border} ${tc.shadow} p-6 lg:p-8 transition-colors duration-300`}>
+      <div className={`w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl ${tc.bgCard} ${tc.border} ${tc.shadow} p-6 lg:p-8 transition-colors duration-300 ${tc.scrollbar} scrollbar-thin`}>
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className={`text-xl font-bold ${tc.text}`}>Onboard New Hire</h2>
@@ -432,17 +492,17 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
             <label className={`block text-sm font-medium mb-1.5 ${tc.textSecondary}`}>
               Select role <span className="text-red-500">*</span>
             </label>
-            <div className="grid grid-cols-2 gap-3">
-              {(['super-admin', 'hr-partner', 'manager', 'employee'] as Role[]).map((role) => {
-                const isSelected = createAccountRole === role;
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {Object.entries(employeeRoleOptions).map(([roleKey, roleInfo]) => {
+                const isSelected = selectedRole === roleKey;
                 return (
                   <button
-                    key={role}
+                    key={roleKey}
                     type="button"
-                    onClick={() => setCreateAccountRole(role)}
-                    className={`relative p-3.5 border-2 rounded-xl transition-all duration-300 text-left ${
+                    onClick={() => setSelectedRole(roleKey)}
+                    className={`relative p-3 border-2 rounded-xl transition-all duration-300 text-left ${
                       isSelected
-                        ? roleSelectedBg[role]
+                        ? roleSelectedBg[roleKey]
                         : `border-gray-200 dark:border-gray-700 ${tc.bgTableHover}`
                     }`}
                     disabled={onboardLoading}
@@ -451,20 +511,20 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
                       <div className={`p-2 rounded-lg transition-all duration-300 ${
                         isSelected 
                           ? 'bg-white/20 text-white' 
-                          : `bg-gradient-to-br ${roleGradients[role]} ${roleBgColors[role]}`
+                          : `bg-gradient-to-br ${roleGradients[roleKey]} ${roleBgColors[roleKey]}`
                       }`}>
-                        {roleIcons[role]}
+                        {roleInfo.icon}
                       </div>
                       <div>
                         <div className={`text-sm font-semibold ${
                           isSelected ? 'text-white' : tc.text
                         }`}>
-                          {roleLabels[role]}
+                          {roleInfo.label}
                         </div>
                         <div className={`text-xs ${
                           isSelected ? 'text-white/80' : tc.textMuted
                         }`}>
-                          {roleDescriptions[role]}
+                          {roleInfo.description}
                         </div>
                       </div>
                     </div>
@@ -476,6 +536,90 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
                   </button>
                 );
               })}
+            </div>
+          </div>
+
+          {/* Department */}
+          <div>
+            <label htmlFor="department" className={`block text-sm font-medium mb-1.5 ${tc.textSecondary}`}>
+              Department <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <BuildingOfficeIcon className={`h-5 w-5 ${tc.textMuted}`} />
+              </div>
+              <select
+                id="department"
+                value={selectedDepartment}
+                onChange={(e) => setSelectedDepartment(e.target.value)}
+                className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all duration-200 ${tc.input}`}
+                required
+                disabled={onboardLoading}
+              >
+                {departments.map((dept) => (
+                  <option key={dept} value={dept}>
+                    {dept}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Salary Details */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className={`block text-sm font-medium mb-1.5 ${tc.textSecondary}`}>
+                Base Salary
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <CurrencyRupeeIcon className={`h-5 w-5 ${tc.textMuted}`} />
+                </div>
+                <input
+                  type="text"
+                  value={baseSalary}
+                  onChange={(e) => handleSalaryChange(e, setBaseSalary)}
+                  className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all duration-200 ${tc.input}`}
+                  placeholder="60000"
+                  disabled={onboardLoading}
+                />
+              </div>
+            </div>
+            <div>
+              <label className={`block text-sm font-medium mb-1.5 ${tc.textSecondary}`}>
+                Allowances
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <CurrencyRupeeIcon className={`h-5 w-5 ${tc.textMuted}`} />
+                </div>
+                <input
+                  type="text"
+                  value={allowances}
+                  onChange={(e) => handleSalaryChange(e, setAllowances)}
+                  className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all duration-200 ${tc.input}`}
+                  placeholder="5000"
+                  disabled={onboardLoading}
+                />
+              </div>
+            </div>
+            <div>
+              <label className={`block text-sm font-medium mb-1.5 ${tc.textSecondary}`}>
+                Deductions
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <CurrencyRupeeIcon className={`h-5 w-5 ${tc.textMuted}`} />
+                </div>
+                <input
+                  type="text"
+                  value={deductions}
+                  onChange={(e) => handleSalaryChange(e, setDeductions)}
+                  className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all duration-200 ${tc.input}`}
+                  placeholder="1000"
+                  disabled={onboardLoading}
+                />
+              </div>
             </div>
           </div>
 

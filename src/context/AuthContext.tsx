@@ -1,6 +1,6 @@
 // src/context/AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { User, CreateAccountData } from '../types';
+import { User, CreateAccountData, Role, BackendRole, mapBackendRoleToFrontend, mapFrontendRoleToBackend } from '../types';
 import { authService } from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -128,7 +128,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: employeeData.emailAddress || employeeData.email || '',
         role: mapRole(employeeData.assignedRole || employeeData.role),
         mobileNumber: employeeData.mobileNumber || '',
-        isActive: true,
+        isActive: employeeData.isActive !== undefined ? employeeData.isActive : true,
+        assignedRole: employeeData.assignedRole,
+        assignedDepartment: employeeData.assignedDepartment,
+        baseSalary: employeeData.baseSalary,
+        allowances: employeeData.allowances,
+        deductions: employeeData.deductions,
+        joinedAt: employeeData.joinedAt,
+        lastLogin: employeeData.lastLogin,
+        managerId: employeeData.managerId,
+        teamId: employeeData.teamId,
       };
       
       console.log('Mapped user data:', userData);
@@ -147,7 +156,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
     } catch (err: any) {
       console.error('Login error:', err);
-      const errorMessage = err.response?.data?.error || err.message || 'Login failed';
+      const errorMessage = err.response?.data?.message || err.message || 'Login failed';
       setError(errorMessage);
       toast.error(errorMessage);
       setLoading(false);
@@ -155,49 +164,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  // Create account function
+  // Create account function - UPDATED to match CreateAccountData type
   const createAccount = useCallback(async (userData: CreateAccountData) => {
     setLoading(true);
     setError(null);
     
     try {
-      console.log('Creating account with data:', userData);
-      const response = await authService.register(userData);
+      // Transform the data to match the backend schema
+      const payload = {
+        fullName: userData.name,
+        emailAddress: userData.email,
+        assignedRole: mapFrontendRoleToBackend(userData.role),
+        assignedDepartment: userData.department || 'Engineering',
+        baseSalary: userData.baseSalary || 0,
+        allowances: userData.allowances || 0,
+        deductions: userData.deductions || 0,
+        password: userData.password,
+        confirmPassword: userData.confirmPassword || userData.password,
+      };
+
+      console.log('Creating account with payload:', payload);
+      const response = await authService.register(payload);
       console.log('Registration response:', response);
       
       if (response.error) {
-        throw new Error(response.error);
+        throw new Error(response.message || 'Registration failed');
       }
 
-      const employeeData = response.data?.employee || response.employee;
-      const accessToken = response.data?.accessToken || response.accessToken;
+      toast.success('Account created successfully!');
       
-      if (!employeeData || !accessToken) {
-        throw new Error('Invalid response from server');
-      }
-
-      const newUser: User = {
-        id: employeeData.employeeId || employeeData.id,
-        name: employeeData.fullName || employeeData.name,
-        username: employeeData.username || userData.username,
-        email: employeeData.emailAddress || employeeData.email || userData.email || '',
-        role: mapRole(employeeData.assignedRole || employeeData.role),
-        mobileNumber: employeeData.mobileNumber || userData.mobileNumber || '',
-        isActive: true,
-      };
-      
-      localStorage.setItem('servease_token', accessToken);
-      localStorage.setItem('servease_user', JSON.stringify(newUser));
-      
-      setToken(accessToken);
-      setUser(newUser);
-      setIsAuthenticated(true);
-      
-      toast.success(`Account created successfully! Welcome, ${newUser.name || 'User'}!`);
       setLoading(false);
+      
+      // Return the response for the component to handle
+      return response;
     } catch (err: any) {
       console.error('Account creation error:', err);
-      const errorMessage = err.response?.data?.error || err.message || 'Account creation failed';
+      const errorMessage = err.response?.data?.message || err.message || 'Account creation failed';
       setError(errorMessage);
       toast.error(errorMessage);
       setLoading(false);
@@ -223,9 +225,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshUser = useCallback(async () => {
     try {
       const response = await authService.getCurrentUser();
-      if (response.data?.user) {
-        setUser(response.data.user);
-        localStorage.setItem('servease_user', JSON.stringify(response.data.user));
+      if (response) {
+        // Map the response to User type
+        const userData: User = {
+          id: response.employeeId || response.id,
+          name: response.fullName || response.name,
+          username: response.username || '',
+          email: response.emailAddress || response.email || '',
+          role: mapRole(response.assignedRole || response.role),
+          mobileNumber: response.mobileNumber || '',
+          isActive: response.isActive !== undefined ? response.isActive : true,
+          assignedRole: response.assignedRole,
+          assignedDepartment: response.assignedDepartment,
+          baseSalary: response.baseSalary,
+          allowances: response.allowances,
+          deductions: response.deductions,
+          joinedAt: response.joinedAt,
+          lastLogin: response.lastLogin,
+          managerId: response.managerId,
+          teamId: response.teamId,
+        };
+        setUser(userData);
+        localStorage.setItem('servease_user', JSON.stringify(userData));
       }
     } catch (err) {
       console.error('Failed to refresh user:', err);

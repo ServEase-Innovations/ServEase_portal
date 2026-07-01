@@ -42,22 +42,31 @@ api.interceptors.response.use(
 export const authService = {
   login: async (username: string, password: string): Promise<any> => {
     const response = await api.post('auth/login', { username, password });
-    // Return the full response data directly
     return response.data;
   },
 
-  register: async (userData: CreateAccountData): Promise<any> => {
-    const response = await api.post('auth/register', userData);
+  // Updated: Changed from auth/register to employees/register
+  register: async (userData: any): Promise<any> => {
+    const response = await api.post('employees/register', userData);
     return response.data;
   },
 
   logout: async (): Promise<void> => {
+    const token = localStorage.getItem('servease_token');
+    if (token) {
+      try {
+        await api.post('auth/logout');
+      } catch (error) {
+        console.error('Logout API error:', error);
+      }
+    }
     localStorage.removeItem('servease_token');
     localStorage.removeItem('servease_user');
   },
 
+  // Updated: Changed from /users/me to employees/profile
   getCurrentUser: async (): Promise<any> => {
-    const response = await api.get('/users/me');
+    const response = await api.get('employees/profile');
     return response.data;
   },
 };
@@ -65,39 +74,30 @@ export const authService = {
 // User API calls
 export const userService = {
   getAll: async (): Promise<any> => {
-    const response = await api.get('/users');
+    const response = await api.get('/employees');
     return response.data;
   },
 
   getById: async (id: string): Promise<any> => {
-    const response = await api.get(`/users/${id}`);
+    const response = await api.get(`/employees/${id}`);
     return response.data;
   },
 
   create: async (userData: any): Promise<any> => {
-    const response = await api.post('/users', userData);
+    const response = await api.post('/employees', userData);
     return response.data;
   },
 
-  getByUsername: async (username: string): Promise<any> => {
-    const response = await api.get(`/users/username/${username}`);
-    return response.data;
-  },
-
-  updateUsername: async (id: string, username: string): Promise<any> => {
-    const response = await api.patch(`/users/${id}/username`, { username });
-    return response.data;
-  },
-
-  updateStatus: async (id: string, isActive: boolean): Promise<any> => {
-    const response = await api.patch(`/users/${id}/status`, { isActive });
+  update: async (id: string, userData: any): Promise<any> => {
+    const response = await api.put(`/employees/${id}`, userData);
     return response.data;
   },
 
   delete: async (id: string): Promise<any> => {
-    const response = await api.delete(`/users/${id}`);
+    const response = await api.delete(`/employees/${id}`);
     return response.data;
   },
 };
 
+// Export api instance as default
 export default api;
