@@ -66,7 +66,7 @@ const AppRoutes = () => {
       } />
       <Route path="/create-account" element={
         <PublicRoute>
-          <CreateAccountPage />
+          <CreateAccountPage isOpen={true} onClose={() => {}} theme="light" />
         </PublicRoute>
       } />
       <Route path="/dashboard/*" element={
