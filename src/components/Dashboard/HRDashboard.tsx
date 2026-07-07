@@ -1,3 +1,4 @@
+// HRDashboard.tsx - Complete with responsive design for all devices
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import Sidebar from '../Layout/Sidebar';
@@ -38,7 +39,6 @@ import {
   DevicePhoneMobileIcon,
   ShieldCheckIcon,
   BuildingOfficeIcon,
-  BriefcaseIcon as BriefcaseIconSolid,
   ArrowRightIcon,
   SparklesIcon,
   GlobeAltIcon
@@ -115,6 +115,9 @@ const HRDashboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('All');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Modal state
   const [showOnboardModal, setShowOnboardModal] = useState(false);
@@ -226,8 +229,34 @@ const HRDashboard = () => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
 
+  // Handle responsive resize
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 1024;
+      setIsMobile(mobile);
+      if (!mobile) {
+        setIsMobileSidebarOpen(false);
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const toggleTheme = () => {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed(!sidebarCollapsed);
+  };
+
+  const toggleMobileSidebar = () => {
+    setIsMobileSidebarOpen(!isMobileSidebarOpen);
+  };
+
+  const closeMobileSidebar = () => {
+    setIsMobileSidebarOpen(false);
   };
 
   // Theme-aware class helpers
@@ -437,7 +466,7 @@ const HRDashboard = () => {
 
   const handleSendMessage = () => {
     if (!newMessage.receiver || !newMessage.subject || !newMessage.content) {
-      alert('Please fill in all fields');
+      toast.error('Please fill in all fields');
       return;
     }
 
@@ -457,6 +486,7 @@ const HRDashboard = () => {
     setMessages([message, ...messages]);
     setNewMessage({ receiver: '', subject: '', content: '', category: 'General' });
     setShowCompose(false);
+    toast.success('Message sent successfully');
   };
 
   const markAsRead = (id: string) => {
@@ -476,54 +506,53 @@ const HRDashboard = () => {
   // Handle successful onboarding
   const handleOnboardSuccess = () => {
     // You can add additional logic here if needed
-    // The new employee will be added to the onboarding list by the parent component
   };
 
   // Render Overview Tab
   const renderOverview = () => (
     <>
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 mb-6 sm:mb-8">
         {stats.map((stat, index) => (
-          <div key={index} className={`${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow} hover:${tc.bgCardHover} transition-all duration-300 group cursor-pointer`}>
+          <div key={index} className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow} ${tc.bgCardHover} transition-all duration-300 group cursor-pointer hover:scale-[1.02]`}>
             <div className="flex items-center justify-between">
-              <div>
-                <p className={`text-sm ${tc.textSecondary}`}>{stat.label}</p>
-                <p className={`text-2xl font-bold ${tc.text}`}>{stat.value}</p>
-                <p className={`text-xs ${tc.textMuted}`}>{stat.subtitle}</p>
-                <p className="text-xs text-emerald-400 mt-1">{stat.change}</p>
+              <div className="min-w-0 flex-1">
+                <p className={`text-[10px] sm:text-sm ${tc.textSecondary} truncate`}>{stat.label}</p>
+                <p className={`text-base sm:text-2xl font-bold ${tc.text} truncate`}>{stat.value}</p>
+                <p className={`text-[8px] sm:text-xs ${tc.textMuted} truncate`}>{stat.subtitle}</p>
+                <p className="text-[8px] sm:text-xs text-emerald-400 mt-0.5 sm:mt-1">{stat.change}</p>
               </div>
-              <div className={`p-3 rounded-xl bg-indigo-500/10 group-hover:scale-110 transition-transform duration-300`}>
-                <stat.icon className={`w-6 h-6 text-indigo-400`} />
+              <div className={`p-2 sm:p-3 rounded-xl bg-indigo-500/10 group-hover:scale-110 transition-transform duration-300 flex-shrink-0 ml-2`}>
+                <stat.icon className={`w-4 h-4 sm:w-6 sm:h-6 text-indigo-400`} aria-hidden="true" />
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Employee Onboarding */}
-        <div className={`${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
-          <div className="flex justify-between items-center mb-4">
+        <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 mb-4">
             <div>
-              <h3 className={`font-semibold ${tc.text}`}>Employee Onboarding</h3>
+              <h3 className={`font-semibold ${tc.text} text-base sm:text-lg`}>Employee Onboarding</h3>
               <p className={`text-sm ${tc.textSecondary}`}>Pipeline of new joiners</p>
             </div>
             <button className={`text-sm text-indigo-400 hover:text-indigo-300 font-medium transition-colors`}>View all →</button>
           </div>
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {onboardingList.map((employee) => (
               <div key={employee.id} className={`${tc.border} border-b last:border-0 pb-3 last:pb-0 ${tc.bgTableHover} p-2 rounded-xl transition-colors`}>
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className={`font-medium ${tc.text}`}>{employee.name}</p>
-                      <span className={`text-xs ${tc.textMuted}`}>{employee.id}</span>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+                      <p className={`font-medium ${tc.text} text-sm sm:text-base truncate`}>{employee.name}</p>
+                      <span className={`text-[10px] sm:text-xs ${tc.textMuted}`}>{employee.id}</span>
                     </div>
-                    <p className={`text-sm ${tc.textSecondary}`}>{employee.role}</p>
-                    <p className={`text-xs ${tc.textMuted}`}>Start date - {employee.startDate}</p>
+                    <p className={`text-xs sm:text-sm ${tc.textSecondary} truncate`}>{employee.role}</p>
+                    <p className={`text-[10px] sm:text-xs ${tc.textMuted}`}>Start date - {employee.startDate}</p>
                   </div>
-                  <span className={`text-sm font-semibold text-indigo-400`}>{employee.progress}%</span>
+                  <span className={`text-sm font-semibold text-indigo-400 flex-shrink-0`}>{employee.progress}%</span>
                 </div>
                 <div className="w-full bg-gray-200/20 rounded-full h-1.5 mt-2">
                   <div 
@@ -540,27 +569,28 @@ const HRDashboard = () => {
           <button 
             type="button"
             onClick={() => setShowOnboardModal(true)}
-            className="w-full mt-4 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white py-2.5 rounded-xl hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2"
+            className="w-full mt-4 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white py-2 sm:py-2.5 rounded-xl text-sm sm:text-base hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2"
+            aria-label="Onboard new hire"
           >
-            <UserPlusIcon className="w-4 h-4" />
+            <UserPlusIcon className="w-4 h-4" aria-hidden="true" />
             Onboard new hire
           </button>
         </div>
 
         {/* Attendance Monitoring */}
-        <div className={`${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
-          <h3 className={`font-semibold ${tc.text} mb-2`}>Attendance Monitoring</h3>
-          <p className={`${tc.textSecondary} text-sm mb-4`}>Live presence across departments today</p>
-          <div className="mt-4 space-y-3">
+        <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
+          <h3 className={`font-semibold ${tc.text} mb-1 sm:mb-2 text-base sm:text-lg`}>Attendance Monitoring</h3>
+          <p className={`${tc.textSecondary} text-sm mb-3 sm:mb-4`}>Live presence across departments today</p>
+          <div className="mt-3 sm:mt-4 space-y-2 sm:space-y-3">
             {['Platform', 'Design', 'Product', 'DevOps', 'Marketing', 'Sales'].map((dept, i) => {
               const percentages = [92, 88, 95, 85, 78, 90];
               return (
-                <div key={i} className={`flex items-center justify-between ${tc.bgTableHover} p-1 rounded-xl transition-colors`}>
-                  <span className={`text-sm font-medium ${tc.text} w-24`}>{dept}</span>
-                  <div className="flex-1 mx-4">
-                    <div className="w-full bg-gray-200/20 rounded-full h-2 overflow-hidden">
+                <div key={i} className={`flex items-center justify-between ${tc.bgTableHover} p-1 rounded-xl transition-colors gap-2`}>
+                  <span className={`text-xs sm:text-sm font-medium ${tc.text} w-16 sm:w-24 flex-shrink-0 truncate`}>{dept}</span>
+                  <div className="flex-1 mx-2 sm:mx-4 min-w-[40px]">
+                    <div className="w-full bg-gray-200/20 rounded-full h-1.5 sm:h-2 overflow-hidden">
                       <div 
-                        className={`h-2 rounded-full transition-all duration-500 ${
+                        className={`h-1.5 sm:h-2 rounded-full transition-all duration-500 ${
                           percentages[i] >= 90 ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' : 
                           percentages[i] >= 80 ? 'bg-gradient-to-r from-amber-500 to-amber-400' : 'bg-gradient-to-r from-rose-500 to-rose-400'
                         }`} 
@@ -568,79 +598,83 @@ const HRDashboard = () => {
                       />
                     </div>
                   </div>
-                  <span className={`text-sm font-semibold w-12 text-right ${tc.text}`}>{percentages[i]}%</span>
+                  <span className={`text-xs sm:text-sm font-semibold w-10 sm:w-12 text-right ${tc.text} flex-shrink-0`}>{percentages[i]}%</span>
                 </div>
               );
             })}
           </div>
-          <div className={`mt-4 pt-4 ${tc.border} border-t flex justify-between items-center`}>
-            <span className={`text-xs ${tc.textMuted}`}>22 working days this month</span>
+          <div className={`mt-3 sm:mt-4 pt-3 sm:pt-4 ${tc.border} border-t flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0`}>
+            <span className={`text-[10px] sm:text-xs ${tc.textMuted}`}>22 working days this month</span>
             <button className={`text-sm text-indigo-400 hover:text-indigo-300 font-medium transition-colors`}>View details →</button>
           </div>
         </div>
       </div>
 
       {/* Leave Requests Summary */}
-      <div className={`mt-6 ${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
-        <div className="flex justify-between items-center mb-4">
+      <div className={`mt-4 sm:mt-6 ${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 mb-4">
           <div>
-            <h3 className={`font-semibold ${tc.text}`}>Pending Leave Requests</h3>
+            <h3 className={`font-semibold ${tc.text} text-base sm:text-lg`}>Pending Leave Requests</h3>
             <p className={`text-sm ${tc.textSecondary}`}>Awaiting your review</p>
           </div>
-          <span className="px-3 py-1 bg-amber-500/20 text-amber-400 rounded-full text-sm font-medium">
+          <span className="px-2 sm:px-3 py-1 bg-amber-500/20 text-amber-400 rounded-full text-xs sm:text-sm font-medium">
             {leaveRequests.filter(l => l.status === 'Pending').length} pending
           </span>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="overflow-x-auto -mx-4 sm:mx-0">
+          <table className="w-full min-w-[700px] sm:min-w-0">
             <thead>
-              <tr className={`text-left text-xs ${tc.tableHeader} ${tc.border} border-b`}>
-                <th className="pb-3 font-medium">Request</th>
-                <th className="pb-3 font-medium">Type</th>
-                <th className="pb-3 font-medium">Period</th>
-                <th className="pb-3 font-medium">Reason</th>
-                <th className="pb-3 font-medium">Status</th>
-                <th className="pb-3 font-medium">Actions</th>
+              <tr className={`text-left text-[10px] sm:text-xs ${tc.tableHeader} ${tc.border} border-b`}>
+                <th className="pb-2 sm:pb-3 font-medium px-2 sm:px-3">Request</th>
+                <th className="pb-2 sm:pb-3 font-medium px-2 sm:px-3">Type</th>
+                <th className="pb-2 sm:pb-3 font-medium px-2 sm:px-3 hidden sm:table-cell">Period</th>
+                <th className="pb-2 sm:pb-3 font-medium px-2 sm:px-3 hidden md:table-cell">Reason</th>
+                <th className="pb-2 sm:pb-3 font-medium px-2 sm:px-3">Status</th>
+                <th className="pb-2 sm:pb-3 font-medium px-2 sm:px-3">Actions</th>
               </tr>
             </thead>
             <tbody>
               {leaveRequests.filter(l => l.status === 'Pending').map((request) => (
                 <tr key={request.id} className={`${tc.border} border-b last:border-0 ${tc.bgTableHover} transition-colors`}>
-                  <td className="py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 bg-indigo-500/20 rounded-full flex items-center justify-center text-indigo-400 text-xs font-bold">
+                  <td className="py-2 sm:py-3 px-2 sm:px-3">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <div className="w-6 h-6 sm:w-8 sm:h-8 bg-indigo-500/20 rounded-full flex items-center justify-center text-indigo-400 text-[8px] sm:text-xs font-bold flex-shrink-0">
                         {request.employee.split(' ').map(n => n[0]).join('')}
                       </div>
-                      <span className={`font-medium ${tc.text}`}>{request.employee}</span>
+                      <span className={`font-medium ${tc.text} text-xs sm:text-sm truncate max-w-[60px] sm:max-w-none`}>{request.employee}</span>
                     </div>
                   </td>
-                  <td className="py-3">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getLeaveTypeColor(request.type)}`}>
+                  <td className="py-2 sm:py-3 px-2 sm:px-3">
+                    <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-xs font-medium ${getLeaveTypeColor(request.type)} whitespace-nowrap`}>
                       {request.type}
                     </span>
                   </td>
-                  <td className={`py-3 text-sm ${tc.textSecondary}`}>{request.period} <span className={`text-xs ${tc.textMuted}`}>({request.duration})</span></td>
-                  <td className={`py-3 text-sm ${tc.textSecondary} max-w-xs truncate`}>{request.reason}</td>
-                  <td className="py-3">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(request.status)}`}>
+                  <td className={`py-2 sm:py-3 px-2 sm:px-3 text-[10px] sm:text-sm ${tc.textSecondary} hidden sm:table-cell`}>{request.period}</td>
+                  <td className={`py-2 sm:py-3 px-2 sm:px-3 text-[10px] sm:text-sm ${tc.textSecondary} max-w-xs truncate hidden md:table-cell`}>{request.reason}</td>
+                  <td className="py-2 sm:py-3 px-2 sm:px-3">
+                    <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-xs font-medium ${getStatusColor(request.status)} whitespace-nowrap`}>
                       {request.status}
                     </span>
                   </td>
-                  <td className="py-3">
-                    <div className="flex items-center gap-2">
+                  <td className="py-2 sm:py-3 px-2 sm:px-3">
+                    <div className="flex items-center gap-1 sm:gap-2">
                       <button 
                         type="button"
-                        className="px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-xl text-xs font-medium hover:bg-emerald-500/30 transition-colors flex items-center gap-1"
+                        className="px-1.5 sm:px-3 py-0.5 sm:py-1 bg-emerald-500/20 text-emerald-400 rounded-xl text-[8px] sm:text-xs font-medium hover:bg-emerald-500/30 transition-colors flex items-center gap-0.5 sm:gap-1 whitespace-nowrap"
+                        aria-label={`Approve leave request for ${request.employee}`}
+                        title={`Approve leave request for ${request.employee}`}
                       >
-                        <CheckCircleIcon className="w-3 h-3" />
-                        Approve
+                        <CheckCircleIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3" aria-hidden="true" />
+                        <span className="hidden sm:inline">Approve</span>
                       </button>
                       <button 
                         type="button"
-                        className="px-3 py-1 bg-rose-500/20 text-rose-400 rounded-xl text-xs font-medium hover:bg-rose-500/30 transition-colors flex items-center gap-1"
+                        className="px-1.5 sm:px-3 py-0.5 sm:py-1 bg-rose-500/20 text-rose-400 rounded-xl text-[8px] sm:text-xs font-medium hover:bg-rose-500/30 transition-colors flex items-center gap-0.5 sm:gap-1 whitespace-nowrap"
+                        aria-label={`Reject leave request for ${request.employee}`}
+                        title={`Reject leave request for ${request.employee}`}
                       >
-                        <XCircleIcon className="w-3 h-3" />
-                        Reject
+                        <XCircleIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3" aria-hidden="true" />
+                        <span className="hidden sm:inline">Reject</span>
                       </button>
                     </div>
                   </td>
@@ -655,81 +689,83 @@ const HRDashboard = () => {
 
   // Render Onboarding Tab
   const renderOnboarding = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
         <div>
-          <h2 className={`text-xl font-bold ${tc.text}`}>Employee Onboarding</h2>
-          <p className={`text-sm ${tc.textSecondary}`}>Pipeline of new joiners and their onboarding stage</p>
+          <h2 className={`text-lg sm:text-xl font-bold ${tc.text}`}>Employee Onboarding</h2>
+          <p className={`text-xs sm:text-sm ${tc.textSecondary}`}>Pipeline of new joiners and their onboarding stage</p>
         </div>
         <button 
           type="button"
           onClick={() => setShowOnboardModal(true)}
-          className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2"
+          className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-xs sm:text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-1.5 sm:gap-2"
+          aria-label="Onboard new hire"
         >
-          <UserPlusIcon className="w-4 h-4" />
+          <UserPlusIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" aria-hidden="true" />
           Onboard New Hire
         </button>
       </div>
 
       <div className={`${tc.bgCard} rounded-2xl ${tc.border} ${tc.shadow} overflow-hidden`}>
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="overflow-x-auto -mx-4 sm:mx-0">
+          <table className="w-full min-w-[700px] sm:min-w-0">
             <thead>
-              <tr className={`text-left text-xs ${tc.tableHeader} ${tc.border} border-b`}>
-                <th className="px-6 py-3 font-medium">Employee</th>
-                <th className="px-6 py-3 font-medium">Role</th>
-                <th className="px-6 py-3 font-medium">Start Date</th>
-                <th className="px-6 py-3 font-medium">Department</th>
-                <th className="px-6 py-3 font-medium">Progress</th>
-                <th className="px-6 py-3 font-medium">Status</th>
-                <th className="px-6 py-3 font-medium">Actions</th>
+              <tr className={`text-left text-[10px] sm:text-xs ${tc.tableHeader} ${tc.border} border-b`}>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 font-medium">Employee</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 font-medium hidden sm:table-cell">Role</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 font-medium hidden md:table-cell">Start Date</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 font-medium hidden lg:table-cell">Department</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 font-medium">Progress</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 font-medium hidden sm:table-cell">Status</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
               {onboardingList.map((employee) => (
                 <tr key={employee.id} className={`${tc.border} border-b last:border-0 ${tc.bgTableHover} transition-colors`}>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-indigo-500/25">
+                  <td className="px-3 sm:px-6 py-2 sm:py-4">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <div className="w-7 h-7 sm:w-10 sm:h-10 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-[10px] sm:text-sm shadow-lg shadow-indigo-500/25 flex-shrink-0">
                         {employee.name.split(' ').map(n => n[0]).join('')}
                       </div>
-                      <div>
-                        <p className={`font-medium ${tc.text}`}>{employee.name}</p>
-                        <p className={`text-xs ${tc.textMuted}`}>{employee.id}</p>
+                      <div className="min-w-0">
+                        <p className={`font-medium ${tc.text} text-xs sm:text-sm truncate`}>{employee.name}</p>
+                        <p className={`text-[8px] sm:text-xs ${tc.textMuted} truncate`}>{employee.id}</p>
                       </div>
                     </div>
                   </td>
-                  <td className={`px-6 py-4 text-sm ${tc.text}`}>{employee.role}</td>
-                  <td className={`px-6 py-4 text-sm ${tc.textSecondary}`}>{employee.startDate}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2 py-1 ${tc.bgTableHover} ${tc.textSecondary} rounded-full text-xs`}>{employee.department}</span>
+                  <td className={`px-3 sm:px-6 py-2 sm:py-4 text-[10px] sm:text-sm ${tc.text} hidden sm:table-cell truncate max-w-[100px]`}>{employee.role}</td>
+                  <td className={`px-3 sm:px-6 py-2 sm:py-4 text-[10px] sm:text-sm ${tc.textSecondary} hidden md:table-cell`}>{employee.startDate}</td>
+                  <td className="px-3 sm:px-6 py-2 sm:py-4 hidden lg:table-cell">
+                    <span className={`px-1.5 sm:px-2 py-0.5 ${tc.bgTableHover} ${tc.textSecondary} rounded-full text-[8px] sm:text-xs`}>{employee.department}</span>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-32 bg-gray-200/20 rounded-full h-2">
+                  <td className="px-3 sm:px-6 py-2 sm:py-4">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <div className="w-16 sm:w-32 bg-gray-200/20 rounded-full h-1.5 sm:h-2">
                         <div 
-                          className={`h-2 rounded-full transition-all duration-500 ${
+                          className={`h-1.5 sm:h-2 rounded-full transition-all duration-500 ${
                             employee.progress >= 70 ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' : 
                             employee.progress >= 40 ? 'bg-gradient-to-r from-amber-500 to-amber-400' : 'bg-gradient-to-r from-rose-500 to-rose-400'
                           }`} 
                           style={{ width: `${employee.progress}%` }}
                         />
                       </div>
-                      <span className={`text-sm font-semibold text-indigo-400`}>{employee.progress}%</span>
+                      <span className={`text-[10px] sm:text-sm font-semibold text-indigo-400`}>{employee.progress}%</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  <td className="px-3 sm:px-6 py-2 sm:py-4 hidden sm:table-cell">
+                    <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-xs font-medium ${
                       employee.progress >= 70 ? 'bg-emerald-500/20 text-emerald-400' : 
                       employee.progress >= 40 ? 'bg-amber-500/20 text-amber-400' : 'bg-rose-500/20 text-rose-400'
                     }`}>
                       {employee.progress >= 70 ? 'On Track' : employee.progress >= 40 ? 'In Progress' : 'Just Started'}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-3 sm:px-6 py-2 sm:py-4">
                     <button 
                       type="button"
-                      className="text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors"
+                      className="text-indigo-400 hover:text-indigo-300 text-xs sm:text-sm font-medium transition-colors"
+                      aria-label={`View onboarding details for ${employee.name}`}
                     >
                       View
                     </button>
@@ -745,27 +781,27 @@ const HRDashboard = () => {
 
   // Render Attendance Tab
   const renderAttendance = () => (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h2 className={`text-xl font-bold ${tc.text}`}>Attendance Monitoring</h2>
-        <p className={`text-sm ${tc.textSecondary}`}>Live presence across departments today</p>
+        <h2 className={`text-lg sm:text-xl font-bold ${tc.text}`}>Attendance Monitoring</h2>
+        <p className={`text-xs sm:text-sm ${tc.textSecondary}`}>Live presence across departments today</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-7 gap-4 mb-6">
+      <div className="grid grid-cols-3 sm:grid-cols-7 gap-2 sm:gap-4 mb-4 sm:mb-6">
         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => {
           const percentages = [92, 95, 89, 93, 88, 41, 12];
           return (
-            <div key={i} className={`${tc.bgCard} p-4 rounded-2xl ${tc.border} ${tc.shadow} text-center`}>
-              <p className={`text-sm font-medium ${tc.textSecondary}`}>{day}</p>
-              <p className={`text-2xl font-bold ${
+            <div key={i} className={`${tc.bgCard} p-2 sm:p-4 rounded-2xl ${tc.border} ${tc.shadow} text-center`}>
+              <p className={`text-[8px] sm:text-sm font-medium ${tc.textSecondary}`}>{day}</p>
+              <p className={`text-sm sm:text-2xl font-bold ${
                 percentages[i] >= 85 ? 'text-emerald-400' : 
                 percentages[i] >= 70 ? 'text-amber-400' : 'text-rose-400'
               }`}>
                 {percentages[i]}%
               </p>
-              <div className="w-full bg-gray-200/20 rounded-full h-1.5 mt-2">
+              <div className="w-full bg-gray-200/20 rounded-full h-1 sm:h-1.5 mt-1 sm:mt-2">
                 <div 
-                  className={`h-1.5 rounded-full ${
+                  className={`h-1 sm:h-1.5 rounded-full ${
                     percentages[i] >= 85 ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' : 
                     percentages[i] >= 70 ? 'bg-gradient-to-r from-amber-500 to-amber-400' : 'bg-gradient-to-r from-rose-500 to-rose-400'
                   }`} 
@@ -777,18 +813,18 @@ const HRDashboard = () => {
         })}
       </div>
 
-      <div className={`${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
-        <h3 className={`font-semibold ${tc.text} mb-4`}>Department-wise Attendance</h3>
-        <div className="space-y-4">
+      <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
+        <h3 className={`font-semibold ${tc.text} mb-3 sm:mb-4 text-base sm:text-lg`}>Department-wise Attendance</h3>
+        <div className="space-y-2 sm:space-y-4">
           {['Platform', 'Design', 'Product', 'DevOps', 'Marketing', 'Sales', 'HR', 'Finance'].map((dept, i) => {
             const percentages = [92, 88, 95, 85, 78, 90, 96, 89];
             return (
-              <div key={i} className={`flex items-center justify-between ${tc.bgTableHover} p-2 rounded-xl transition-colors`}>
-                <span className={`text-sm font-medium ${tc.text} w-24`}>{dept}</span>
-                <div className="flex-1 mx-4">
-                  <div className="w-full bg-gray-200/20 rounded-full h-2.5 overflow-hidden">
+              <div key={i} className={`flex items-center justify-between ${tc.bgTableHover} p-1.5 sm:p-2 rounded-xl transition-colors gap-2`}>
+                <span className={`text-[10px] sm:text-sm font-medium ${tc.text} w-14 sm:w-24 flex-shrink-0 truncate`}>{dept}</span>
+                <div className="flex-1 mx-2 sm:mx-4 min-w-[30px]">
+                  <div className="w-full bg-gray-200/20 rounded-full h-1.5 sm:h-2.5 overflow-hidden">
                     <div 
-                      className={`h-2.5 rounded-full transition-all duration-500 ${
+                      className={`h-1.5 sm:h-2.5 rounded-full transition-all duration-500 ${
                         percentages[i] >= 90 ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' : 
                         percentages[i] >= 80 ? 'bg-gradient-to-r from-amber-500 to-amber-400' : 'bg-gradient-to-r from-rose-500 to-rose-400'
                       }`} 
@@ -796,9 +832,9 @@ const HRDashboard = () => {
                     />
                   </div>
                 </div>
-                <div className="flex items-center gap-4 w-32 justify-end">
-                  <span className={`text-sm font-semibold w-12 text-right ${tc.text}`}>{percentages[i]}%</span>
-                  <span className={`text-xs ${tc.textMuted}`}>{Math.round(percentages[i] * 0.15)} present</span>
+                <div className="flex items-center gap-2 sm:gap-4 w-16 sm:w-32 justify-end flex-shrink-0">
+                  <span className={`text-[10px] sm:text-sm font-semibold w-8 sm:w-12 text-right ${tc.text}`}>{percentages[i]}%</span>
+                  <span className={`text-[8px] sm:text-xs ${tc.textMuted} hidden sm:inline`}>{Math.round(percentages[i] * 0.15)} present</span>
                 </div>
               </div>
             );
@@ -810,23 +846,23 @@ const HRDashboard = () => {
 
   // Render Leave Management Tab
   const renderLeaveManagement = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
         <div>
-          <h2 className={`text-xl font-bold ${tc.text}`}>Leave Requests</h2>
-          <p className={`text-sm ${tc.textSecondary}`}>Approve or reject employee leave requests</p>
+          <h2 className={`text-lg sm:text-xl font-bold ${tc.text}`}>Leave Requests</h2>
+          <p className={`text-xs sm:text-sm ${tc.textSecondary}`}>Approve or reject employee leave requests</p>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="px-3 py-1 bg-amber-500/20 text-amber-400 rounded-full text-sm font-medium flex items-center gap-1">
-            <span className="w-2 h-2 bg-amber-400 rounded-full"></span>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <span className="px-2 sm:px-3 py-1 bg-amber-500/20 text-amber-400 rounded-full text-[10px] sm:text-sm font-medium flex items-center gap-1">
+            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-amber-400 rounded-full"></span>
             {leaveRequests.filter(l => l.status === 'Pending').length} pending
           </span>
           <div className="relative">
-            <MagnifyingGlassIcon className={`w-4 h-4 ${tc.textMuted} absolute left-3 top-1/2 transform -translate-y-1/2`} />
+            <MagnifyingGlassIcon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${tc.textMuted} absolute left-2.5 sm:left-3 top-1/2 transform -translate-y-1/2`} aria-hidden="true" />
             <input
               type="text"
-              placeholder="Search requests..."
-              className={`pl-9 pr-4 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
+              placeholder="Search..."
+              className={`pl-7 sm:pl-9 pr-3 sm:pr-4 py-1 sm:py-2 ${tc.input} rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all w-24 sm:w-40`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               aria-label="Search leave requests"
@@ -836,70 +872,72 @@ const HRDashboard = () => {
       </div>
 
       <div className={`${tc.bgCard} rounded-2xl ${tc.border} ${tc.shadow} overflow-hidden`}>
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="overflow-x-auto -mx-4 sm:mx-0">
+          <table className="w-full min-w-[800px] sm:min-w-0">
             <thead>
-              <tr className={`text-left text-xs ${tc.tableHeader} ${tc.border} border-b`}>
-                <th className="px-6 py-3 font-medium">Request</th>
-                <th className="px-6 py-3 font-medium">Type</th>
-                <th className="px-6 py-3 font-medium">Period</th>
-                <th className="px-6 py-3 font-medium">Duration</th>
-                <th className="px-6 py-3 font-medium">Reason</th>
-                <th className="px-6 py-3 font-medium">Department</th>
-                <th className="px-6 py-3 font-medium">Status</th>
-                <th className="px-6 py-3 font-medium">Actions</th>
+              <tr className={`text-left text-[10px] sm:text-xs ${tc.tableHeader} ${tc.border} border-b`}>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 font-medium">Request</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 font-medium">Type</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 font-medium hidden sm:table-cell">Period</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 font-medium hidden md:table-cell">Duration</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 font-medium hidden lg:table-cell">Reason</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 font-medium hidden xl:table-cell">Department</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 font-medium">Status</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
               {leaveRequests.map((request) => (
                 <tr key={request.id} className={`${tc.border} border-b last:border-0 ${tc.bgTableHover} transition-colors`}>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-indigo-500/20 rounded-full flex items-center justify-center text-indigo-400 text-xs font-bold">
+                  <td className="px-3 sm:px-6 py-2 sm:py-4">
+                    <div className="flex items-center gap-1.5 sm:gap-3">
+                      <div className="w-6 h-6 sm:w-8 sm:h-8 bg-indigo-500/20 rounded-full flex items-center justify-center text-indigo-400 text-[8px] sm:text-xs font-bold flex-shrink-0">
                         {request.employee.split(' ').map(n => n[0]).join('')}
                       </div>
-                      <div>
-                        <p className={`font-medium ${tc.text}`}>{request.employee}</p>
-                        <p className={`text-xs ${tc.textMuted}`}>{request.id}</p>
+                      <div className="min-w-0">
+                        <p className={`font-medium ${tc.text} text-xs sm:text-sm truncate max-w-[60px] sm:max-w-none`}>{request.employee}</p>
+                        <p className={`text-[8px] sm:text-xs ${tc.textMuted} hidden sm:block`}>{request.id}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getLeaveTypeColor(request.type)}`}>
+                  <td className="px-3 sm:px-6 py-2 sm:py-4">
+                    <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-xs font-medium ${getLeaveTypeColor(request.type)} whitespace-nowrap`}>
                       {request.type}
                     </span>
                   </td>
-                  <td className={`px-6 py-4 text-sm ${tc.textSecondary}`}>{request.period}</td>
-                  <td className={`px-6 py-4 text-sm ${tc.textSecondary}`}>{request.duration}</td>
-                  <td className={`px-6 py-4 text-sm ${tc.textSecondary} max-w-xs truncate`}>{request.reason}</td>
-                  <td className={`px-6 py-4 text-sm ${tc.textSecondary}`}>{request.department}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(request.status)}`}>
+                  <td className={`px-3 sm:px-6 py-2 sm:py-4 text-[10px] sm:text-sm ${tc.textSecondary} hidden sm:table-cell`}>{request.period}</td>
+                  <td className={`px-3 sm:px-6 py-2 sm:py-4 text-[10px] sm:text-sm ${tc.textSecondary} hidden md:table-cell`}>{request.duration}</td>
+                  <td className={`px-3 sm:px-6 py-2 sm:py-4 text-[10px] sm:text-sm ${tc.textSecondary} max-w-xs truncate hidden lg:table-cell`}>{request.reason}</td>
+                  <td className={`px-3 sm:px-6 py-2 sm:py-4 text-[10px] sm:text-sm ${tc.textSecondary} hidden xl:table-cell`}>{request.department}</td>
+                  <td className="px-3 sm:px-6 py-2 sm:py-4">
+                    <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-xs font-medium ${getStatusColor(request.status)} whitespace-nowrap`}>
                       {request.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-3 sm:px-6 py-2 sm:py-4">
                     {request.status === 'Pending' ? (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1 sm:gap-2">
                         <button 
                           type="button"
-                          className="px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-xl text-xs font-medium hover:bg-emerald-500/30 transition-colors flex items-center gap-1"
+                          className="px-1.5 sm:px-3 py-0.5 sm:py-1 bg-emerald-500/20 text-emerald-400 rounded-xl text-[8px] sm:text-xs font-medium hover:bg-emerald-500/30 transition-colors flex items-center gap-0.5 sm:gap-1 whitespace-nowrap"
                           aria-label={`Approve leave request for ${request.employee}`}
+                          title={`Approve leave request for ${request.employee}`}
                         >
-                          <CheckCircleIcon className="w-3 h-3" />
-                          Approve
+                          <CheckCircleIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3" aria-hidden="true" />
+                          <span className="hidden sm:inline">Approve</span>
                         </button>
                         <button 
                           type="button"
-                          className="px-3 py-1 bg-rose-500/20 text-rose-400 rounded-xl text-xs font-medium hover:bg-rose-500/30 transition-colors flex items-center gap-1"
+                          className="px-1.5 sm:px-3 py-0.5 sm:py-1 bg-rose-500/20 text-rose-400 rounded-xl text-[8px] sm:text-xs font-medium hover:bg-rose-500/30 transition-colors flex items-center gap-0.5 sm:gap-1 whitespace-nowrap"
                           aria-label={`Reject leave request for ${request.employee}`}
+                          title={`Reject leave request for ${request.employee}`}
                         >
-                          <XCircleIcon className="w-3 h-3" />
-                          Reject
+                          <XCircleIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3" aria-hidden="true" />
+                          <span className="hidden sm:inline">Reject</span>
                         </button>
                       </div>
                     ) : (
-                      <span className={`text-xs ${tc.textMuted}`}>Reviewed</span>
+                      <span className={`text-[8px] sm:text-xs ${tc.textMuted}`}>Reviewed</span>
                     )}
                   </td>
                 </tr>
@@ -913,50 +951,50 @@ const HRDashboard = () => {
 
   // Render Salary Tab
   const renderSalary = () => (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h2 className={`text-xl font-bold ${tc.text}`}>Salary & Attendance Report</h2>
-        <p className={`text-sm ${tc.textSecondary}`}>Monthly attendance-linked payable summary - Jun 2026</p>
+        <h2 className={`text-lg sm:text-xl font-bold ${tc.text}`}>Salary & Attendance Report</h2>
+        <p className={`text-xs sm:text-sm ${tc.textSecondary}`}>Monthly attendance-linked payable summary - Jun 2026</p>
       </div>
 
       <div className={`${tc.bgCard} rounded-2xl ${tc.border} ${tc.shadow} overflow-hidden`}>
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="overflow-x-auto -mx-4 sm:mx-0">
+          <table className="w-full min-w-[700px] sm:min-w-0">
             <thead>
-              <tr className={`text-left text-xs ${tc.tableHeader} ${tc.border} border-b`}>
-                <th className="px-6 py-3 font-medium">Employee</th>
-                <th className="px-6 py-3 font-medium">Team</th>
-                <th className="px-6 py-3 font-medium text-center">Present</th>
-                <th className="px-6 py-3 font-medium text-center">Leaves</th>
-                <th className="px-6 py-3 font-medium text-center">LOP</th>
-                <th className="px-6 py-3 font-medium text-right">Base Salary</th>
-                <th className="px-6 py-3 font-medium text-right">Payable</th>
+              <tr className={`text-left text-[10px] sm:text-xs ${tc.tableHeader} ${tc.border} border-b`}>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 font-medium">Employee</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 font-medium hidden sm:table-cell">Team</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 font-medium text-center">Present</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 font-medium text-center hidden sm:table-cell">Leaves</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 font-medium text-center hidden md:table-cell">LOP</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 font-medium text-right hidden lg:table-cell">Base Salary</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 font-medium text-right">Payable</th>
               </tr>
             </thead>
             <tbody>
               {salaryRecords.map((record) => (
                 <tr key={record.id} className={`${tc.border} border-b last:border-0 ${tc.bgTableHover} transition-colors`}>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-lg shadow-indigo-500/25">
+                  <td className="px-3 sm:px-6 py-2 sm:py-4">
+                    <div className="flex items-center gap-1.5 sm:gap-3">
+                      <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-[8px] sm:text-xs shadow-lg shadow-indigo-500/25 flex-shrink-0">
                         {record.employee.split(' ').map(n => n[0]).join('')}
                       </div>
-                      <span className={`font-medium ${tc.text}`}>{record.employee}</span>
+                      <span className={`font-medium ${tc.text} text-xs sm:text-sm truncate max-w-[60px] sm:max-w-none`}>{record.employee}</span>
                     </div>
                   </td>
-                  <td className={`px-6 py-4 text-sm ${tc.textSecondary}`}>{record.team}</td>
-                  <td className={`px-6 py-4 text-sm text-center text-emerald-400 font-semibold`}>{record.present}</td>
-                  <td className={`px-6 py-4 text-sm text-center text-amber-400`}>{record.leaves}</td>
-                  <td className={`px-6 py-4 text-sm text-center text-rose-400`}>{record.lop}</td>
-                  <td className={`px-6 py-4 text-sm text-right ${tc.textSecondary}`}>{record.baseSalary}</td>
-                  <td className={`px-6 py-4 text-sm text-right font-semibold text-indigo-400`}>{record.payable}</td>
+                  <td className={`px-3 sm:px-6 py-2 sm:py-4 text-[10px] sm:text-sm ${tc.textSecondary} hidden sm:table-cell`}>{record.team}</td>
+                  <td className={`px-3 sm:px-6 py-2 sm:py-4 text-[10px] sm:text-sm text-center text-emerald-400 font-semibold`}>{record.present}</td>
+                  <td className={`px-3 sm:px-6 py-2 sm:py-4 text-[10px] sm:text-sm text-center text-amber-400 hidden sm:table-cell`}>{record.leaves}</td>
+                  <td className={`px-3 sm:px-6 py-2 sm:py-4 text-[10px] sm:text-sm text-center text-rose-400 hidden md:table-cell`}>{record.lop}</td>
+                  <td className={`px-3 sm:px-6 py-2 sm:py-4 text-[10px] sm:text-sm text-right ${tc.textSecondary} hidden lg:table-cell`}>{record.baseSalary}</td>
+                  <td className={`px-3 sm:px-6 py-2 sm:py-4 text-[10px] sm:text-sm text-right font-semibold text-indigo-400`}>{record.payable}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot className={`${tc.tableHeader} ${tc.border} border-t`}>
               <tr>
-                <td colSpan={6} className={`px-6 py-3 text-sm font-semibold ${tc.text} text-right`}>Total Payable:</td>
-                <td className={`px-6 py-3 text-sm font-bold text-indigo-400 text-right`}>₹14,53,045</td>
+                <td colSpan={6} className={`px-3 sm:px-6 py-2 sm:py-3 text-[10px] sm:text-sm font-semibold ${tc.text} text-right hidden lg:table-cell`}>Total Payable:</td>
+                <td className={`px-3 sm:px-6 py-2 sm:py-3 text-[10px] sm:text-sm font-bold text-indigo-400 text-right`}>₹14,53,045</td>
               </tr>
             </tfoot>
           </table>
@@ -967,61 +1005,64 @@ const HRDashboard = () => {
 
   // Render Holidays Tab
   const renderHolidays = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
         <div>
-          <h2 className={`text-xl font-bold ${tc.text}`}>Holiday Calendar</h2>
-          <p className={`text-sm ${tc.textSecondary}`}>Manage national, regional and optional holidays for FY26</p>
+          <h2 className={`text-lg sm:text-xl font-bold ${tc.text}`}>Holiday Calendar</h2>
+          <p className={`text-xs sm:text-sm ${tc.textSecondary}`}>Manage national, regional and optional holidays for FY26</p>
         </div>
         <button 
           type="button"
-          className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2"
+          className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-xs sm:text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-1.5 sm:gap-2"
+          aria-label="Add new holiday"
         >
-          <PlusIcon className="w-4 h-4" />
+          <PlusIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" aria-hidden="true" />
           Add Holiday
         </button>
       </div>
 
       <div className={`${tc.bgCard} rounded-2xl ${tc.border} ${tc.shadow} overflow-hidden`}>
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="overflow-x-auto -mx-4 sm:mx-0">
+          <table className="w-full min-w-[500px] sm:min-w-0">
             <thead>
-              <tr className={`text-left text-xs ${tc.tableHeader} ${tc.border} border-b`}>
-                <th className="px-6 py-3 font-medium">Date</th>
-                <th className="px-6 py-3 font-medium">Holiday Name</th>
-                <th className="px-6 py-3 font-medium">Type</th>
-                <th className="px-6 py-3 font-medium">Status</th>
-                <th className="px-6 py-3 font-medium">Actions</th>
+              <tr className={`text-left text-[10px] sm:text-xs ${tc.tableHeader} ${tc.border} border-b`}>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 font-medium">Date</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 font-medium">Holiday Name</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 font-medium">Type</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 font-medium hidden sm:table-cell">Status</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
               {holidays.map((holiday) => (
                 <tr key={holiday.id} className={`${tc.border} border-b last:border-0 ${tc.bgTableHover} transition-colors`}>
-                  <td className={`px-6 py-4 text-sm ${tc.textSecondary}`}>{holiday.date}</td>
-                  <td className={`px-6 py-4 font-medium ${tc.text}`}>{holiday.name}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(holiday.type)}`}>
+                  <td className={`px-3 sm:px-6 py-2 sm:py-4 text-[10px] sm:text-sm ${tc.textSecondary}`}>{holiday.date}</td>
+                  <td className={`px-3 sm:px-6 py-2 sm:py-4 font-medium ${tc.text} text-xs sm:text-sm truncate max-w-[80px] sm:max-w-none`}>{holiday.name}</td>
+                  <td className="px-3 sm:px-6 py-2 sm:py-4">
+                    <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-xs font-medium ${getStatusColor(holiday.type)} whitespace-nowrap`}>
                       {holiday.type}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
-                    <span className="px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded-full text-xs">Active</span>
+                  <td className="px-3 sm:px-6 py-2 sm:py-4 hidden sm:table-cell">
+                    <span className="px-1.5 sm:px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full text-[8px] sm:text-xs">Active</span>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
+                  <td className="px-3 sm:px-6 py-2 sm:py-4">
+                    <div className="flex items-center gap-1 sm:gap-2">
                       <button 
                         type="button"
                         className={`p-1 ${tc.bgTableHover} rounded transition-colors`}
                         aria-label={`Edit holiday ${holiday.name}`}
+                        title={`Edit holiday ${holiday.name}`}
                       >
-                        <PencilIcon className={`w-4 h-4 ${tc.textMuted}`} />
+                        <PencilIcon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${tc.textMuted}`} aria-hidden="true" />
                       </button>
                       <button 
                         type="button"
                         className={`p-1 ${tc.bgTableHover} rounded transition-colors`}
                         aria-label={`Delete holiday ${holiday.name}`}
+                        title={`Delete holiday ${holiday.name}`}
                       >
-                        <TrashIcon className="w-4 h-4 text-rose-400" />
+                        <TrashIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-400" aria-hidden="true" />
                       </button>
                     </div>
                   </td>
@@ -1032,21 +1073,21 @@ const HRDashboard = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-blue-500/10 p-4 rounded-2xl border border-blue-500/20">
-          <h4 className="font-semibold text-blue-400">National Holidays</h4>
-          <p className="text-2xl font-bold text-blue-400">{holidays.filter(h => h.type === 'National').length}</p>
-          <p className="text-xs text-blue-400/70">Official holidays</p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <div className="bg-blue-500/10 p-3 sm:p-4 rounded-2xl border border-blue-500/20">
+          <h4 className="font-semibold text-blue-400 text-sm sm:text-base">National Holidays</h4>
+          <p className="text-xl sm:text-2xl font-bold text-blue-400">{holidays.filter(h => h.type === 'National').length}</p>
+          <p className="text-[10px] sm:text-xs text-blue-400/70">Official holidays</p>
         </div>
-        <div className="bg-purple-500/10 p-4 rounded-2xl border border-purple-500/20">
-          <h4 className="font-semibold text-purple-400">Regional Holidays</h4>
-          <p className="text-2xl font-bold text-purple-400">{holidays.filter(h => h.type === 'Regional').length}</p>
-          <p className="text-xs text-purple-400/70">State-specific</p>
+        <div className="bg-purple-500/10 p-3 sm:p-4 rounded-2xl border border-purple-500/20">
+          <h4 className="font-semibold text-purple-400 text-sm sm:text-base">Regional Holidays</h4>
+          <p className="text-xl sm:text-2xl font-bold text-purple-400">{holidays.filter(h => h.type === 'Regional').length}</p>
+          <p className="text-[10px] sm:text-xs text-purple-400/70">State-specific</p>
         </div>
-        <div className="bg-gray-500/10 p-4 rounded-2xl border border-gray-500/20">
-          <h4 className="font-semibold text-gray-400">Optional Holidays</h4>
-          <p className="text-2xl font-bold text-gray-400">{holidays.filter(h => h.type === 'Optional').length}</p>
-          <p className="text-xs text-gray-400/70">Employee choice</p>
+        <div className="bg-gray-500/10 p-3 sm:p-4 rounded-2xl border border-gray-500/20">
+          <h4 className="font-semibold text-gray-400 text-sm sm:text-base">Optional Holidays</h4>
+          <p className="text-xl sm:text-2xl font-bold text-gray-400">{holidays.filter(h => h.type === 'Optional').length}</p>
+          <p className="text-[10px] sm:text-xs text-gray-400/70">Employee choice</p>
         </div>
       </div>
     </div>
@@ -1054,48 +1095,49 @@ const HRDashboard = () => {
 
   // Render Announcements Tab
   const renderAnnouncements = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
         <div>
-          <h2 className={`text-xl font-bold ${tc.text}`}>Announcements</h2>
-          <p className={`text-sm ${tc.textSecondary}`}>Broadcast company-wide updates</p>
+          <h2 className={`text-lg sm:text-xl font-bold ${tc.text}`}>Announcements</h2>
+          <p className={`text-xs sm:text-sm ${tc.textSecondary}`}>Broadcast company-wide updates</p>
         </div>
         <button 
           type="button"
-          className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2"
+          className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-xs sm:text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-1.5 sm:gap-2"
+          aria-label="Create new announcement"
         >
-          <MegaphoneIcon className="w-4 h-4" />
+          <MegaphoneIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" aria-hidden="true" />
           New Announcement
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Create Announcement Form */}
-        <div className={`lg:col-span-1 ${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
-          <h3 className={`font-semibold ${tc.text} mb-4`}>Create Announcement</h3>
-          <div className="space-y-4">
+        <div className={`lg:col-span-1 ${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
+          <h3 className={`font-semibold ${tc.text} mb-3 sm:mb-4 text-base sm:text-lg`}>Create Announcement</h3>
+          <div className="space-y-3 sm:space-y-4">
             <div>
-              <label className={`block text-sm ${tc.textSecondary} mb-1`}>Announcement title</label>
+              <label className={`block text-xs sm:text-sm ${tc.textSecondary} mb-1`}>Announcement title</label>
               <input
                 type="text"
                 placeholder="Enter title..."
-                className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
+                className={`w-full px-3 py-1.5 sm:py-2 ${tc.input} rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
                 aria-label="Announcement title"
               />
             </div>
             <div>
-              <label className={`block text-sm ${tc.textSecondary} mb-1`}>Content</label>
+              <label className={`block text-xs sm:text-sm ${tc.textSecondary} mb-1`}>Content</label>
               <textarea
                 rows={4}
                 placeholder="Share the details..."
-                className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all resize-none`}
+                className={`w-full px-3 py-1.5 sm:py-2 ${tc.input} rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all resize-none`}
                 aria-label="Announcement content"
               />
             </div>
             <div>
-              <label className={`block text-sm ${tc.textSecondary} mb-1`}>Audience</label>
+              <label className={`block text-xs sm:text-sm ${tc.textSecondary} mb-1`}>Audience</label>
               <select 
-                className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
+                className={`w-full px-3 py-1.5 sm:py-2 ${tc.input} rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
                 aria-label="Select audience for announcement"
               >
                 <option>All</option>
@@ -1106,48 +1148,51 @@ const HRDashboard = () => {
             </div>
             <button 
               type="button"
-              className="w-full bg-gradient-to-r from-indigo-500 to-indigo-600 text-white py-2.5 rounded-xl hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2"
+              className="w-full bg-gradient-to-r from-indigo-500 to-indigo-600 text-white py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2"
+              aria-label="Publish announcement"
             >
-              <MegaphoneIcon className="w-4 h-4" />
+              <MegaphoneIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" aria-hidden="true" />
               Publish
             </button>
           </div>
         </div>
 
         {/* Announcements List */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-3 sm:space-y-4">
           {announcements.map((announcement) => (
-            <div key={announcement.id} className={`${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow} hover:${tc.bgCardHover} transition-all duration-300`}>
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className={`font-semibold ${tc.text}`}>{announcement.title}</h3>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(announcement.status)}`}>
+            <div key={announcement.id} className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow} ${tc.bgCardHover} transition-all duration-300`}>
+              <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-0">
+                <div className="flex-1 min-w-0 w-full">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
+                    <h3 className={`font-semibold ${tc.text} text-sm sm:text-base truncate`}>{announcement.title}</h3>
+                    <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-xs font-medium ${getStatusColor(announcement.status)} flex-shrink-0`}>
                       {announcement.status}
                     </span>
-                    <span className={`text-xs ${tc.textMuted}`}>{announcement.id}</span>
+                    <span className={`text-[8px] sm:text-xs ${tc.textMuted} flex-shrink-0`}>{announcement.id}</span>
                   </div>
-                  <p className={`text-sm ${tc.textSecondary}`}>{announcement.content}</p>
-                  <div className={`mt-3 flex items-center gap-4 text-xs ${tc.textMuted}`}>
+                  <p className={`text-xs sm:text-sm ${tc.textSecondary}`}>{announcement.content}</p>
+                  <div className={`mt-2 sm:mt-3 flex flex-wrap items-center gap-2 sm:gap-4 text-[8px] sm:text-xs ${tc.textMuted}`}>
                     <span>By: {announcement.author}</span>
                     <span>{announcement.date}</span>
-                    <span className={`px-2 py-0.5 ${tc.bgTableHover} rounded-full`}>{announcement.audience}</span>
+                    <span className={`px-1.5 sm:px-2 py-0.5 ${tc.bgTableHover} rounded-full`}>{announcement.audience}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 ml-4">
+                <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                   <button 
                     type="button"
                     className={`p-1 ${tc.bgTableHover} rounded transition-colors`}
                     aria-label={`Edit announcement ${announcement.title}`}
+                    title={`Edit announcement ${announcement.title}`}
                   >
-                    <PencilIcon className={`w-4 h-4 ${tc.textMuted}`} />
+                    <PencilIcon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${tc.textMuted}`} aria-hidden="true" />
                   </button>
                   <button 
                     type="button"
                     className={`p-1 ${tc.bgTableHover} rounded transition-colors`}
                     aria-label={`View announcement ${announcement.title}`}
+                    title={`View announcement ${announcement.title}`}
                   >
-                    <EyeIcon className="w-4 h-4 text-indigo-400" />
+                    <EyeIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-400" aria-hidden="true" />
                   </button>
                 </div>
               </div>
@@ -1160,41 +1205,42 @@ const HRDashboard = () => {
 
   // Render Queries Tab
   const renderQueries = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
         <div>
-          <h2 className={`text-xl font-bold ${tc.text}`}>Queries & Messages</h2>
-          <p className={`text-sm ${tc.textSecondary}`}>View and respond to messages from employees, managers, and super admin</p>
+          <h2 className={`text-lg sm:text-xl font-bold ${tc.text}`}>Queries & Messages</h2>
+          <p className={`text-xs sm:text-sm ${tc.textSecondary}`}>View and respond to messages from employees, managers, and super admin</p>
         </div>
         <button 
           type="button"
           onClick={() => setShowCompose(true)}
-          className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2"
+          className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-xs sm:text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-1.5 sm:gap-2"
+          aria-label="Compose new message"
         >
-          <PaperAirplaneIcon className="w-4 h-4" />
+          <PaperAirplaneIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" aria-hidden="true" />
           Compose Message
         </button>
       </div>
 
       {/* Compose Message Modal */}
       {showCompose && (
-        <div className={`${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className={`font-semibold ${tc.text}`}>Compose New Message</h3>
+        <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <h3 className={`font-semibold ${tc.text} text-base sm:text-lg`}>Compose New Message</h3>
             <button 
               type="button"
               onClick={() => setShowCompose(false)}
               className={`${tc.textMuted} hover:${tc.text}`}
               aria-label="Close compose window"
             >
-              <XCircleIcon className="w-6 h-6" />
+              <XCircleIcon className="w-5 h-5 sm:w-6 sm:h-6" aria-hidden="true" />
             </button>
           </div>
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             <div>
-              <label className={`block text-sm ${tc.textSecondary} mb-1`}>Recipient</label>
+              <label className={`block text-xs sm:text-sm ${tc.textSecondary} mb-1`}>Recipient</label>
               <select 
-                className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
+                className={`w-full px-3 py-1.5 sm:py-2 ${tc.input} rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
                 value={newMessage.receiver}
                 onChange={(e) => setNewMessage({ ...newMessage, receiver: e.target.value })}
                 aria-label="Select recipient"
@@ -1208,9 +1254,9 @@ const HRDashboard = () => {
               </select>
             </div>
             <div>
-              <label className={`block text-sm ${tc.textSecondary} mb-1`}>Category</label>
+              <label className={`block text-xs sm:text-sm ${tc.textSecondary} mb-1`}>Category</label>
               <select 
-                className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
+                className={`w-full px-3 py-1.5 sm:py-2 ${tc.input} rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
                 value={newMessage.category}
                 onChange={(e) => setNewMessage({ ...newMessage, category: e.target.value as Message['category'] })}
                 aria-label="Select message category"
@@ -1224,41 +1270,42 @@ const HRDashboard = () => {
               </select>
             </div>
             <div>
-              <label className={`block text-sm ${tc.textSecondary} mb-1`}>Subject</label>
+              <label className={`block text-xs sm:text-sm ${tc.textSecondary} mb-1`}>Subject</label>
               <input
                 type="text"
                 placeholder="Enter subject..."
-                className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
+                className={`w-full px-3 py-1.5 sm:py-2 ${tc.input} rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
                 value={newMessage.subject}
                 onChange={(e) => setNewMessage({ ...newMessage, subject: e.target.value })}
                 aria-label="Message subject"
               />
             </div>
             <div>
-              <label className={`block text-sm ${tc.textSecondary} mb-1`}>Message</label>
+              <label className={`block text-xs sm:text-sm ${tc.textSecondary} mb-1`}>Message</label>
               <textarea
                 rows={4}
                 placeholder="Type your message here..."
-                className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all resize-none`}
+                className={`w-full px-3 py-1.5 sm:py-2 ${tc.input} rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all resize-none`}
                 value={newMessage.content}
                 onChange={(e) => setNewMessage({ ...newMessage, content: e.target.value })}
                 aria-label="Message content"
               />
             </div>
-            <div className="flex items-center justify-end gap-3">
+            <div className="flex flex-col sm:flex-row items-center justify-end gap-2 sm:gap-3">
               <button 
                 type="button"
                 onClick={() => setShowCompose(false)}
-                className={`px-4 py-2 ${tc.border} ${tc.textSecondary} rounded-xl text-sm font-medium ${tc.bgTableHover} transition-colors`}
+                className={`w-full sm:w-auto px-4 py-1.5 sm:py-2 ${tc.border} ${tc.textSecondary} rounded-xl text-xs sm:text-sm font-medium ${tc.bgTableHover} transition-colors`}
               >
                 Cancel
               </button>
               <button 
                 type="button"
                 onClick={handleSendMessage}
-                className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2"
+                className="w-full sm:w-auto px-4 py-1.5 sm:py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-xs sm:text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2"
+                aria-label="Send message"
               >
-                <PaperAirplaneIcon className="w-4 h-4" />
+                <PaperAirplaneIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" aria-hidden="true" />
                 Send Message
               </button>
             </div>
@@ -1267,12 +1314,12 @@ const HRDashboard = () => {
       )}
 
       {/* Filters */}
-      <div className={`${tc.bgCard} p-4 rounded-2xl ${tc.border} ${tc.shadow} flex items-center justify-between flex-wrap gap-4`}>
-        <div className="flex items-center gap-4">
-          <div>
-            <label className={`text-xs ${tc.textSecondary} block mb-1`}>Status</label>
+      <div className={`${tc.bgCard} p-3 sm:p-4 rounded-2xl ${tc.border} ${tc.shadow} flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4`}>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4 w-full sm:w-auto">
+          <div className="flex-1 sm:flex-none min-w-[100px]">
+            <label className={`text-[10px] sm:text-xs ${tc.textSecondary} block mb-0.5 sm:mb-1`}>Status</label>
             <select 
-              className={`px-3 py-1.5 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
+              className={`w-full px-2 sm:px-3 py-1 ${tc.input} rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
               value={selectedFilter}
               onChange={(e) => setSelectedFilter(e.target.value as 'all' | 'unread' | 'read')}
               aria-label="Filter by status"
@@ -1282,10 +1329,10 @@ const HRDashboard = () => {
               <option value="read">Read</option>
             </select>
           </div>
-          <div>
-            <label className={`text-xs ${tc.textSecondary} block mb-1`}>Category</label>
+          <div className="flex-1 sm:flex-none min-w-[100px]">
+            <label className={`text-[10px] sm:text-xs ${tc.textSecondary} block mb-0.5 sm:mb-1`}>Category</label>
             <select 
-              className={`px-3 py-1.5 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
+              className={`w-full px-2 sm:px-3 py-1 ${tc.input} rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value as Message['category'] | 'all')}
               aria-label="Filter by category"
@@ -1300,49 +1347,53 @@ const HRDashboard = () => {
             </select>
           </div>
         </div>
-        <div className={`text-sm ${tc.textSecondary}`}>
+        <div className={`text-[10px] sm:text-sm ${tc.textSecondary} flex-shrink-0`}>
           {filteredMessages.filter(m => !m.read).length} unread • {filteredMessages.length} total
         </div>
       </div>
 
       {/* Messages List */}
-      <div className="space-y-3">
+      <div className="space-y-2 sm:space-y-3">
         {filteredMessages.length === 0 ? (
-          <div className={`${tc.bgCard} p-12 rounded-2xl ${tc.border} ${tc.shadow} text-center`}>
-            <InboxIcon className={`w-12 h-12 ${tc.textMuted} mx-auto mb-3`} />
+          <div className={`${tc.bgCard} p-8 sm:p-12 rounded-2xl ${tc.border} ${tc.shadow} text-center`}>
+            <InboxIcon className={`w-10 h-10 sm:w-12 sm:h-12 ${tc.textMuted} mx-auto mb-3`} aria-hidden="true" />
             <p className={tc.textSecondary}>No messages found</p>
           </div>
         ) : (
           filteredMessages.map((msg) => (
             <div 
               key={msg.id} 
-              className={`${tc.bgCard} p-5 rounded-2xl ${tc.border} ${tc.shadow} ${!msg.read ? 'border-indigo-500/30 bg-indigo-500/5' : ''} hover:${tc.bgCardHover} transition-all cursor-pointer`}
+              className={`${tc.bgCard} p-4 sm:p-5 rounded-2xl ${tc.border} ${tc.shadow} ${!msg.read ? 'border-indigo-500/30 bg-indigo-500/5' : ''} ${tc.bgCardHover} transition-all cursor-pointer`}
               onClick={() => markAsRead(msg.id)}
+              role="button"
+              tabIndex={0}
+              onKeyPress={(e) => e.key === 'Enter' && markAsRead(msg.id)}
+              aria-label={`Message from ${msg.sender}: ${msg.subject}`}
             >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2 flex-wrap">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getSenderRoleColor(msg.senderRole)}`}>
+              <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-0">
+                <div className="flex-1 min-w-0 w-full">
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                    <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-xs font-medium ${getSenderRoleColor(msg.senderRole)}`}>
                       {msg.senderRole}
                     </span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(msg.category)}`}>
+                    <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-xs font-medium ${getCategoryColor(msg.category)}`}>
                       {msg.category}
                     </span>
                     {!msg.read && (
-                      <span className="px-2 py-0.5 bg-indigo-500/20 text-indigo-400 rounded-full text-xs font-medium animate-pulse">
+                      <span className="px-1.5 sm:px-2 py-0.5 bg-indigo-500/20 text-indigo-400 rounded-full text-[8px] sm:text-xs font-medium animate-pulse">
                         New
                       </span>
                     )}
                   </div>
-                  <h3 className={`font-semibold ${tc.text}`}>{msg.subject}</h3>
-                  <p className={`text-sm ${tc.textSecondary} mt-1`}>{msg.content}</p>
-                  <div className={`mt-3 flex items-center gap-4 text-xs ${tc.textMuted}`}>
+                  <h3 className={`font-semibold ${tc.text} text-sm sm:text-base truncate`}>{msg.subject}</h3>
+                  <p className={`text-xs sm:text-sm ${tc.textSecondary} mt-0.5 sm:mt-1 line-clamp-2`}>{msg.content}</p>
+                  <div className={`mt-1.5 sm:mt-2 flex flex-wrap items-center gap-2 sm:gap-4 text-[10px] sm:text-xs ${tc.textMuted}`}>
                     <span><strong className={tc.textSecondary}>From:</strong> {msg.sender}</span>
-                    <span><strong className={tc.textSecondary}>To:</strong> {msg.receiver} ({msg.receiverRole})</span>
+                    <span className="hidden sm:inline"><strong className={tc.textSecondary}>To:</strong> {msg.receiver}</span>
                     <span>{msg.timestamp}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 ml-4">
+                <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                   <button 
                     type="button"
                     className={`p-1.5 text-indigo-400 ${tc.bgTableHover} rounded-xl transition-colors`}
@@ -1357,8 +1408,9 @@ const HRDashboard = () => {
                       setShowCompose(true);
                     }}
                     aria-label={`Reply to ${msg.sender}`}
+                    title={`Reply to ${msg.sender}`}
                   >
-                    <PaperAirplaneIcon className="w-4 h-4" />
+                    <PaperAirplaneIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" aria-hidden="true" />
                   </button>
                   <button 
                     type="button"
@@ -1370,8 +1422,9 @@ const HRDashboard = () => {
                       }
                     }}
                     aria-label={`Delete message from ${msg.sender}`}
+                    title={`Delete message from ${msg.sender}`}
                   >
-                    <TrashIcon className="w-4 h-4" />
+                    <TrashIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" aria-hidden="true" />
                   </button>
                 </div>
               </div>
@@ -1407,16 +1460,32 @@ const HRDashboard = () => {
   };
 
   return (
-    <div className={`flex h-screen ${tc.bg} transition-colors duration-300`}>
-      <Sidebar role="hr-partner" />
-      <div className="flex-1 flex flex-col overflow-hidden">
+    <div className={`flex h-screen ${tc.bg} transition-colors duration-300 overflow-hidden`}>
+      {/* Desktop Sidebar */}
+      <Sidebar 
+        role="hr-partner" 
+        collapsed={sidebarCollapsed}
+        onToggle={toggleSidebar}
+      />
+
+      {/* Mobile Sidebar */}
+      <Sidebar 
+        role="hr-partner"
+        isMobile={true}
+        isMobileOpen={isMobileSidebarOpen}
+        onMobileClose={closeMobileSidebar}
+      />
+
+      <div className="flex-1 flex flex-col overflow-hidden w-full">
         <Header 
           title="People Operations"
           subtitle="Sanya Kapoor - HR Business Partner"
           theme={theme}
           onThemeToggle={toggleTheme}
+          onMobileMenuToggle={toggleMobileSidebar}
+          isMobile={isMobile}
         />
-        <div className={`flex-1 overflow-y-auto p-8 ${tc.scrollbar} scrollbar-thin`}>
+        <div className={`flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 lg:p-8 ${tc.scrollbar} scrollbar-thin`}>
           {renderContent()}
         </div>
       </div>

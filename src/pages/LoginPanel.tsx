@@ -1,4 +1,4 @@
-// src/components/LoginPanel.tsx
+// src/components/LoginPanel.tsx - Fixed close button with proper event handling
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -18,9 +18,10 @@ interface LoginPanelProps {
   isOpen: boolean;
   onClose: () => void;
   isDarkMode: boolean;
+  isMobile?: boolean;
 }
 
-const LoginPanel: React.FC<LoginPanelProps> = ({ isOpen, onClose, isDarkMode }) => {
+const LoginPanel: React.FC<LoginPanelProps> = ({ isOpen, onClose, isDarkMode, isMobile = false }) => {
   const { login } = useAuth();
   const navigate = useNavigate();
   
@@ -68,8 +69,272 @@ const LoginPanel: React.FC<LoginPanelProps> = ({ isOpen, onClose, isDarkMode }) 
     }
   };
 
+  // Separate close handler with event prevention
+  const handleCloseClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onClose();
+  };
+
+  // Handle backdrop click for mobile
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
   if (!isVisible && !isOpen) return null;
 
+  // Mobile Popup View
+  if (isMobile) {
+    return (
+      <div 
+        className={`fixed inset-0 z-50 flex items-center justify-center transition-all duration-500 ${
+          isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+        style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+        onClick={handleBackdropClick}
+      >
+        <div 
+          className={`relative w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl transition-all duration-500 transform-gpu ${
+            isDarkMode 
+              ? 'bg-gray-800 border-gray-700' 
+              : 'bg-white border-gray-200'
+          } ${
+            isOpen ? 'scale-100 translate-y-0' : 'scale-95 translate-y-10'
+          }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Close Button - Fixed with proper event handling */}
+          <div className="sticky top-0 z-20 flex justify-end p-2">
+            <button
+              onClick={handleCloseClick}
+              type="button"
+              className={`
+                p-2 rounded-full transition-all duration-300 shadow-lg backdrop-blur-sm
+                hover:scale-110 active:scale-95
+                ${isDarkMode 
+                  ? 'bg-gray-800/90 hover:bg-gray-700 text-gray-400 hover:text-white' 
+                  : 'bg-white/90 hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+                }
+              `}
+              aria-label="Close login"
+            >
+              <XMarkIcon className="w-6 h-6 transition-transform duration-300 hover:rotate-90" />
+            </button>
+          </div>
+
+          {/* Brand Section */}
+          <div className="relative -mt-14">
+            <div className="absolute inset-0 bg-gradient-to-br from-[#0a1628] via-[#1a2744] to-[#2a3f6a] rounded-t-3xl">
+              <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full blur-3xl animate-pulse"></div>
+              <div className="absolute bottom-0 left-0 w-36 h-36 bg-white/5 rounded-full blur-2xl animate-pulse delay-1000"></div>
+            </div>
+            
+            <div className="relative z-10 px-6 pb-4 pt-14 text-white">
+              <div className="flex items-center mb-4 group">
+                <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center mr-3 backdrop-blur-sm transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </div>
+                <div>
+                  <h1 className="text-xl font-bold tracking-tight">ServEase</h1>
+                  <p className="text-[10px] text-blue-300">INNOVATION PVT LTD</p>
+                </div>
+              </div>
+
+              <h2 className="text-xl font-bold mb-1 flex items-center gap-2">
+                Welcome back.
+                <SparklesIcon className="w-4 h-4 text-yellow-400 animate-pulse" />
+              </h2>
+              <p className="text-blue-200 text-sm mb-4">
+                Sign in to your account to manage your work efficiently.
+              </p>
+
+              <div className="space-y-2">
+                <div className="flex items-center space-x-3">
+                  <CheckCircleIcon className="w-4 h-4 text-blue-300 flex-shrink-0" />
+                  <span className="text-sm text-blue-100">Username & password sign-in</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircleIcon className="w-4 h-4 text-blue-300 flex-shrink-0" />
+                  <span className="text-sm text-blue-100">Role-based dashboards</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Login Form */}
+          <div className={`px-6 pb-6 transition-colors duration-300 ${
+            isDarkMode ? 'bg-gray-800' : 'bg-white'
+          } rounded-b-3xl`}>
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className={`block text-sm font-medium mb-1.5 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  Username
+                </label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <UserIcon className={`h-5 w-5 transition-all duration-300 ${
+                      isDarkMode 
+                        ? 'text-gray-500 group-hover:text-indigo-400 group-hover:scale-110' 
+                        : 'text-gray-400 group-hover:text-indigo-500 group-hover:scale-110'
+                    }`} />
+                  </div>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className={`
+                      w-full pl-10 pr-4 py-3 border rounded-xl outline-none transition-all duration-300
+                      focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+                      hover:shadow-md hover:shadow-indigo-500/10
+                      ${isDarkMode 
+                        ? 'bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-400 hover:border-gray-500' 
+                        : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400 hover:border-gray-300'
+                      }
+                    `}
+                    placeholder="Enter your username"
+                    required
+                    disabled={loading}
+                    autoComplete="username"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className={`block text-sm font-medium mb-1.5 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  Password
+                </label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <LockClosedIcon className={`h-5 w-5 transition-all duration-300 ${
+                      isDarkMode 
+                        ? 'text-gray-500 group-hover:text-indigo-400 group-hover:scale-110' 
+                        : 'text-gray-400 group-hover:text-indigo-500 group-hover:scale-110'
+                    }`} />
+                  </div>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className={`
+                      w-full pl-10 pr-12 py-3 border rounded-xl outline-none transition-all duration-300
+                      focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+                      hover:shadow-md hover:shadow-indigo-500/10
+                      ${isDarkMode 
+                        ? 'bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-400 hover:border-gray-500' 
+                        : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400 hover:border-gray-300'
+                      }
+                    `}
+                    placeholder="Min. 6 characters"
+                    required
+                    minLength={6}
+                    disabled={loading}
+                    autoComplete="current-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center group"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? (
+                      <EyeSlashIcon className={`h-5 w-5 transition-all duration-300 ${
+                        isDarkMode 
+                          ? 'text-gray-400 group-hover:text-gray-200 group-hover:scale-110' 
+                          : 'text-gray-400 group-hover:text-gray-600 group-hover:scale-110'
+                      }`} />
+                    ) : (
+                      <EyeIcon className={`h-5 w-5 transition-all duration-300 ${
+                        isDarkMode 
+                          ? 'text-gray-400 group-hover:text-gray-200 group-hover:scale-110' 
+                          : 'text-gray-400 group-hover:text-gray-600 group-hover:scale-110'
+                      }`} />
+                    )}
+                  </button>
+                </div>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mt-2">
+                  <label className={`flex items-center text-sm transition-all duration-300 hover:text-indigo-600 dark:hover:text-indigo-400 ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className={`
+                        mr-2 rounded focus:ring-indigo-500 transition-all duration-300
+                        hover:scale-110
+                        ${isDarkMode 
+                          ? 'border-gray-600 bg-gray-700 text-indigo-600' 
+                          : 'border-gray-300 text-indigo-600'
+                        }
+                      `}
+                    />
+                    Remember me
+                  </label>
+                  <button 
+                    type="button" 
+                    className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline transition-all duration-300 hover:scale-105"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="relative w-full bg-gradient-to-r from-indigo-600 to-indigo-700 text-white py-3 rounded-xl font-medium transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center group overflow-hidden hover:shadow-xl hover:shadow-indigo-500/30 dark:hover:shadow-indigo-900/30 hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <span className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+                
+                {loading ? (
+                  <span className="relative flex items-center justify-center">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Signing in...
+                  </span>
+                ) : (
+                  <span className="relative flex items-center">
+                    <span>Sign in</span>
+                    <ArrowRightIcon className="w-5 h-5 ml-2 group-hover:translate-x-1 group-hover:scale-110 transition-all duration-300" />
+                  </span>
+                )}
+                
+                <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent"></span>
+              </button>
+            </form>
+
+            <div className={`mt-4 pt-3 border-t transition-colors duration-300 ${
+              isDarkMode ? 'border-gray-700' : 'border-gray-200'
+            } text-center`}>
+              <p className={`text-xs transition-all duration-300 ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-500'
+              }`}>
+                Need an account?{' '}
+                <button 
+                  type="button"
+                  className="text-indigo-600 dark:text-indigo-400 hover:underline transition-all duration-300 hover:scale-105 inline-block"
+                >
+                  Contact your HR administrator
+                </button>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop Side Panel View (Original)
   return (
     <div 
       className={`lg:sticky lg:top-24 transition-all duration-700 ease-in-out ${
@@ -82,7 +347,7 @@ const LoginPanel: React.FC<LoginPanelProps> = ({ isOpen, onClose, isDarkMode }) 
         <div 
           className={`
             rounded-3xl shadow-2xl overflow-hidden border transition-all duration-700 ease-in-out
-            transform-gpu will-change-transform
+            transform-gpu will-change-transform relative
             ${isDarkMode 
               ? 'bg-gray-800 border-gray-700' 
               : 'bg-white border-gray-200'
@@ -97,12 +362,13 @@ const LoginPanel: React.FC<LoginPanelProps> = ({ isOpen, onClose, isDarkMode }) 
           }}
         >
           {/* Animated Glow Effect */}
-          <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-3xl blur-2xl opacity-20 animate-pulse"></div>
+          <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-3xl blur-2xl opacity-20 animate-pulse pointer-events-none"></div>
           
-          {/* Close Button with Hover Animation */}
-          <div className="absolute top-4 right-4 z-10">
+          {/* Close Button with Hover Animation - Fixed */}
+          <div className="absolute top-4 right-4 z-20">
             <button
-              onClick={onClose}
+              onClick={handleCloseClick}
+              type="button"
               className={`
                 p-2 rounded-full transition-all duration-300 shadow-lg backdrop-blur-sm
                 hover:scale-110 active:scale-95

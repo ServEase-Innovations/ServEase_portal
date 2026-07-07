@@ -1,5 +1,5 @@
-// Sidebar.tsx - Updated with Queries section for all roles
-import React from 'react';
+// Sidebar.tsx - Updated with responsive mobile support
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import {
@@ -42,13 +42,18 @@ import {
   PaperClipIcon,
   FolderOpenIcon,
   WrenchScrewdriverIcon,
-  EnvelopeIcon
+  EnvelopeIcon,
+  XMarkIcon,
+  Bars3Icon
 } from '@heroicons/react/24/outline';
 
 interface SidebarProps {
   role: string;
   collapsed?: boolean;
   onToggle?: () => void;
+  isMobile?: boolean;
+  isMobileOpen?: boolean;
+  onMobileClose?: () => void;
 }
 
 interface MenuItem {
@@ -63,7 +68,14 @@ interface MenuSection {
   items: MenuItem[];
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ role, collapsed = false, onToggle }) => {
+const Sidebar: React.FC<SidebarProps> = ({ 
+  role, 
+  collapsed = false, 
+  onToggle, 
+  isMobile = false,
+  isMobileOpen = false,
+  onMobileClose
+}) => {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -71,6 +83,16 @@ const Sidebar: React.FC<SidebarProps> = ({ role, collapsed = false, onToggle }) 
   const handleLogout = () => {
     logout();
     navigate('/');
+    if (isMobile && onMobileClose) {
+      onMobileClose();
+    }
+  };
+
+  const handleNavigation = (path: string) => {
+    navigate(path);
+    if (isMobile && onMobileClose) {
+      onMobileClose();
+    }
   };
 
   const getMenuSections = (): MenuSection[] => {
@@ -207,11 +229,108 @@ const Sidebar: React.FC<SidebarProps> = ({ role, collapsed = false, onToggle }) 
 
   const menuSections = getMenuSections();
 
+  // Mobile overlay
+  if (isMobile) {
+    return (
+      <>
+        {/* Overlay */}
+        <div 
+          className={`fixed inset-0 z-40 bg-black/50 transition-opacity duration-300 lg:hidden ${
+            isMobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+          }`}
+          onClick={onMobileClose}
+        />
+        
+        {/* Mobile Sidebar */}
+        <div 
+          className={`fixed top-0 left-0 z-50 h-full w-72 bg-gradient-to-br from-[#0a1628] via-[#1a2744] to-[#2a3f6a] transform transition-transform duration-300 ease-in-out lg:hidden ${
+            isMobileOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
+          <div className="flex flex-col h-full">
+            {/* Logo Section */}
+            <div className="p-4 border-b border-white/10 flex items-center justify-between min-h-[72px]">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold text-sm">SE</span>
+                </div>
+                <div>
+                  <h1 className="text-lg font-bold text-white leading-tight">ServEase</h1>
+                  <span className="text-[10px] text-blue-300/70 font-medium tracking-wide">INNOVATION PVT LTD</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={onMobileClose}
+                className="p-2 rounded-lg hover:bg-white/10 transition-all duration-200 text-blue-300"
+                aria-label="Close sidebar"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Navigation Menu */}
+            <nav className="flex-1 overflow-y-auto p-3 space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+              {menuSections.map((section, sectionIndex) => (
+                <div key={sectionIndex}>
+                  <p className="text-[10px] font-bold text-blue-300/40 uppercase tracking-wider px-3 py-2">
+                    {section.title}
+                  </p>
+                  <div className="space-y-0.5">
+                    {section.items.map((item, itemIndex) => {
+                      const isActive = location.pathname === item.path || 
+                                      (item.path !== '/dashboard' && location.pathname.startsWith(item.path));
+                      
+                      return (
+                        <button
+                          key={itemIndex}
+                          onClick={() => handleNavigation(item.path)}
+                          className={`
+                            w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group text-left
+                            ${isActive 
+                              ? 'bg-white/15 text-white shadow-lg shadow-black/10' 
+                              : 'text-blue-200/80 hover:bg-white/8 hover:text-white'
+                            }
+                          `}
+                        >
+                          <item.icon className={`w-5 h-5 flex-shrink-0 transition-colors duration-200 ${isActive ? 'text-white' : 'text-blue-300/70 group-hover:text-white'}`} />
+                          <span className={`text-sm font-medium transition-colors duration-200 ${isActive ? 'text-white' : ''}`}>
+                            {item.label}
+                          </span>
+                          {isActive && (
+                            <div className="w-1 h-6 bg-indigo-400 rounded-full absolute right-2 shadow-lg shadow-indigo-500/30"></div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </nav>
+
+            {/* Bottom Section */}
+            <div className="p-4 border-t border-white/10">
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-3 px-3 py-2.5 text-blue-200/80 rounded-xl hover:bg-red-500/20 hover:text-red-300 transition-all duration-200 w-full group"
+              >
+                <ArrowRightOnRectangleIcon className="w-5 h-5 group-hover:rotate-180 transition-transform duration-300" />
+                <span className="text-sm font-medium">Logout</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // Desktop Sidebar
   return (
     <div 
       className={`
         h-screen bg-gradient-to-br from-[#0a1628] via-[#1a2744] to-[#2a3f6a] flex flex-col transition-all duration-300 text-white shadow-xl
         ${collapsed ? 'w-20' : 'w-64'}
+        hidden lg:flex
       `}
     >
       {/* Logo Section */}
