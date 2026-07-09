@@ -1,4 +1,4 @@
-// src/components/HR/OnboardNewHireModal.tsx - Responsive version
+// src/components/HR/OnboardNewHireModal.tsx - Responsive version with First Name & Last Name
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   UserIcon, 
@@ -16,11 +16,10 @@ import {
   UserGroupIcon,
   ChartBarIcon,
   BuildingOffice2Icon,
-  BanknotesIcon,
   CurrencyRupeeIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
-import { Role } from '../types';
+import { Role, BackendRole } from '../types';
 import toast from 'react-hot-toast';
 
 interface OnboardNewHireModalProps {
@@ -46,37 +45,43 @@ const departments = [
   'Administration'
 ];
 
-// Role options mapping to backend roles
-const employeeRoleOptions: Record<string, { label: string; description: string; icon: React.ReactNode }> = {
+// Role options mapping to backend roles - ALL roles available for onboarding
+const employeeRoleOptions: Record<string, { label: string; description: string; icon: React.ReactNode; backendRole: BackendRole }> = {
   'SuperAdmin': { 
     label: 'Super Admin', 
     description: 'Full system access',
-    icon: <ShieldCheckIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+    icon: <ShieldCheckIcon className="w-4 h-4 sm:w-5 sm:h-5" />,
+    backendRole: 'SuperAdmin'
   },
   'HR': { 
     label: 'HR Partner', 
     description: 'HR management',
-    icon: <BuildingOfficeIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+    icon: <BuildingOfficeIcon className="w-4 h-4 sm:w-5 sm:h-5" />,
+    backendRole: 'HR'
   },
   'Manager': { 
     label: 'Manager', 
     description: 'Team management',
-    icon: <BriefcaseIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+    icon: <BriefcaseIcon className="w-4 h-4 sm:w-5 sm:h-5" />,
+    backendRole: 'Manager'
   },
   'Developer': { 
     label: 'Developer', 
     description: 'Software development',
-    icon: <UserGroupIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+    icon: <UserGroupIcon className="w-4 h-4 sm:w-5 sm:h-5" />,
+    backendRole: 'Developer'
   },
   'Marketing': { 
     label: 'Marketing', 
     description: 'Marketing & Growth',
-    icon: <ChartBarIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+    icon: <ChartBarIcon className="w-4 h-4 sm:w-5 sm:h-5" />,
+    backendRole: 'Marketing'
   },
   'CustomStaff': { 
     label: 'Custom Staff', 
     description: 'Specialized role',
-    icon: <BuildingOffice2Icon className="w-4 h-4 sm:w-5 sm:h-5" />
+    icon: <BuildingOffice2Icon className="w-4 h-4 sm:w-5 sm:h-5" />,
+    backendRole: 'CustomStaff'
   },
 };
 
@@ -114,7 +119,8 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
   theme 
 }) => {
   // Form state - matching backend schema
-  const [fullName, setFullName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
   const [password, setPassword] = useState('');
@@ -234,12 +240,18 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
   const handleOnboardNewHire = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const trimmedFullName = fullName.trim();
+    const trimmedFirstName = firstName.trim();
+    const trimmedLastName = lastName.trim();
     const trimmedEmail = email.trim();
     const trimmedPassword = password.trim();
     const trimmedConfirmPassword = confirmPassword.trim();
 
-    if (!trimmedFullName || !trimmedEmail || !trimmedPassword || !trimmedConfirmPassword) {
+    if (!trimmedFirstName || !trimmedLastName) {
+      toast.error('Please enter both first name and last name');
+      return;
+    }
+
+    if (!trimmedEmail || !trimmedPassword || !trimmedConfirmPassword) {
       toast.error('Please fill in all required fields');
       return;
     }
@@ -267,10 +279,18 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
     setOnboardLoading(true);
 
     try {
+      // Combine first name and last name to create full name
+      const fullName = `${trimmedFirstName} ${trimmedLastName}`.trim();
+      
+      // Get the backend role from the selected role
+      const selectedRoleInfo = employeeRoleOptions[selectedRole];
+      const backendRole = selectedRoleInfo.backendRole;
+
+      // Create payload with the correct backend role
       const payload = {
-        name: trimmedFullName,
+        name: fullName,
         email: trimmedEmail,
-        role: selectedRole as any,
+        role: backendRole, // Send the backend role directly (SuperAdmin, HR, Manager, Developer, Marketing, CustomStaff)
         password: trimmedPassword,
         confirmPassword: trimmedConfirmPassword,
         mobileNumber: mobileNumber.trim() || undefined,
@@ -280,12 +300,16 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
         deductions: parseFloat(deductions) || 0,
       };
 
+      console.log('Onboarding payload:', payload);
+
+      // Call createAccount with the payload
       await createAccount(payload);
 
-      toast.success(`${trimmedFullName} has been onboarded successfully!`);
+      toast.success(`${fullName} has been onboarded successfully as ${selectedRoleInfo.label}!`);
       
       // Reset form
-      setFullName('');
+      setFirstName('');
+      setLastName('');
       setEmail('');
       setMobileNumber('');
       setPassword('');
@@ -304,6 +328,7 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
       onClose();
     } catch (err: any) {
       console.error('Onboarding error:', err);
+      toast.error(err?.message || 'Failed to onboard new hire. Please try again.');
     } finally {
       setOnboardLoading(false);
     }
@@ -330,25 +355,47 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
         </div>
 
         <form onSubmit={handleOnboardNewHire} className="space-y-3 sm:space-y-4">
-          {/* Full Name */}
-          <div>
-            <label className={`block text-xs sm:text-sm font-medium mb-1 sm:mb-1.5 ${tc.textSecondary}`}>
-              Full name <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <UserIcon className={`h-4 w-4 sm:h-5 sm:w-5 ${tc.textMuted}`} aria-hidden="true" />
+          {/* First Name & Last Name - Grid Layout */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            <div>
+              <label className={`block text-xs sm:text-sm font-medium mb-1 sm:mb-1.5 ${tc.textSecondary}`}>
+                First name <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <UserIcon className={`h-4 w-4 sm:h-5 sm:w-5 ${tc.textMuted}`} aria-hidden="true" />
+                </div>
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className={`w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all duration-200 text-sm sm:text-base ${tc.input}`}
+                  placeholder="John"
+                  required
+                  disabled={onboardLoading}
+                  aria-label="First name"
+                />
               </div>
-              <input
-                type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className={`w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all duration-200 text-sm sm:text-base ${tc.input}`}
-                placeholder="John Doe"
-                required
-                disabled={onboardLoading}
-                aria-label="Full name"
-              />
+            </div>
+            <div>
+              <label className={`block text-xs sm:text-sm font-medium mb-1 sm:mb-1.5 ${tc.textSecondary}`}>
+                Last name <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <UserIcon className={`h-4 w-4 sm:h-5 sm:w-5 ${tc.textMuted}`} aria-hidden="true" />
+                </div>
+                <input
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className={`w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all duration-200 text-sm sm:text-base ${tc.input}`}
+                  placeholder="Doe"
+                  required
+                  disabled={onboardLoading}
+                  aria-label="Last name"
+                />
+              </div>
             </div>
           </div>
 

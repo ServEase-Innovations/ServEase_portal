@@ -4,7 +4,7 @@ import { User, CreateAccountData, ApiResponse } from '../types';
 
 // Create axios instance with base URL
 const api: AxiosInstance = axios.create({
-  baseURL: 'http://localhost:5001/',
+  baseURL: 'http://localhost:5001/', //https://newportal-be.onrender.com/
   headers: {
     'Content-Type': 'application/json',
   },

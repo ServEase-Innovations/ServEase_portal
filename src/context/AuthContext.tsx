@@ -9,7 +9,7 @@ interface AuthContextType {
   token: string | null;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
-  createAccount: (userData: CreateAccountData) => Promise<void>;
+  createAccount: (userData: CreateAccountData | any) => Promise<void>; // Allow any type to handle both formats
   loading: boolean;
   error: string | null;
   clearError: () => void;
@@ -116,10 +116,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const employeeData = response.data?.employee || response.employee;
       const token = response.data?.token || response.accessToken;
       
-      // if (!employeeData || !Token) {
-      //   throw new Error('Invalid response from server');
-      // }
-
       // Map the employee data to your User type
       const userData: User = {
         id: employeeData.employeeId || employeeData.id,
@@ -164,17 +160,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  // Create account function - UPDATED to match CreateAccountData type
-  const createAccount = useCallback(async (userData: CreateAccountData) => {
+  // Create account function - FIXED to handle both frontend and backend role formats
+  const createAccount = useCallback(async (userData: CreateAccountData | any) => {
     setLoading(true);
     setError(null);
     
     try {
+      let backendRole: string;
+      
+      // Check if the role is already a backend role or needs mapping
+      if (userData.role && typeof userData.role === 'string') {
+        // If the role is already a backend role (SuperAdmin, HR, Manager, Developer, Marketing, CustomStaff)
+        const backendRoles = ['SuperAdmin', 'HR', 'Manager', 'Developer', 'Marketing', 'CustomStaff'];
+        if (backendRoles.includes(userData.role)) {
+          // It's already a backend role, use it directly
+          backendRole = userData.role;
+        } else {
+          // It's a frontend role, map it
+          const roleMapping: Record<string, string> = {
+            'super-admin': 'SuperAdmin',
+            'hr-partner': 'HR',
+            'manager': 'Manager',
+            'employee': 'Developer' // Default to Developer for employees
+          };
+          backendRole = roleMapping[userData.role] || 'Developer';
+        }
+      } else {
+        // Default to Developer if role is missing
+        backendRole = 'Developer';
+      }
+
       // Transform the data to match the backend schema
       const payload = {
         fullName: userData.name,
         emailAddress: userData.email,
-        assignedRole: mapFrontendRoleToBackend(userData.role),
+        assignedRole: backendRole, // Use the backend role directly
         assignedDepartment: userData.department || 'Engineering',
         baseSalary: userData.baseSalary || 0,
         allowances: userData.allowances || 0,

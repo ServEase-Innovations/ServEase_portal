@@ -46,7 +46,9 @@ import {
   LightBulbIcon,
   SparklesIcon,
   CheckIcon,
-  MinusCircleIcon
+  MinusCircleIcon,
+  QuestionMarkCircleIcon,
+  CalendarIcon as CalendarIconSolid
 } from '@heroicons/react/24/outline';
 
 const MailIcon = EnvelopeIcon;
@@ -115,7 +117,7 @@ interface ChatMessage {
 
 interface TaskHistory {
   id: string;
-  jiraLinks: string[]; // Changed from single jiraLink to array
+  jiraLinks: string[];
   taskDescription: string;
   status: 'In Progress' | 'Completed' | 'Pending';
   newIdea: string;
@@ -123,6 +125,26 @@ interface TaskHistory {
   imageUrl?: string | null;
   submittedAt: string;
   date: string;
+}
+
+interface WorkSession {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string | null;
+  duration: number;
+  status: 'working' | 'on-leave' | 'not-working';
+}
+
+interface LeaveRequest {
+  id: string;
+  type: 'Sick' | 'Casual' | 'Earned' | 'Other';
+  fromDate: string;
+  toDate: string;
+  reason: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  imageUrl?: string | null;
+  submittedAt: string;
 }
 
 // Helper function to get theme classes
@@ -231,9 +253,45 @@ const DashboardTab: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) => {
   const [workSeconds, setWorkSeconds] = useState(0);
   const [timerInterval, setTimerInterval] = useState<ReturnType<typeof setInterval> | null>(null);
   const [startTime, setStartTime] = useState<Date | null>(null);
+  const [endTime, setEndTime] = useState<Date | null>(null);
   const [totalWorkedToday, setTotalWorkedToday] = useState('0h 0m');
+  const [workStatus, setWorkStatus] = useState<'working' | 'on-leave' | 'not-working'>('not-working');
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [leaveRequest, setLeaveRequest] = useState({
+    type: 'Sick' as 'Sick' | 'Casual' | 'Earned' | 'Other',
+    fromDate: '',
+    toDate: '',
+    reason: '',
+    imageFile: null as File | null,
+    imagePreview: null as string | null,
+  });
+  const [workSessions, setWorkSessions] = useState<WorkSession[]>([]);
+  const [leaveHistory, setLeaveHistory] = useState<LeaveRequest[]>([]);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
+    // Load work sessions from localStorage
+    const savedSessions = localStorage.getItem('workSessions');
+    if (savedSessions) {
+      try {
+        setWorkSessions(JSON.parse(savedSessions));
+      } catch (e) {
+        console.error('Error loading work sessions:', e);
+      }
+    }
+
+    // Load leave history from localStorage
+    const savedLeaves = localStorage.getItem('leaveHistory');
+    if (savedLeaves) {
+      try {
+        setLeaveHistory(JSON.parse(savedLeaves));
+      } catch (e) {
+        console.error('Error loading leave history:', e);
+      }
+    }
+
+    // Check if currently working
     const savedState = localStorage.getItem('workTimerState');
     if (savedState) {
       const parsed = JSON.parse(savedState);
@@ -248,6 +306,7 @@ const DashboardTab: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) => {
         setWorkSeconds(seconds);
         setIsWorking(true);
         setStartTime(start);
+        setWorkStatus('working');
         const interval = setInterval(() => {
           setWorkSeconds(prev => {
             if (prev >= 59) {
@@ -266,12 +325,36 @@ const DashboardTab: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) => {
         setTimerInterval(interval);
       }
     }
+
+    // Check today's work status
+    const today = new Date().toISOString().split('T')[0];
+    const todaySession = workSessions.find(s => s.date === today && s.endTime === null);
+    if (todaySession) {
+      setWorkStatus('working');
+    }
   }, []);
 
   const startWork = () => {
     const now = new Date();
     setIsWorking(true);
     setStartTime(now);
+    setEndTime(null);
+    setWorkStatus('working');
+    
+    const today = now.toISOString().split('T')[0];
+    const session: WorkSession = {
+      id: `WS-${Date.now()}`,
+      date: today,
+      startTime: now.toISOString(),
+      endTime: null,
+      duration: 0,
+      status: 'working'
+    };
+    
+    const updatedSessions = [session, ...workSessions];
+    setWorkSessions(updatedSessions);
+    localStorage.setItem('workSessions', JSON.stringify(updatedSessions));
+    
     localStorage.setItem('workTimerState', JSON.stringify({
       isWorking: true,
       startTime: now.toISOString()
@@ -293,6 +376,10 @@ const DashboardTab: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) => {
       });
     }, 1000);
     setTimerInterval(interval);
+
+    setSuccessMessage('Work session started successfully!');
+    setShowSuccessMessage(true);
+    setTimeout(() => setShowSuccessMessage(false), 3000);
   };
 
   const stopWork = () => {
@@ -300,29 +387,309 @@ const DashboardTab: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) => {
       clearInterval(timerInterval);
       setTimerInterval(null);
     }
+    
+    const now = new Date();
+    setEndTime(now);
     setIsWorking(false);
+    setWorkStatus('not-working');
     
     const totalSeconds = workHours * 3600 + workMinutes * 60 + workSeconds;
     const totalHours = Math.floor(totalSeconds / 3600);
     const totalMins = Math.floor((totalSeconds % 3600) / 60);
     setTotalWorkedToday(`${totalHours}h ${totalMins}m`);
     
+    // Update work session with end time and duration
+    const today = now.toISOString().split('T')[0];
+    const updatedSessions = workSessions.map(session => {
+      if (session.date === today && session.endTime === null) {
+        return {
+          ...session,
+          endTime: now.toISOString(),
+          duration: totalSeconds,
+          status: 'working' as const
+        };
+      }
+      return session;
+    });
+    setWorkSessions(updatedSessions);
+    localStorage.setItem('workSessions', JSON.stringify(updatedSessions));
+    
     localStorage.removeItem('workTimerState');
+
+    setSuccessMessage(`Work session completed! Duration: ${totalHours}h ${totalMins}m`);
+    setShowSuccessMessage(true);
+    setTimeout(() => setShowSuccessMessage(false), 3000);
   };
 
   const formatTime = (hours: number, minutes: number, seconds: number) => {
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   };
 
+  const handleLeaveImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setLeaveRequest({ ...leaveRequest, imageFile: file });
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLeaveRequest({ ...leaveRequest, imageFile: file, imagePreview: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSubmitLeave = () => {
+    if (!leaveRequest.fromDate || !leaveRequest.toDate || !leaveRequest.reason) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    const newLeave: LeaveRequest = {
+      id: `L-${String(leaveHistory.length + 1).padStart(3, '0')}`,
+      type: leaveRequest.type,
+      fromDate: leaveRequest.fromDate,
+      toDate: leaveRequest.toDate,
+      reason: leaveRequest.reason,
+      status: 'Pending',
+      imageUrl: leaveRequest.imagePreview,
+      submittedAt: new Date().toISOString()
+    };
+
+    const updatedLeaves = [newLeave, ...leaveHistory];
+    setLeaveHistory(updatedLeaves);
+    localStorage.setItem('leaveHistory', JSON.stringify(updatedLeaves));
+    
+    setWorkStatus('on-leave');
+    setShowLeaveModal(false);
+    setLeaveRequest({
+      type: 'Sick',
+      fromDate: '',
+      toDate: '',
+      reason: '',
+      imageFile: null,
+      imagePreview: null,
+    });
+    
+    setSuccessMessage('Leave request submitted successfully!');
+    setShowSuccessMessage(true);
+    setTimeout(() => setShowSuccessMessage(false), 3000);
+  };
+
+  const getTodayStats = () => {
+    const today = new Date().toISOString().split('T')[0];
+    const todaySessions = workSessions.filter(s => s.date === today);
+    const totalDuration = todaySessions.reduce((acc, s) => acc + s.duration, 0);
+    const hours = Math.floor(totalDuration / 3600);
+    const minutes = Math.floor((totalDuration % 3600) / 60);
+    return `${hours}h ${minutes}m`;
+  };
+
+  const getStatusBadge = () => {
+    switch(workStatus) {
+      case 'working':
+        return { label: '🟢 Working', class: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' };
+      case 'on-leave':
+        return { label: '🔵 On Leave', class: 'bg-blue-500/20 text-blue-400 border border-blue-500/30' };
+      default:
+        return { label: '⚪ Not Working', class: 'bg-gray-500/20 text-gray-400 border border-gray-500/30' };
+    }
+  };
+
+  const statusBadge = getStatusBadge();
+
   const stats = [
-    { label: "Today's Hours", value: isWorking ? formatTime(workHours, workMinutes, workSeconds) : totalWorkedToday || '0h 0m', icon: ClockIcon, subtitle: isWorking ? '⏳ Working...' : 'Ready to start' },
+    { label: "Today's Hours", value: isWorking ? formatTime(workHours, workMinutes, workSeconds) : totalWorkedToday || getTodayStats(), icon: ClockIcon, subtitle: isWorking ? '⏳ Working...' : workStatus === 'on-leave' ? '🔵 On Leave' : 'Ready to start' },
     { label: 'Login Time', value: startTime ? startTime.toLocaleTimeString() : '—', icon: ClockIcon, subtitle: startTime ? `Status: ${isWorking ? '🟢 Active' : '🔴 Stopped'}` : 'Not logged in' },
     { label: 'Tasks Open', value: '1', icon: CheckCircleIcon, subtitle: '0 completed this week' },
-    { label: 'Leave Balance', value: '12d', icon: CalendarDaysIcon, subtitle: '3 pending requests' }
+    { label: 'Leave Balance', value: '12d', icon: CalendarDaysIcon, subtitle: `${leaveHistory.filter(l => l.status === 'Pending').length} pending requests` }
   ];
 
   return (
     <>
+      {/* Success Message */}
+      {showSuccessMessage && (
+        <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-3 sm:p-4 rounded-xl flex items-center gap-2 animate-fadeIn mb-4">
+          <CheckIcon className="w-5 h-5" />
+          <span className="text-sm font-medium">{successMessage}</span>
+        </div>
+      )}
+
+      {/* Status Badge */}
+      <div className={`${tc.bgCard} p-3 sm:p-4 rounded-2xl ${tc.border} ${tc.shadow} mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0`}>
+        <div className="flex items-center gap-3 sm:gap-4">
+          <span className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium ${statusBadge.class}`}>
+            {statusBadge.label}
+          </span>
+          <span className={`text-xs sm:text-sm ${tc.textSecondary}`}>
+            {workStatus === 'working' && startTime && `Started at: ${startTime.toLocaleTimeString()}`}
+            {workStatus === 'on-leave' && 'Currently on leave'}
+            {workStatus === 'not-working' && 'Ready to start working'}
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
+          {workStatus === 'not-working' && (
+            <>
+              <button
+                type="button"
+                onClick={() => setWorkStatus('working')}
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs sm:text-sm font-medium hover:bg-emerald-500/30 transition-all"
+              >
+                ✅ Working Today
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowLeaveModal(true)}
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-xl text-xs sm:text-sm font-medium hover:bg-blue-500/30 transition-all"
+              >
+                📋 On Leave
+              </button>
+            </>
+          )}
+          {workStatus === 'working' && (
+            <button
+              type="button"
+              onClick={() => {
+                setWorkStatus('not-working');
+                if (isWorking) stopWork();
+              }}
+              className="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl text-xs sm:text-sm font-medium hover:bg-rose-500/30 transition-all"
+            >
+              ⏹️ Stop Working
+            </button>
+          )}
+          {workStatus === 'on-leave' && (
+            <button
+              type="button"
+              onClick={() => {
+                setWorkStatus('not-working');
+                setShowLeaveModal(true);
+              }}
+              className="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl text-xs sm:text-sm font-medium hover:bg-amber-500/30 transition-all"
+            >
+              ✏️ Modify Leave
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Leave Request Modal */}
+      {showLeaveModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
+          <div className={`${tc.bgCard} rounded-2xl ${tc.border} ${tc.shadow} max-w-lg w-full max-h-[90vh] overflow-y-auto p-4 sm:p-6`}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className={`text-lg sm:text-xl font-bold ${tc.text}`}>Apply for Leave</h3>
+              <button
+                type="button"
+                onClick={() => setShowLeaveModal(false)}
+                className={`p-1.5 rounded-lg ${tc.textMuted} hover:${tc.text} transition-colors`}
+              >
+                <XCircleIcon className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className={`block text-sm font-medium ${tc.text} mb-1.5`}>Leave Type</label>
+                <select
+                  value={leaveRequest.type}
+                  onChange={(e) => setLeaveRequest({ ...leaveRequest, type: e.target.value as any })}
+                  className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 ${tc.input} rounded-xl focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent outline-none transition-all text-sm`}
+                >
+                  <option value="Sick">Sick Leave</option>
+                  <option value="Casual">Casual Leave</option>
+                  <option value="Earned">Earned Leave</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div>
+                  <label className={`block text-sm font-medium ${tc.text} mb-1.5`}>From Date</label>
+                  <input
+                    type="date"
+                    value={leaveRequest.fromDate}
+                    onChange={(e) => setLeaveRequest({ ...leaveRequest, fromDate: e.target.value })}
+                    className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 ${tc.input} rounded-xl focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent outline-none transition-all text-sm`}
+                  />
+                </div>
+                <div>
+                  <label className={`block text-sm font-medium ${tc.text} mb-1.5`}>To Date</label>
+                  <input
+                    type="date"
+                    value={leaveRequest.toDate}
+                    onChange={(e) => setLeaveRequest({ ...leaveRequest, toDate: e.target.value })}
+                    className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 ${tc.input} rounded-xl focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent outline-none transition-all text-sm`}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className={`block text-sm font-medium ${tc.text} mb-1.5`}>Reason</label>
+                <textarea
+                  value={leaveRequest.reason}
+                  onChange={(e) => setLeaveRequest({ ...leaveRequest, reason: e.target.value })}
+                  placeholder="Please provide a reason for your leave..."
+                  rows={3}
+                  className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 ${tc.input} rounded-xl focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent outline-none resize-none transition-all text-sm`}
+                />
+              </div>
+
+              <div>
+                <label className={`block text-sm font-medium ${tc.text} mb-1.5`}>Supporting Document (Optional)</label>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                  <label className={`px-3 sm:px-4 py-2 sm:py-2.5 ${tc.btnBg} rounded-xl text-xs sm:text-sm font-medium cursor-pointer transition-all hover:scale-105 flex items-center gap-2`}>
+                    <ArrowUpTrayIcon className="w-4 h-4" />
+                    Upload Document
+                    <input
+                      type="file"
+                      accept="image/*,.pdf,.doc,.docx"
+                      onChange={handleLeaveImageUpload}
+                      className="hidden"
+                    />
+                  </label>
+                  {leaveRequest.imagePreview && (
+                    <div className="flex items-center gap-2">
+                      <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden border ${tc.border}">
+                        <img src={leaveRequest.imagePreview} alt="Leave document" className="w-full h-full object-cover" />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLeaveRequest({ ...leaveRequest, imageFile: null, imagePreview: null });
+                        }}
+                        className={`p-1 rounded-lg ${tc.textMuted} hover:text-rose-400 transition-colors`}
+                      >
+                        <XCircleIcon className="w-5 h-5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <p className={`text-[10px] sm:text-xs ${tc.textMuted} mt-1`}>
+                  Upload medical certificate, or any supporting document (optional)
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowLeaveModal(false)}
+                  className={`w-full sm:w-auto px-4 py-2 ${tc.border} ${tc.textSecondary} rounded-xl text-sm font-medium ${tc.bgTableHover} transition-colors`}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSubmitLeave}
+                  className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2"
+                >
+                  <PaperAirplaneIcon className="w-4 h-4" />
+                  Submit Leave Request
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Timer Controls */}
       <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow} mb-6 sm:mb-8 transition-all duration-500 ${isWorking ? 'ring-2 ring-emerald-500/50' : ''}`}>
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -343,12 +710,12 @@ const DashboardTab: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) => {
             <div className="hidden sm:block">
               <p className={`text-sm font-medium ${tc.text}`}>Today's Progress</p>
               <p className={`text-xs ${tc.textSecondary}`}>
-                {isWorking ? 'Click stop when you finish' : 'Start tracking your work hours'}
+                {isWorking ? 'Click stop when you finish' : workStatus === 'on-leave' ? 'On leave today' : 'Start tracking your work hours'}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
-            {!isWorking ? (
+            {!isWorking && workStatus === 'working' ? (
               <button
                 type="button"
                 onClick={startWork}
@@ -357,7 +724,7 @@ const DashboardTab: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) => {
                 <PlayIcon className="w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform" />
                 <span>Start Work</span>
               </button>
-            ) : (
+            ) : isWorking ? (
               <button
                 type="button"
                 onClick={stopWork}
@@ -366,6 +733,10 @@ const DashboardTab: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) => {
                 <StopIcon className="w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform" />
                 <span>Stop Work</span>
               </button>
+            ) : (
+              <div className={`text-sm ${tc.textSecondary} px-3 py-2`}>
+                {workStatus === 'on-leave' ? '📋 On Leave Today' : '⏸️ Not Working'}
+              </div>
             )}
           </div>
         </div>
@@ -374,6 +745,8 @@ const DashboardTab: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) => {
             <span>Started at: {startTime?.toLocaleTimeString()}</span>
             <span className="hidden sm:inline w-px h-4 bg-gray-300/30"></span>
             <span>Elapsed: {formatTime(workHours, workMinutes, workSeconds)}</span>
+            <span className="hidden sm:inline w-px h-4 bg-gray-300/30"></span>
+            <span>Status: {workStatus === 'working' ? '🟢 Active' : workStatus === 'on-leave' ? '🔵 On Leave' : '⚪ Not Working'}</span>
           </div>
         )}
       </div>
@@ -585,7 +958,7 @@ const AttendanceTab: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) => {
 const TasksTab: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) => {
   const tc = getThemeClasses(theme);
   const [taskStatus, setTaskStatus] = useState<'In Progress' | 'Completed' | 'Pending'>('In Progress');
-  const [jiraLinks, setJiraLinks] = useState<string[]>(['']); // Array of Jira links
+  const [jiraLinks, setJiraLinks] = useState<string[]>(['']);
   const [taskDescription, setTaskDescription] = useState('');
   const [newIdea, setNewIdea] = useState('');
   const [stylingAdded, setStylingAdded] = useState(false);
@@ -629,14 +1002,12 @@ const TasksTab: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) => {
   ]);
   const [showSuccess, setShowSuccess] = useState(false);
 
-  // Add a new Jira link field
   const addJiraLink = () => {
     if (jiraLinks.length < 10) {
       setJiraLinks([...jiraLinks, '']);
     }
   };
 
-  // Remove a Jira link field
   const removeJiraLink = (index: number) => {
     if (jiraLinks.length > 1) {
       const newLinks = jiraLinks.filter((_, i) => i !== index);
@@ -644,7 +1015,6 @@ const TasksTab: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) => {
     }
   };
 
-  // Update a Jira link value
   const updateJiraLink = (index: number, value: string) => {
     const newLinks = [...jiraLinks];
     newLinks[index] = value;
@@ -664,7 +1034,6 @@ const TasksTab: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) => {
   };
 
   const handleSubmitTask = () => {
-    // Filter out empty links
     const filteredLinks = jiraLinks.filter(link => link.trim() !== '');
     
     if (filteredLinks.length === 0 || !taskDescription) {
@@ -707,7 +1076,6 @@ const TasksTab: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) => {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Success Message */}
       {showSuccess && (
         <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-3 sm:p-4 rounded-xl flex items-center gap-2 animate-fadeIn">
           <CheckIcon className="w-5 h-5" />
@@ -720,7 +1088,6 @@ const TasksTab: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) => {
         <p className={`text-sm ${tc.textSecondary} mb-4 sm:mb-6`}>Submit your daily standup, achievements & blockers</p>
         
         <div className="space-y-4">
-          {/* Jira Links Section - Multiple */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className={`block text-sm font-medium ${tc.text} flex items-center gap-2`}>
@@ -796,7 +1163,6 @@ const TasksTab: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) => {
             </div>
           </div>
 
-          {/* Task Description Section */}
           <div>
             <label className={`block text-sm font-medium ${tc.text} mb-2 flex items-center gap-2`}>
               <DocumentTextIcon className="w-4 h-4 text-indigo-400" />
@@ -811,7 +1177,6 @@ const TasksTab: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) => {
             />
           </div>
 
-          {/* Task Status Section */}
           <div>
             <label className={`block text-sm font-medium ${tc.text} mb-2 flex items-center gap-2`}>
               <ClipboardDocumentCheckIcon className="w-4 h-4 text-indigo-400" />
@@ -835,7 +1200,6 @@ const TasksTab: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) => {
             </div>
           </div>
 
-          {/* New Idea Section */}
           <div>
             <label className={`block text-sm font-medium ${tc.text} mb-2 flex items-center gap-2`}>
               <LightBulbIcon className="w-4 h-4 text-amber-400" />
@@ -850,7 +1214,6 @@ const TasksTab: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) => {
             />
           </div>
 
-          {/* Styling Addition Section */}
           <div>
             <label className={`block text-sm font-medium ${tc.text} mb-2 flex items-center gap-2`}>
               <SparklesIcon className="w-4 h-4 text-purple-400" />
@@ -874,7 +1237,6 @@ const TasksTab: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) => {
             </div>
           </div>
 
-          {/* Additional Info Section */}
           <div>
             <label className={`block text-sm font-medium ${tc.text} mb-2 flex items-center gap-2`}>
               <ChatBubbleLeftRightIcon className="w-4 h-4 text-blue-400" />
@@ -889,7 +1251,6 @@ const TasksTab: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) => {
             />
           </div>
 
-          {/* Image Upload Section */}
           <div>
             <label className={`block text-sm font-medium ${tc.text} mb-2 flex items-center gap-2`}>
               <PhotoIcon className="w-4 h-4 text-pink-400" />
@@ -929,7 +1290,6 @@ const TasksTab: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) => {
             </p>
           </div>
 
-          {/* Submit Button */}
           <button 
             type="button"
             onClick={handleSubmitTask}
@@ -941,7 +1301,6 @@ const TasksTab: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) => {
         </div>
       </div>
 
-      {/* Task History Section */}
       <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-3 sm:mb-4">
           <div>
@@ -1574,7 +1933,6 @@ const MyTeamTab: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) => {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Header with stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
         <div className={`${tc.bgCard} p-3 sm:p-4 rounded-2xl ${tc.border} ${tc.shadow}`}>
           <div className="flex items-center gap-2 sm:gap-3">
@@ -1616,7 +1974,6 @@ const MyTeamTab: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) => {
         </div>
       </div>
 
-      {/* Filters */}
       <div className={`${tc.bgCard} p-3 sm:p-4 rounded-2xl ${tc.border} ${tc.shadow}`}>
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
           <div className="flex-1 relative">
@@ -1656,7 +2013,6 @@ const MyTeamTab: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) => {
         </div>
       </div>
 
-      {/* Team Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
         {filteredMembers.map((member) => (
           <div key={member.id} className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow} ${tc.bgCardHover} transition-all duration-300 hover:scale-[1.02] hover:shadow-xl`}>
@@ -1818,7 +2174,6 @@ const MessagesTab: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) => {
   return (
     <div className="flex flex-col h-[calc(100vh-250px)] sm:h-[calc(100vh-200px)] min-h-[400px] sm:min-h-[500px]">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 flex-1 min-h-0">
-        {/* Contacts List */}
         <div className={`${tc.bgCard} rounded-2xl ${tc.border} ${tc.shadow} overflow-hidden flex flex-col ${isMobileChatView ? 'hidden md:flex' : 'flex'}`}>
           <div className="p-3 sm:p-4 border-b ${tc.border}">
             <div className="relative">
@@ -1874,11 +2229,9 @@ const MessagesTab: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) => {
           </div>
         </div>
 
-        {/* Chat Area */}
         <div className={`md:col-span-2 ${tc.bgCard} rounded-2xl ${tc.border} ${tc.shadow} overflow-hidden flex flex-col ${!isMobileChatView ? 'hidden md:flex' : 'flex'}`}>
           {selectedChat ? (
             <>
-              {/* Chat Header */}
               <div className={`p-3 sm:p-4 border-b ${tc.border} flex items-center gap-3`}>
                 <button
                   onClick={handleBackToContacts}
@@ -1926,7 +2279,6 @@ const MessagesTab: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) => {
                 )}
               </div>
 
-              {/* Messages */}
               <div className="flex-1 overflow-y-auto p-3 sm:p-4 scrollbar-thin space-y-3">
                 {(chatMessages[selectedChat] || []).map((msg) => (
                   <div
@@ -1948,7 +2300,6 @@ const MessagesTab: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) => {
                 ))}
               </div>
 
-              {/* Message Input */}
               <div className={`p-2 sm:p-4 border-t ${tc.border}`}>
                 <div className="flex items-center gap-2 sm:gap-3">
                   <button 
@@ -2442,14 +2793,12 @@ const EmployeeDashboard: React.FC = () => {
 
   return (
     <div className={`flex h-screen ${tc.bg} transition-colors duration-300 overflow-hidden`}>
-      {/* Desktop Sidebar */}
       <Sidebar 
         role="employee" 
         collapsed={sidebarCollapsed}
         onToggle={toggleSidebar}
       />
 
-      {/* Mobile Sidebar */}
       <Sidebar 
         role="employee"
         isMobile={true}

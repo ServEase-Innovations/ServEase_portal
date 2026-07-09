@@ -39,7 +39,7 @@ export interface LoginCredentials {
 export interface CreateAccountData {
   name: string; // fullName
   email: string; // emailAddress
-  role: Role; // will be mapped to BackendRole
+  role: Role | BackendRole; // Allow both frontend and backend roles
   password: string;
   confirmPassword?: string; // for validation
   mobileNumber?: string;
@@ -152,8 +152,8 @@ export const mapBackendRoleToFrontend = (backendRole: BackendRole | string): Rol
 };
 
 // Helper function to map frontend role to backend role
-export const mapFrontendRoleToBackend = (frontendRole: Role): BackendRole => {
-  const roleMap: Record<Role, BackendRole> = {
+export const mapFrontendRoleToBackend = (frontendRole: Role | string): BackendRole => {
+  const roleMap: Record<string, BackendRole> = {
     'super-admin': 'SuperAdmin',
     'hr-partner': 'HR',
     'manager': 'Manager',
