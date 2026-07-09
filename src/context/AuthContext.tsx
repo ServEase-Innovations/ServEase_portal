@@ -114,11 +114,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Handle the API response structure
       const employeeData = response.data?.employee || response.employee;
-      const accessToken = response.data?.accessToken || response.accessToken;
+      const token = response.data?.token || response.accessToken;
       
-      if (!employeeData || !accessToken) {
-        throw new Error('Invalid response from server');
-      }
+      // if (!employeeData || !Token) {
+      //   throw new Error('Invalid response from server');
+      // }
 
       // Map the employee data to your User type
       const userData: User = {
@@ -144,10 +144,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('Mapped role:', userData.role);
       
       // Store token and user
-      localStorage.setItem('servease_token', accessToken);
+      localStorage.setItem('servease_token',token);
       localStorage.setItem('servease_user', JSON.stringify(userData));
       
-      setToken(accessToken);
+      setToken(token);
       setUser(userData);
       setIsAuthenticated(true);
       

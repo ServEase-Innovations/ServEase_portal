@@ -4,7 +4,7 @@ import { User, CreateAccountData, ApiResponse } from '../types';
 
 // Create axios instance with base URL
 const api: AxiosInstance = axios.create({
-  baseURL: 'http://localhost:5000/',
+  baseURL: 'http://localhost:5001/',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -42,6 +42,7 @@ api.interceptors.response.use(
 export const authService = {
   login: async (username: string, password: string): Promise<any> => {
     const response = await api.post('auth/login', { username, password });
+    console.log('Login API response:', response.data); // Log the response data
     return response.data;
   },
 
