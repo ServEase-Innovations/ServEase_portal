@@ -1,7 +1,8 @@
-// tabs/DashboardTab.tsx - Updated with fixed timer and stop work functionality
-import React, { useState, useEffect, useRef } from 'react';
+// tabs/DashboardTab.tsx
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../hooks/useAuth';
 import { getThemeClasses } from './themeUtils';
+import moment from 'moment';
 import { 
   ClockIcon,
   CheckCircleIcon, 
@@ -13,7 +14,6 @@ import {
   ArrowUpTrayIcon,
   PaperAirplaneIcon
 } from '@heroicons/react/24/outline';
-import toast from 'react-hot-toast';
 
 interface DashboardTabProps {
   theme: 'light' | 'dark';
@@ -52,9 +52,6 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
     isClockedIn,
     isClockedOut,
     totalHoursToday,
-    startTime: attendanceStartTime,
-    endTime: attendanceEndTime,
-    refreshAttendance,
   } = attendance;
 
   const [isWorking, setIsWorking] = useState(false);
@@ -62,8 +59,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
   const [workMinutes, setWorkMinutes] = useState(0);
   const [workSeconds, setWorkSeconds] = useState(0);
   const [timerInterval, setTimerInterval] = useState<ReturnType<typeof setInterval> | null>(null);
-  const [startTime, setStartTime] = useState<Date | null>(null);
-  const [endTime, setEndTime] = useState<Date | null>(null);
+  const [startTime, setStartTime] = useState<moment.Moment | null>(null);
   const [totalWorkedToday, setTotalWorkedToday] = useState('0h 0m');
   const [workStatus, setWorkStatus] = useState<'working' | 'on-leave' | 'not-working'>('not-working');
   const [showLeaveModal, setShowLeaveModal] = useState(false);
@@ -79,7 +75,6 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
   const [leaveHistory, setLeaveHistory] = useState<LeaveRequest[]>([]);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Sync with attendance state
   useEffect(() => {
@@ -87,44 +82,44 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
       setWorkStatus('working');
       setIsWorking(true);
       
-      // Use attendance start time if available
-      const start = attendanceStartTime || new Date();
-      setStartTime(start);
-      
-      // Calculate elapsed time
-      const elapsed = Math.floor((Date.now() - start.getTime()) / 1000);
-      const hours = Math.floor(elapsed / 3600);
-      const minutes = Math.floor((elapsed % 3600) / 60);
-      const seconds = elapsed % 60;
-      setWorkHours(hours);
-      setWorkMinutes(minutes);
-      setWorkSeconds(seconds);
-      
-      // Start timer if not already running
-      if (!timerRef.current) {
-        const interval = setInterval(() => {
-          setWorkSeconds(prev => {
-            if (prev >= 59) {
-              setWorkMinutes(m => {
-                if (m >= 59) {
-                  setWorkHours(h => h + 1);
-                  return 0;
-                }
-                return m + 1;
-              });
-              return 0;
-            }
-            return prev + 1;
-          });
-        }, 1000);
-        timerRef.current = interval;
-        setTimerInterval(interval);
+      if (todayAttendance?.clockInTimestamp) {
+        const start = moment(todayAttendance.clockInTimestamp);
+        setStartTime(start);
+        
+        // Calculate elapsed time using moment
+        const now = moment();
+        const duration = moment.duration(now.diff(start));
+        const hours = Math.floor(duration.asHours());
+        const minutes = duration.minutes();
+        const seconds = duration.seconds();
+        
+        setWorkHours(hours);
+        setWorkMinutes(minutes);
+        setWorkSeconds(seconds);
+        
+        if (!timerInterval) {
+          const interval = setInterval(() => {
+            setWorkSeconds(prev => {
+              if (prev >= 59) {
+                setWorkMinutes(m => {
+                  if (m >= 59) {
+                    setWorkHours(h => h + 1);
+                    return 0;
+                  }
+                  return m + 1;
+                });
+                return 0;
+              }
+              return prev + 1;
+            });
+          }, 1000);
+          setTimerInterval(interval);
+        }
       }
     } else if (isClockedOut && todayAttendance) {
       setWorkStatus('not-working');
       setIsWorking(false);
       
-      // Show total hours from attendance
       const totalHrs = Number(todayAttendance.totalHoursComputed) || 0;
       const hrs = Math.floor(totalHrs);
       const mins = Math.round((totalHrs - hrs) * 60);
@@ -132,26 +127,40 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
       setWorkHours(hrs);
       setWorkMinutes(mins);
       setWorkSeconds(0);
-      setEndTime(attendanceEndTime || new Date());
       
-      // Clear timer
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
+      if (timerInterval) {
+        clearInterval(timerInterval);
         setTimerInterval(null);
       }
     }
-  }, [isClockedIn, isClockedOut, todayAttendance, attendanceStartTime, attendanceEndTime]);
+  }, [isClockedIn, isClockedOut, todayAttendance]);
 
-  // Cleanup timer on unmount
   useEffect(() => {
+    if (isClockedIn && !timerInterval) {
+      const interval = setInterval(() => {
+        setWorkSeconds(prev => {
+          if (prev >= 59) {
+            setWorkMinutes(m => {
+              if (m >= 59) {
+                setWorkHours(h => h + 1);
+                return 0;
+              }
+              return m + 1;
+            });
+            return 0;
+          }
+          return prev + 1;
+        });
+      }, 1000);
+      setTimerInterval(interval);
+    }
+    
     return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
+      if (timerInterval) {
+        clearInterval(timerInterval);
       }
     };
-  }, []);
+  }, [isClockedIn]);
 
   useEffect(() => {
     const savedSessions = localStorage.getItem('workSessions');
@@ -173,51 +182,54 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
     }
   }, []);
 
+  // Handle Start Work - uses API with moment
   const handleStartWork = async () => {
     try {
+      // Set start time using moment
+      const now = moment();
+      setStartTime(now);
+      
       await clockIn();
-      setSuccessMessage('Work session started successfully!');
+      setSuccessMessage(`Work started at ${now.format('hh:mm A')}`);
       setShowSuccessMessage(true);
       setTimeout(() => setShowSuccessMessage(false), 3000);
     } catch (error) {
       console.error('Failed to start work:', error);
-      toast.error('Failed to start work session');
     }
   };
 
+  // Handle Stop Work - uses API with moment
   const handleStopWork = async () => {
     try {
-      // Clear timer first
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-        setTimerInterval(null);
-      }
+      const now = moment();
+      const start = startTime || moment(todayAttendance?.clockInTimestamp);
+      
+      // Calculate duration using moment
+      const duration = moment.duration(now.diff(start));
+      const hours = Math.floor(duration.asHours());
+      const minutes = duration.minutes();
+      const seconds = duration.seconds();
       
       await clockOut();
       
-      // Calculate final duration
       const totalHrs = totalHoursToday || 0;
       const hrs = Math.floor(totalHrs);
       const mins = Math.round((totalHrs - hrs) * 60);
-      setTotalWorkedToday(`${hrs}h ${mins}m`);
-      setWorkHours(hrs);
-      setWorkMinutes(mins);
-      setWorkSeconds(0);
-      setEndTime(new Date());
       
-      setSuccessMessage(`Work session completed! Duration: ${hrs}h ${mins}m`);
+      setSuccessMessage(
+        `Work session completed! Duration: ${hrs}h ${mins}m | ` +
+        `Started: ${start.format('hh:mm A')} | Ended: ${now.format('hh:mm A')}`
+      );
       setShowSuccessMessage(true);
       setTimeout(() => setShowSuccessMessage(false), 3000);
       
-      // Save to local storage
-      const today = new Date().toISOString().split('T')[0];
+      // Save work session with moment timestamps
       const session: WorkSession = {
         id: `WS-${Date.now()}`,
-        date: today,
-        startTime: startTime?.toISOString() || new Date().toISOString(),
-        endTime: new Date().toISOString(),
-        duration: totalHrs * 3600,
+        date: now.format('YYYY-MM-DD'),
+        startTime: start.toISOString(),
+        endTime: now.toISOString(),
+        duration: duration.asSeconds(),
         status: 'working'
       };
       
@@ -225,9 +237,12 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
       setWorkSessions(updatedSessions);
       localStorage.setItem('workSessions', JSON.stringify(updatedSessions));
       
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        setTimerInterval(null);
+      }
     } catch (error) {
       console.error('Failed to stop work:', error);
-      toast.error('Failed to stop work session');
     }
   };
 
@@ -253,15 +268,24 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
       return;
     }
 
+    // Validate dates with moment
+    const fromDate = moment(leaveRequest.fromDate);
+    const toDate = moment(leaveRequest.toDate);
+    
+    if (toDate.isBefore(fromDate)) {
+      alert('End date cannot be before start date');
+      return;
+    }
+
     const newLeave: LeaveRequest = {
       id: `L-${String(leaveHistory.length + 1).padStart(3, '0')}`,
       type: leaveRequest.type,
-      fromDate: leaveRequest.fromDate,
-      toDate: leaveRequest.toDate,
+      fromDate: fromDate.format('YYYY-MM-DD'),
+      toDate: toDate.format('YYYY-MM-DD'),
       reason: leaveRequest.reason,
       status: 'Pending',
       imageUrl: leaveRequest.imagePreview,
-      submittedAt: new Date().toISOString()
+      submittedAt: moment().toISOString()
     };
 
     const updatedLeaves = [newLeave, ...leaveHistory];
@@ -279,7 +303,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
       imagePreview: null,
     });
     
-    setSuccessMessage('Leave request submitted successfully!');
+    setSuccessMessage(`Leave request submitted for ${fromDate.format('MMM D')} - ${toDate.format('MMM D, YYYY')}`);
     setShowSuccessMessage(true);
     setTimeout(() => setShowSuccessMessage(false), 3000);
   };
@@ -315,25 +339,16 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
     },
     { 
       label: 'Login Time', 
-      value: startTime ? startTime.toLocaleTimeString() : (todayAttendance?.clockInTimestamp ? new Date(todayAttendance.clockInTimestamp).toLocaleTimeString() : '—'), 
+      value: startTime ? startTime.format('hh:mm A') : (todayAttendance?.clockInTimestamp ? moment(todayAttendance.clockInTimestamp).format('hh:mm A') : '—'), 
       icon: ClockIcon, 
       subtitle: startTime ? `Status: ${isClockedIn ? '🟢 Active' : isClockedOut ? '✅ Completed' : '🔴 Stopped'}` : 'Not logged in' 
     },
-    { 
-      label: 'Clock Out Time', 
-      value: endTime ? endTime.toLocaleTimeString() : (todayAttendance?.clockOutTimestamp ? new Date(todayAttendance.clockOutTimestamp).toLocaleTimeString() : '—'), 
-      icon: ClockIcon, 
-      subtitle: endTime ? '✅ Clocked out' : isClockedIn ? '⏳ In progress' : 'Not clocked out' 
-    },
+    { label: 'Tasks Open', value: '1', icon: CheckCircleIcon, subtitle: '0 completed this week' },
     { label: 'Leave Balance', value: '12d', icon: CalendarDaysIcon, subtitle: `${leaveHistory.filter(l => l.status === 'Pending').length} pending requests` }
   ];
 
-  // Rest of the component remains the same...
-  // (The JSX return is the same as before)
-  
   return (
     <>
-      {/* Success Message */}
       {showSuccessMessage && (
         <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-3 sm:p-4 rounded-xl flex items-center gap-2 animate-fadeIn mb-4">
           <CheckIcon className="w-5 h-5" />
@@ -341,17 +356,15 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
         </div>
       )}
 
-      {/* Status Badge */}
       <div className={`${tc.bgCard} p-3 sm:p-4 rounded-2xl ${tc.border} ${tc.shadow} mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0`}>
         <div className="flex items-center gap-3 sm:gap-4">
           <span className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium ${statusBadge.class}`}>
             {statusBadge.label}
           </span>
           <span className={`text-xs sm:text-sm ${tc.textSecondary}`}>
-            {isClockedIn && startTime && `Started at: ${startTime.toLocaleTimeString()}`}
-            {isClockedIn && !startTime && todayAttendance?.clockInTimestamp && `Started at: ${new Date(todayAttendance.clockInTimestamp).toLocaleTimeString()}`}
-            {isClockedOut && endTime && `Completed at: ${endTime.toLocaleTimeString()}`}
-            {isClockedOut && !endTime && todayAttendance?.clockOutTimestamp && `Completed at: ${new Date(todayAttendance.clockOutTimestamp).toLocaleTimeString()}`}
+            {isClockedIn && startTime && `Started at: ${startTime.format('hh:mm A')}`}
+            {isClockedIn && !startTime && todayAttendance?.clockInTimestamp && `Started at: ${moment(todayAttendance.clockInTimestamp).format('hh:mm A')}`}
+            {isClockedOut && todayAttendance && `Completed at: ${moment(todayAttendance.clockOutTimestamp).format('hh:mm A')}`}
             {workStatus === 'on-leave' && 'Currently on leave'}
             {!isClockedIn && !isClockedOut && workStatus === 'not-working' && 'Ready to start working'}
           </span>
@@ -391,7 +404,6 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
               type="button"
               onClick={() => {
                 setWorkStatus('not-working');
-                setEndTime(null);
               }}
               className="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl text-xs sm:text-sm font-medium hover:bg-amber-500/30 transition-all"
             >
@@ -413,7 +425,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
         </div>
       </div>
 
-      {/* Leave Request Modal - Keep as is */}
+      {/* Leave Request Modal */}
       {showLeaveModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
           <div className={`${tc.bgCard} rounded-2xl ${tc.border} ${tc.shadow} max-w-lg w-full max-h-[90vh] overflow-y-auto p-4 sm:p-6`}>
@@ -590,25 +602,16 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
         </div>
         {isClockedIn && (
           <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 ${tc.border} border-t flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 text-xs ${tc.textMuted}">
-            <span>Started at: {startTime?.toLocaleTimeString() || (todayAttendance?.clockInTimestamp ? new Date(todayAttendance.clockInTimestamp).toLocaleTimeString() : 'N/A')}</span>
+            <span>Started at: {startTime?.format('hh:mm A') || (todayAttendance?.clockInTimestamp ? moment(todayAttendance.clockInTimestamp).format('hh:mm A') : 'N/A')}</span>
             <span className="hidden sm:inline w-px h-4 bg-gray-300/30"></span>
             <span>Elapsed: {formatTime(workHours, workMinutes, workSeconds)}</span>
             <span className="hidden sm:inline w-px h-4 bg-gray-300/30"></span>
             <span>Status: {isClockedIn ? '🟢 Active' : workStatus === 'on-leave' ? '🔵 On Leave' : '⚪ Not Working'}</span>
           </div>
         )}
-        {isClockedOut && endTime && (
-          <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 ${tc.border} border-t flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 text-xs ${tc.textMuted}">
-            <span>Started at: {startTime?.toLocaleTimeString() || (todayAttendance?.clockInTimestamp ? new Date(todayAttendance.clockInTimestamp).toLocaleTimeString() : 'N/A')}</span>
-            <span className="hidden sm:inline w-px h-4 bg-gray-300/30"></span>
-            <span>Completed at: {endTime.toLocaleTimeString()}</span>
-            <span className="hidden sm:inline w-px h-4 bg-gray-300/30"></span>
-            <span>Total: {Math.floor(totalHoursToday)}h {Math.round((totalHoursToday - Math.floor(totalHoursToday)) * 60)}m</span>
-          </div>
-        )}
       </div>
 
-      {/* Stats Cards - Updated with Clock Out Time */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 mb-6 sm:mb-8">
         {stats.map((stat, index) => (
           <div key={index} className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow} ${tc.bgCardHover} transition-all duration-300 group cursor-pointer hover:scale-[1.02]`}>
@@ -626,7 +629,6 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
         ))}
       </div>
 
-      {/* Rest of the dashboard content - Keep as is */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
         <div className={`lg:col-span-2 ${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
           <h3 className={`font-semibold ${tc.text} mb-2 sm:mb-4 text-base sm:text-lg`}>Today's Working Progress</h3>
