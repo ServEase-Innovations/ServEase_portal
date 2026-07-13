@@ -1,4 +1,4 @@
-// HRDashboard.tsx - Complete with responsive design for all devices
+// HRDashboard.tsx - Complete with work timer, leave management, and payslips
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import Sidebar from '../Layout/Sidebar';
@@ -41,12 +41,21 @@ import {
   BuildingOfficeIcon,
   ArrowRightIcon,
   SparklesIcon,
-  GlobeAltIcon
+  GlobeAltIcon,
+  PlayIcon,
+  StopIcon,
+  ArrowUpTrayIcon,
+  CalendarDaysIcon,
+  CheckIcon,
+  CreditCardIcon,
+  ArrowPathIcon,
+  DocumentTextIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { Role } from '../../types';
 import OnboardNewHireModal from '../../pages/CreateAccountPage';
+import moment from 'moment';
 
 // Types
 interface OnboardingEmployee {
@@ -63,10 +72,14 @@ interface LeaveRequest {
   employee: string;
   type: 'Casual' | 'Sick' | 'Earned' | 'Comp-Off' | 'Maternity';
   period: string;
+  fromDate: string;
+  toDate: string;
   duration: string;
   reason: string;
   status: 'Pending' | 'Approved' | 'Rejected';
   department: string;
+  imageUrl?: string | null;
+  submittedAt: string;
 }
 
 interface SalaryRecord {
@@ -110,6 +123,36 @@ interface Message {
   category: 'General' | 'HR' | 'Payroll' | 'IT' | 'Leave' | 'Other';
 }
 
+interface WorkSession {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string | null;
+  duration: number;
+  status: 'working' | 'on-leave' | 'not-working';
+  employeeName: string;
+}
+
+interface PayslipData {
+  employeeId: string;
+  name: string;
+  designation: string;
+  email: string;
+  payPeriod: string;
+  paymentDate: string;
+  earnings: {
+    basic: number;
+    hra: number;
+    special: number;
+    performanceBonus: number;
+  };
+  deductions: {
+    providentFund: number;
+    tds: number;
+    professionalTax: number;
+  };
+}
+
 const HRDashboard = () => {
   const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
@@ -119,9 +162,40 @@ const HRDashboard = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
+  // Work Timer State
+  const [isWorking, setIsWorking] = useState(false);
+  const [workHours, setWorkHours] = useState(0);
+  const [workMinutes, setWorkMinutes] = useState(0);
+  const [workSeconds, setWorkSeconds] = useState(0);
+  const [timerInterval, setTimerInterval] = useState<ReturnType<typeof setInterval> | null>(null);
+  const [startTime, setStartTime] = useState<moment.Moment | null>(null);
+  const [workStatus, setWorkStatus] = useState<'working' | 'on-leave' | 'not-working'>('not-working');
+  const [totalHoursToday, setTotalHoursToday] = useState(0);
+  const [isClockedIn, setIsClockedIn] = useState(false);
+  const [isClockedOut, setIsClockedOut] = useState(false);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [todayAttendance, setTodayAttendance] = useState<any>(null);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  
+  // Leave Modal State
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [leaveRequest, setLeaveRequest] = useState({
+    type: 'Sick' as 'Sick' | 'Casual' | 'Earned' | 'Other',
+    fromDate: '',
+    toDate: '',
+    reason: '',
+    imageFile: null as File | null,
+    imagePreview: null as string | null,
+  });
+
   // Modal state
   const [showOnboardModal, setShowOnboardModal] = useState(false);
   const { createAccount } = useAuth();
+
+  // Work Sessions State
+  const [workSessions, setWorkSessions] = useState<WorkSession[]>([]);
+  const [leaveHistory, setLeaveHistory] = useState<LeaveRequest[]>([]);
 
   // Queries state
   const [messages, setMessages] = useState<Message[]>([
@@ -208,6 +282,8 @@ const HRDashboard = () => {
     if (path === '/dashboard/holidays') return 'holidays';
     if (path === '/dashboard/announcements') return 'announcements';
     if (path === '/dashboard/queries') return 'queries';
+    if (path === '/dashboard/leave') return 'leave';
+    if (path === '/dashboard/payslips') return 'payslips';
     return 'overview';
   };
 
@@ -229,6 +305,27 @@ const HRDashboard = () => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
 
+  // Load saved work sessions and leave history
+  useEffect(() => {
+    const savedSessions = localStorage.getItem('hrWorkSessions');
+    if (savedSessions) {
+      try {
+        setWorkSessions(JSON.parse(savedSessions));
+      } catch (e) {
+        console.error('Error loading work sessions:', e);
+      }
+    }
+
+    const savedLeaves = localStorage.getItem('hrLeaveHistory');
+    if (savedLeaves) {
+      try {
+        setLeaveHistory(JSON.parse(savedLeaves));
+      } catch (e) {
+        console.error('Error loading leave history:', e);
+      }
+    }
+  }, []);
+
   // Handle responsive resize
   useEffect(() => {
     const handleResize = () => {
@@ -242,6 +339,34 @@ const HRDashboard = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Timer logic
+  useEffect(() => {
+    if (isClockedIn && !timerInterval) {
+      const interval = setInterval(() => {
+        setWorkSeconds(prev => {
+          if (prev >= 59) {
+            setWorkMinutes(m => {
+              if (m >= 59) {
+                setWorkHours(h => h + 1);
+                return 0;
+              }
+              return m + 1;
+            });
+            return 0;
+          }
+          return prev + 1;
+        });
+      }, 1000);
+      setTimerInterval(interval);
+    }
+    
+    return () => {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+      }
+    };
+  }, [isClockedIn]);
 
   const toggleTheme = () => {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
@@ -295,6 +420,8 @@ const HRDashboard = () => {
         leaveEarned: 'bg-green-500/20 text-green-400',
         leaveCompOff: 'bg-purple-500/20 text-purple-400',
         leaveMaternity: 'bg-pink-500/20 text-pink-400',
+        timerBg: 'bg-[#0d1f3c]',
+        btnBg: 'bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30',
       };
     }
     return {
@@ -330,6 +457,8 @@ const HRDashboard = () => {
       leaveEarned: 'bg-green-100 text-green-700',
       leaveCompOff: 'bg-purple-100 text-purple-700',
       leaveMaternity: 'bg-pink-100 text-pink-700',
+      timerBg: 'bg-gray-50',
+      btnBg: 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200',
     };
   };
 
@@ -353,11 +482,11 @@ const HRDashboard = () => {
 
   // Leave requests data
   const leaveRequests: LeaveRequest[] = [
-    { id: 'LV-001', employee: 'Ishita Roy', type: 'Casual', period: '2026-06-12 - 2026-06-12', duration: '1d', reason: 'Personal errand', status: 'Pending', department: 'Platform' },
-    { id: 'LV-002', employee: 'Karan Singh', type: 'Sick', period: '2026-06-04 - 2026-06-05', duration: '2d', reason: 'Flu recovery', status: 'Pending', department: 'Platform' },
-    { id: 'LV-003', employee: 'Meera Joshi', type: 'Earned', period: '2026-06-22 - 2026-06-26', duration: '5d', reason: 'Family vacation', status: 'Pending', department: 'Product' },
-    { id: 'LV-004', employee: 'Sneha Pillai', type: 'Comp-Off', period: '2026-06-09 - 2026-06-09', duration: '1d', reason: 'Weekend release support', status: 'Approved', department: 'QA' },
-    { id: 'LV-005', employee: 'Ananya Iyer', type: 'Maternity', period: '2026-07-01 - 2026-12-31', duration: '184d', reason: 'Statutory maternity leave', status: 'Approved', department: 'Design' }
+    { id: 'LV-001', employee: 'Ishita Roy', type: 'Casual', period: '2026-06-12 - 2026-06-12', fromDate: '2026-06-12', toDate: '2026-06-12', duration: '1d', reason: 'Personal errand', status: 'Pending', department: 'Platform', submittedAt: '2026-06-10T10:00:00Z' },
+    { id: 'LV-002', employee: 'Karan Singh', type: 'Sick', period: '2026-06-04 - 2026-06-05', fromDate: '2026-06-04', toDate: '2026-06-05', duration: '2d', reason: 'Flu recovery', status: 'Pending', department: 'Platform', submittedAt: '2026-06-03T08:30:00Z' },
+    { id: 'LV-003', employee: 'Meera Joshi', type: 'Earned', period: '2026-06-22 - 2026-06-26', fromDate: '2026-06-22', toDate: '2026-06-26', duration: '5d', reason: 'Family vacation', status: 'Pending', department: 'Product', submittedAt: '2026-06-18T14:00:00Z' },
+    { id: 'LV-004', employee: 'Sneha Pillai', type: 'Comp-Off', period: '2026-06-09 - 2026-06-09', fromDate: '2026-06-09', toDate: '2026-06-09', duration: '1d', reason: 'Weekend release support', status: 'Approved', department: 'QA', submittedAt: '2026-06-05T09:00:00Z' },
+    { id: 'LV-005', employee: 'Ananya Iyer', type: 'Maternity', period: '2026-07-01 - 2026-12-31', fromDate: '2026-07-01', toDate: '2026-12-31', duration: '184d', reason: 'Statutory maternity leave', status: 'Approved', department: 'Design', submittedAt: '2026-06-01T11:00:00Z' }
   ];
 
   // Salary data
@@ -416,6 +545,13 @@ const HRDashboard = () => {
     }
   ];
 
+  // Payslips data
+  const payslips = [
+    { month: 'May 2026', paidOn: '2026-05-31', gross: '₹1,45,390', net: '₹1,18,849' },
+    { month: 'April 2026', paidOn: '2026-04-30', gross: '₹1,42,500', net: '₹1,16,535' },
+    { month: 'March 2026', paidOn: '2026-03-31', gross: '₹1,42,500', net: '₹1,16,535' },
+  ];
+
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       'Active': tc.statusActive,
@@ -442,6 +578,15 @@ const HRDashboard = () => {
     return colors[type] || 'bg-gray-500/20 text-gray-400';
   };
 
+  const getLeaveStatusColor = (status: string) => {
+    switch(status) {
+      case 'Approved': return tc.statusApproved;
+      case 'Pending': return tc.statusPending;
+      case 'Rejected': return tc.statusRejected;
+      default: return 'bg-gray-500/20 text-gray-400';
+    }
+  };
+
   const getSenderRoleColor = (role: string) => {
     const colors = {
       'Employee': 'bg-blue-500/20 text-blue-400',
@@ -462,6 +607,170 @@ const HRDashboard = () => {
       'Other': 'bg-purple-500/20 text-purple-400'
     };
     return colors[category as keyof typeof colors] || 'bg-gray-500/20 text-gray-400';
+  };
+
+  // Timer Functions
+  const handleStartWork = async () => {
+    setAttendanceLoading(true);
+    try {
+      const now = moment();
+      setStartTime(now);
+      setIsClockedIn(true);
+      setIsClockedOut(false);
+      setWorkStatus('working');
+      setIsWorking(true);
+      
+      setSuccessMessage(`Work started at ${now.format('hh:mm A')}`);
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+      toast.success(`Work started at ${now.format('hh:mm A')}`);
+    } catch (error) {
+      console.error('Failed to start work:', error);
+      toast.error('Failed to start work');
+    } finally {
+      setAttendanceLoading(false);
+    }
+  };
+
+  const handleStopWork = async () => {
+    setAttendanceLoading(true);
+    try {
+      const now = moment();
+      const start = startTime || moment();
+      
+      const duration = moment.duration(now.diff(start));
+      const hours = Math.floor(duration.asHours());
+      const minutes = duration.minutes();
+      const seconds = duration.seconds();
+      
+      setIsClockedIn(false);
+      setIsClockedOut(true);
+      setWorkStatus('not-working');
+      setIsWorking(false);
+      setTotalHoursToday(hours + minutes / 60);
+      
+      setSuccessMessage(
+        `Work session completed! Duration: ${hours}h ${minutes}m`
+      );
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+      toast.success(`Work session completed! Duration: ${hours}h ${minutes}m`);
+      
+      const session: WorkSession = {
+        id: `WS-${Date.now()}`,
+        date: now.format('YYYY-MM-DD'),
+        startTime: start.toISOString(),
+        endTime: now.toISOString(),
+        duration: duration.asSeconds(),
+        status: 'working',
+        employeeName: 'Sanya Kapoor'
+      };
+      
+      const updatedSessions = [session, ...workSessions];
+      setWorkSessions(updatedSessions);
+      localStorage.setItem('hrWorkSessions', JSON.stringify(updatedSessions));
+      
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        setTimerInterval(null);
+      }
+    } catch (error) {
+      console.error('Failed to stop work:', error);
+      toast.error('Failed to stop work');
+    } finally {
+      setAttendanceLoading(false);
+    }
+  };
+
+  const formatTime = (hours: number, minutes: number, seconds: number) => {
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  };
+
+  // Leave Functions
+  const handleLeaveImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setLeaveRequest({ ...leaveRequest, imageFile: file });
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLeaveRequest({ ...leaveRequest, imageFile: file, imagePreview: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSubmitLeave = () => {
+    if (!leaveRequest.fromDate || !leaveRequest.toDate || !leaveRequest.reason) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    const fromDate = moment(leaveRequest.fromDate);
+    const toDate = moment(leaveRequest.toDate);
+    
+    if (toDate.isBefore(fromDate)) {
+      toast.error('End date cannot be before start date');
+      return;
+    }
+
+    const duration = toDate.diff(fromDate, 'days') + 1;
+
+    const newLeave: LeaveRequest = {
+      id: `LV-${String(leaveHistory.length + leaveRequests.length + 1).padStart(3, '0')}`,
+      employee: 'Sanya Kapoor',
+      type: leaveRequest.type as any,
+      period: `${fromDate.format('YYYY-MM-DD')} - ${toDate.format('YYYY-MM-DD')}`,
+      fromDate: fromDate.format('YYYY-MM-DD'),
+      toDate: toDate.format('YYYY-MM-DD'),
+      duration: `${duration}d`,
+      reason: leaveRequest.reason,
+      status: 'Pending',
+      department: 'HR',
+      imageUrl: leaveRequest.imagePreview,
+      submittedAt: moment().toISOString()
+    };
+
+    const updatedLeaves = [newLeave, ...leaveHistory];
+    setLeaveHistory(updatedLeaves);
+    localStorage.setItem('hrLeaveHistory', JSON.stringify(updatedLeaves));
+    
+    setWorkStatus('on-leave');
+    setShowLeaveModal(false);
+    setLeaveRequest({
+      type: 'Sick',
+      fromDate: '',
+      toDate: '',
+      reason: '',
+      imageFile: null,
+      imagePreview: null,
+    });
+    
+    setSuccessMessage(`Leave request submitted for ${fromDate.format('MMM D')} - ${toDate.format('MMM D, YYYY')}`);
+    setShowSuccessMessage(true);
+    setTimeout(() => setShowSuccessMessage(false), 3000);
+    toast.success(`Leave request submitted for ${fromDate.format('MMM D')} - ${toDate.format('MMM D, YYYY')}`);
+  };
+
+  const getStatusBadge = () => {
+    if (isClockedIn) {
+      return { label: '🟢 Working', class: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' };
+    } else if (isClockedOut) {
+      return { label: '✅ Clocked Out', class: 'bg-blue-500/20 text-blue-400 border border-blue-500/30' };
+    } else if (workStatus === 'on-leave') {
+      return { label: '🔵 On Leave', class: 'bg-blue-500/20 text-blue-400 border border-blue-500/30' };
+    }
+    return { label: '⚪ Not Working', class: 'bg-gray-500/20 text-gray-400 border border-gray-500/30' };
+  };
+
+  const statusBadge = getStatusBadge();
+
+  const getTodayHoursDisplay = () => {
+    if (isClockedIn) {
+      return formatTime(workHours, workMinutes, workSeconds);
+    } else if (isClockedOut) {
+      return `${Math.floor(totalHoursToday)}h ${Math.round((totalHoursToday - Math.floor(totalHoursToday)) * 60)}m`;
+    }
+    return '0h 0m';
   };
 
   const handleSendMessage = () => {
@@ -503,14 +812,557 @@ const HRDashboard = () => {
     return readFilter && categoryFilter;
   });
 
+  // Payslip Functions
+  const generatePayslipData = (employeeName?: string): PayslipData => {
+    const baseSalary = 145390;
+    const hra = Math.round(baseSalary * 0.4);
+    const special = Math.round(baseSalary * 0.3);
+    const bonus = Math.round(baseSalary * 0.1);
+    const pf = Math.round(baseSalary * 0.12);
+    const tds = Math.round(baseSalary * 0.08);
+    const pt = 200;
+
+    return {
+      employeeId: 'HR-001',
+      name: employeeName || 'Sanya Kapoor',
+      designation: 'HR Business Partner',
+      email: 'sanya.kapoor@serveasein.com',
+      payPeriod: 'May 2026',
+      paymentDate: '2026-05-31',
+      earnings: {
+        basic: baseSalary,
+        hra: hra,
+        special: special,
+        performanceBonus: bonus,
+      },
+      deductions: {
+        providentFund: pf,
+        tds: tds,
+        professionalTax: pt,
+      }
+    };
+  };
+
+  const downloadPayslip = (employeeName?: string) => {
+    const data = generatePayslipData(employeeName);
+    
+    const totalEarnings = Object.values(data.earnings).reduce((a, b) => a + b, 0);
+    const totalDeductions = Object.values(data.deductions).reduce((a, b) => a + b, 0);
+    const netPayable = totalEarnings - totalDeductions;
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            background: #f0f2f5; 
+            padding: 20px;
+          }
+          .payslip { 
+            max-width: 900px; 
+            margin: 0 auto; 
+            background: white; 
+            border-radius: 16px; 
+            box-shadow: 0 8px 32px rgba(0,0,0,0.12); 
+            overflow: hidden;
+          }
+          .header { 
+            background: linear-gradient(135deg, #1a2744 0%, #2a3f6a 100%); 
+            color: white; 
+            padding: 25px 30px;
+            position: relative;
+          }
+          .header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6, #a855f7);
+          }
+          .header h1 { 
+            font-size: 24px; 
+            font-weight: 700;
+            letter-spacing: 1px;
+          }
+          .header .sub { 
+            opacity: 0.8; 
+            font-size: 13px; 
+            font-weight: 300;
+            margin-top: 4px;
+          }
+          .header .company { 
+            font-size: 11px; 
+            opacity: 0.6; 
+            margin-top: 6px;
+          }
+          .header .badge {
+            float: right;
+            background: rgba(255,255,255,0.15);
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 11px;
+            border: 1px solid rgba(255,255,255,0.1);
+          }
+          .employee-details { 
+            padding: 20px 30px; 
+            background: #f8fafc; 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 6px 20px; 
+            border-bottom: 2px solid #e2e8f0;
+          }
+          .employee-details .label { 
+            color: #64748b; 
+            font-size: 10px; 
+            font-weight: 600; 
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+          .employee-details .value { 
+            color: #0f172a; 
+            font-size: 13px; 
+            font-weight: 500;
+          }
+          .table-section { 
+            padding: 25px 30px; 
+          }
+          .table-section h2 { 
+            font-size: 15px; 
+            color: #1a2744; 
+            margin-bottom: 16px;
+            font-weight: 600;
+          }
+          table { 
+            width: 100%; 
+            border-collapse: collapse;
+          }
+          th { 
+            background: #f1f5f9; 
+            color: #475569; 
+            font-weight: 600; 
+            font-size: 11px; 
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 10px 14px; 
+            text-align: left; 
+            border-bottom: 2px solid #e2e8f0;
+          }
+          td { 
+            padding: 10px 14px; 
+            border-bottom: 1px solid #f1f5f9; 
+            font-size: 13px;
+          }
+          .total-row { 
+            background: #f8fafc; 
+            font-weight: 600;
+          }
+          .total-row td {
+            border-bottom: 2px solid #e2e8f0;
+          }
+          .net-row {
+            background: #ecfdf5;
+          }
+          .net-row td {
+            border-bottom: none;
+            padding: 14px;
+          }
+          .amount { 
+            font-family: 'Courier New', monospace;
+            font-weight: 500;
+          }
+          .footer { 
+            padding: 16px 30px; 
+            background: #f8fafc; 
+            border-top: 2px solid #e2e8f0; 
+            font-size: 11px; 
+            color: #94a3b8; 
+            text-align: center;
+          }
+          .footer strong {
+            color: #64748b;
+          }
+          @media print {
+            body { padding: 0; background: white; }
+            .payslip { box-shadow: none; border-radius: 0; }
+          }
+          @media (max-width: 600px) {
+            .header { padding: 20px; }
+            .header .badge { float: none; display: inline-block; margin-top: 10px; }
+            .employee-details { grid-template-columns: 1fr; padding: 15px 20px; }
+            .table-section { padding: 15px 20px; }
+            td, th { padding: 8px 10px; font-size: 12px; }
+            .footer { padding: 12px 20px; font-size: 10px; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="payslip">
+          <div class="header">
+            <h1>ServEase</h1>
+            <div class="sub">INNOVATION PVT LTD</div>
+            <div class="company">TOWER B, Cyber Hub, Gurugram, Haryana 122002, India</div>
+            <div class="badge">📄 PAYSLIP</div>
+          </div>
+          
+          <div class="employee-details">
+            <div><span class="label">Employee ID</span><div class="value">${data.employeeId}</div></div>
+            <div><span class="label">Name</span><div class="value">${data.name}</div></div>
+            <div><span class="label">Designation</span><div class="value">${data.designation}</div></div>
+            <div><span class="label">Email</span><div class="value">${data.email}</div></div>
+            <div><span class="label">Pay Period</span><div class="value">${data.payPeriod}</div></div>
+            <div><span class="label">Payment Date</span><div class="value">${data.paymentDate}</div></div>
+          </div>
+
+          <div class="table-section">
+            <h2>📊 Salary Breakdown</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:40%">Earnings</th>
+                  <th style="width:10%;text-align:right">Amount</th>
+                  <th style="width:40%">Deductions</th>
+                  <th style="width:10%;text-align:right">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>💰 Basic</td>
+                  <td style="text-align:right" class="amount">₹${data.earnings.basic.toLocaleString()}</td>
+                  <td>🏦 Provident Fund</td>
+                  <td style="text-align:right" class="amount">₹${data.deductions.providentFund.toLocaleString()}</td>
+                </tr>
+                <tr>
+                  <td>🏠 House Rent Allowance</td>
+                  <td style="text-align:right" class="amount">₹${data.earnings.hra.toLocaleString()}</td>
+                  <td>📊 TDS</td>
+                  <td style="text-align:right" class="amount">₹${data.deductions.tds.toLocaleString()}</td>
+                </tr>
+                <tr>
+                  <td>⭐ Special Allowance</td>
+                  <td style="text-align:right" class="amount">₹${data.earnings.special.toLocaleString()}</td>
+                  <td>📋 Professional Tax</td>
+                  <td style="text-align:right" class="amount">₹${data.deductions.professionalTax.toLocaleString()}</td>
+                </tr>
+                <tr>
+                  <td>🎯 Performance Bonus</td>
+                  <td style="text-align:right" class="amount">₹${data.earnings.performanceBonus.toLocaleString()}</td>
+                  <td></td>
+                  <td></td>
+                </tr>
+                <tr class="total-row">
+                  <td><strong>📈 Total Earnings</strong></td>
+                  <td style="text-align:right" class="amount"><strong>₹${totalEarnings.toLocaleString()}</strong></td>
+                  <td><strong>📉 Total Deductions</strong></td>
+                  <td style="text-align:right" class="amount"><strong>₹${totalDeductions.toLocaleString()}</strong></td>
+                </tr>
+                <tr class="net-row">
+                  <td colspan="3" style="text-align:right; font-size:16px; font-weight:700; color:#065f46;">
+                    💰 Net Payable
+                  </td>
+                  <td style="text-align:right; font-size:18px; font-weight:700; color:#065f46;" class="amount">
+                    ₹${netPayable.toLocaleString()}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="footer">
+            This is a system-generated payslip and does not require a signature.<br>
+            <strong>© 2026 ServEase Innovation Private Limited</strong> • All rights reserved
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob([html], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Payslip_${data.employeeId}_${data.payPeriod.replace(' ', '_')}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success('Payslip downloaded successfully');
+  };
+
   // Handle successful onboarding
   const handleOnboardSuccess = () => {
-    // You can add additional logic here if needed
+    toast.success('Employee onboarded successfully');
   };
 
   // Render Overview Tab
   const renderOverview = () => (
     <>
+      {showSuccessMessage && (
+        <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-3 sm:p-4 rounded-xl flex items-center gap-2 animate-fadeIn mb-4">
+          <CheckIcon className="w-5 h-5" />
+          <span className="text-sm font-medium">{successMessage}</span>
+        </div>
+      )}
+
+      {/* Status Card */}
+      <div className={`${tc.bgCard} p-3 sm:p-4 rounded-2xl ${tc.border} ${tc.shadow} mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0`}>
+        <div className="flex items-center gap-3 sm:gap-4">
+          <span className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium ${statusBadge.class}`}>
+            {statusBadge.label}
+          </span>
+          <span className={`text-xs sm:text-sm ${tc.textSecondary}`}>
+            {isClockedIn && startTime && `Started at: ${startTime.format('hh:mm A')}`}
+            {isClockedOut && `Completed at: ${moment().format('hh:mm A')}`}
+            {workStatus === 'on-leave' && 'Currently on leave'}
+            {!isClockedIn && !isClockedOut && workStatus === 'not-working' && 'Ready to start working'}
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
+          {!isClockedIn && !isClockedOut && workStatus === 'not-working' && (
+            <>
+              <button
+                type="button"
+                onClick={handleStartWork}
+                disabled={attendanceLoading}
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs sm:text-sm font-medium hover:bg-emerald-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {attendanceLoading ? '⏳ Processing...' : '✅ Working Today'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowLeaveModal(true)}
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-xl text-xs sm:text-sm font-medium hover:bg-blue-500/30 transition-all"
+              >
+                📋 On Leave
+              </button>
+            </>
+          )}
+          {isClockedIn && (
+            <button
+              type="button"
+              onClick={handleStopWork}
+              disabled={attendanceLoading}
+              className="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl text-xs sm:text-sm font-medium hover:bg-rose-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {attendanceLoading ? '⏳ Processing...' : '⏹️ Stop Working'}
+            </button>
+          )}
+          {isClockedOut && (
+            <button
+              type="button"
+              onClick={() => {
+                setWorkStatus('not-working');
+                setIsClockedOut(false);
+              }}
+              className="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl text-xs sm:text-sm font-medium hover:bg-amber-500/30 transition-all"
+            >
+              🔄 Start New Session
+            </button>
+          )}
+          {workStatus === 'on-leave' && (
+            <button
+              type="button"
+              onClick={() => setShowLeaveModal(true)}
+              className="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl text-xs sm:text-sm font-medium hover:bg-amber-500/30 transition-all"
+            >
+              ✏️ Modify Leave
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Leave Request Modal */}
+      {showLeaveModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
+          <div className={`${tc.bgCard} rounded-2xl ${tc.border} ${tc.shadow} max-w-lg w-full max-h-[90vh] overflow-y-auto p-4 sm:p-6`}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className={`text-lg sm:text-xl font-bold ${tc.text}`}>Apply for Leave</h3>
+              <button
+                type="button"
+                onClick={() => setShowLeaveModal(false)}
+                className={`p-1.5 rounded-lg ${tc.textMuted} hover:${tc.text} transition-colors`}
+              >
+                <XCircleIcon className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className={`block text-sm font-medium ${tc.text} mb-1.5`}>Leave Type</label>
+                <select
+                  value={leaveRequest.type}
+                  onChange={(e) => setLeaveRequest({ ...leaveRequest, type: e.target.value as any })}
+                  className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 ${tc.input} rounded-xl focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent outline-none transition-all text-sm`}
+                >
+                  <option value="Sick">Sick Leave</option>
+                  <option value="Casual">Casual Leave</option>
+                  <option value="Earned">Earned Leave</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div>
+                  <label className={`block text-sm font-medium ${tc.text} mb-1.5`}>From Date</label>
+                  <input
+                    type="date"
+                    value={leaveRequest.fromDate}
+                    onChange={(e) => setLeaveRequest({ ...leaveRequest, fromDate: e.target.value })}
+                    className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 ${tc.input} rounded-xl focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent outline-none transition-all text-sm`}
+                  />
+                </div>
+                <div>
+                  <label className={`block text-sm font-medium ${tc.text} mb-1.5`}>To Date</label>
+                  <input
+                    type="date"
+                    value={leaveRequest.toDate}
+                    onChange={(e) => setLeaveRequest({ ...leaveRequest, toDate: e.target.value })}
+                    className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 ${tc.input} rounded-xl focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent outline-none transition-all text-sm`}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className={`block text-sm font-medium ${tc.text} mb-1.5`}>Reason</label>
+                <textarea
+                  value={leaveRequest.reason}
+                  onChange={(e) => setLeaveRequest({ ...leaveRequest, reason: e.target.value })}
+                  placeholder="Please provide a reason for your leave..."
+                  rows={3}
+                  className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 ${tc.input} rounded-xl focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent outline-none resize-none transition-all text-sm`}
+                />
+              </div>
+
+              <div>
+                <label className={`block text-sm font-medium ${tc.text} mb-1.5`}>Supporting Document (Optional)</label>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                  <label className={`px-3 sm:px-4 py-2 sm:py-2.5 ${tc.btnBg} rounded-xl text-xs sm:text-sm font-medium cursor-pointer transition-all hover:scale-105 flex items-center gap-2`}>
+                    <ArrowUpTrayIcon className="w-4 h-4" />
+                    Upload Document
+                    <input
+                      type="file"
+                      accept="image/*,.pdf,.doc,.docx"
+                      onChange={handleLeaveImageUpload}
+                      className="hidden"
+                    />
+                  </label>
+                  {leaveRequest.imagePreview && (
+                    <div className="flex items-center gap-2">
+                      <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden border ${tc.border}">
+                        <img src={leaveRequest.imagePreview} alt="Leave document" className="w-full h-full object-cover" />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLeaveRequest({ ...leaveRequest, imageFile: null, imagePreview: null });
+                        }}
+                        className={`p-1 rounded-lg ${tc.textMuted} hover:text-rose-400 transition-colors`}
+                      >
+                        <XCircleIcon className="w-5 h-5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <p className={`text-[10px] sm:text-xs ${tc.textMuted} mt-1`}>
+                  Upload medical certificate, or any supporting document (optional)
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowLeaveModal(false)}
+                  className={`w-full sm:w-auto px-4 py-2 ${tc.border} ${tc.textSecondary} rounded-xl text-sm font-medium ${tc.bgTableHover} transition-colors`}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSubmitLeave}
+                  className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2"
+                >
+                  <PaperAirplaneIcon className="w-4 h-4" />
+                  Submit Leave Request
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Timer Controls */}
+      <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow} mb-6 sm:mb-8 transition-all duration-500 ${isClockedIn ? 'ring-2 ring-emerald-500/50' : ''}`}>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
+            <div className={`p-3 sm:p-4 rounded-2xl ${tc.timerBg} ${tc.border} border flex-1 sm:flex-none`}>
+              <div className="flex items-center gap-2 sm:gap-3">
+                <ClockIcon className={`w-5 h-5 sm:w-6 sm:h-6 ${isClockedIn ? 'text-emerald-400 animate-pulse' : tc.textMuted}`} />
+                <div>
+                  <p className={`text-lg sm:text-2xl font-mono font-bold ${isClockedIn ? 'text-emerald-400' : tc.text}`}>
+                    {isClockedIn ? formatTime(workHours, workMinutes, workSeconds) : 
+                     isClockedOut ? `${Math.floor(totalHoursToday)}h ${Math.round((totalHoursToday - Math.floor(totalHoursToday)) * 60)}m` : 
+                     '00:00:00'}
+                  </p>
+                  <p className={`text-[10px] sm:text-xs ${tc.textMuted}`}>
+                    {isClockedIn ? '🟢 Timer running' : isClockedOut ? '✅ Session completed' : '⏸️ Timer stopped'}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="hidden sm:block">
+              <p className={`text-sm font-medium ${tc.text}`}>Today's Progress</p>
+              <p className={`text-xs ${tc.textSecondary}`}>
+                {isClockedIn ? 'Click stop when you finish' : 
+                 isClockedOut ? `Total: ${totalHoursToday.toFixed(2)} hours` :
+                 workStatus === 'on-leave' ? 'On leave today' : 'Start tracking your work hours'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+            {!isClockedIn && !isClockedOut && workStatus === 'not-working' ? (
+              <button
+                type="button"
+                onClick={handleStartWork}
+                disabled={attendanceLoading}
+                className="flex-1 sm:flex-none px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-medium text-sm sm:text-base hover:from-emerald-600 hover:to-emerald-700 transition-all duration-300 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <PlayIcon className="w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform" />
+                <span>{attendanceLoading ? '⏳ Starting...' : 'Start Work'}</span>
+              </button>
+            ) : isClockedIn ? (
+              <button
+                type="button"
+                onClick={handleStopWork}
+                disabled={attendanceLoading}
+                className="flex-1 sm:flex-none px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-rose-500 to-rose-600 text-white rounded-xl font-medium text-sm sm:text-base hover:from-rose-600 hover:to-rose-700 transition-all duration-300 shadow-lg shadow-rose-500/25 hover:shadow-rose-500/40 flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <StopIcon className="w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform" />
+                <span>{attendanceLoading ? '⏳ Stopping...' : 'Stop Work'}</span>
+              </button>
+            ) : (
+              <div className={`text-sm ${tc.textSecondary} px-3 py-2`}>
+                {isClockedOut ? '✅ Completed for today' : workStatus === 'on-leave' ? '📋 On Leave Today' : '⏸️ Not Working'}
+              </div>
+            )}
+          </div>
+        </div>
+        {isClockedIn && (
+          <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 ${tc.border} border-t flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 text-xs ${tc.textMuted}">
+            <span>Started at: {startTime?.format('hh:mm A') || 'N/A'}</span>
+            <span className="hidden sm:inline w-px h-4 bg-gray-300/30"></span>
+            <span>Elapsed: {formatTime(workHours, workMinutes, workSeconds)}</span>
+            <span className="hidden sm:inline w-px h-4 bg-gray-300/30"></span>
+            <span>Status: {isClockedIn ? '🟢 Active' : workStatus === 'on-leave' ? '🔵 On Leave' : '⚪ Not Working'}</span>
+          </div>
+        )}
+      </div>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 mb-6 sm:mb-8">
         {stats.map((stat, index) => (
@@ -1435,6 +2287,169 @@ const HRDashboard = () => {
     </div>
   );
 
+  // Render Leave Tab (My Leave)
+  const renderLeave = () => {
+    // Combine leave history and leave requests with proper mapping
+    const allLeaves = [
+      ...leaveHistory.map(l => ({
+        id: l.id,
+        type: l.type,
+        from: l.fromDate,
+        to: l.toDate,
+        days: 1,
+        status: l.status
+      })),
+      ...leaveRequests.map(l => ({
+        id: l.id,
+        type: l.type,
+        from: l.fromDate,
+        to: l.toDate,
+        days: parseInt(l.duration) || 1,
+        status: l.status
+      }))
+    ];
+
+    const displayLeaves = allLeaves.length > 0 ? allLeaves : [
+      { id: 'L-9821', type: 'Casual', from: '2026-05-12', to: '2026-05-12', days: 1, status: 'Approved' },
+      { id: 'L-9874', type: 'Sick', from: '2026-05-22', to: '2026-05-23', days: 2, status: 'Approved' },
+      { id: 'L-9912', type: 'Earned', from: '2026-06-15', to: '2026-06-17', days: 3, status: 'Pending' },
+    ];
+
+    return (
+      <div className="space-y-4 sm:space-y-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
+            <h4 className={`text-sm ${tc.textSecondary}`}>Sick Leave</h4>
+            <p className={`text-xl sm:text-2xl font-bold ${tc.text}`}>4 / 10</p>
+            <p className={`text-xs ${tc.textMuted}`}>days remaining</p>
+          </div>
+          <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
+            <h4 className={`text-sm ${tc.textSecondary}`}>Earned Leave</h4>
+            <p className={`text-xl sm:text-2xl font-bold ${tc.text}`}>9 / 18</p>
+            <p className={`text-xs ${tc.textMuted}`}>days remaining</p>
+          </div>
+          <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
+            <h4 className={`text-sm ${tc.textSecondary}`}>Pending Requests</h4>
+            <p className="text-xl sm:text-2xl font-bold text-amber-400">
+              {displayLeaves.filter(l => l.status === 'Pending').length}
+            </p>
+            <p className={`text-xs ${tc.textMuted}`}>awaiting approval</p>
+          </div>
+        </div>
+
+        <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className={`font-semibold ${tc.text} text-base sm:text-lg`}>Leave History</h3>
+            <button
+              type="button"
+              onClick={() => setShowLeaveModal(true)}
+              className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-xs sm:text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-1 sm:gap-2"
+            >
+              <PlusIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+              Apply Leave
+            </button>
+          </div>
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <table className="w-full min-w-[400px] sm:min-w-0">
+              <thead>
+                <tr className={`${tc.border} border-b`}>
+                  <th className={`text-left text-[10px] sm:text-xs font-medium ${tc.textMuted} py-2 sm:py-3 px-2 sm:px-3`}>ID</th>
+                  <th className={`text-left text-[10px] sm:text-xs font-medium ${tc.textMuted} py-2 sm:py-3 px-2 sm:px-3 hidden sm:table-cell`}>Type</th>
+                  <th className={`text-left text-[10px] sm:text-xs font-medium ${tc.textMuted} py-2 sm:py-3 px-2 sm:px-3`}>From – To</th>
+                  <th className={`text-left text-[10px] sm:text-xs font-medium ${tc.textMuted} py-2 sm:py-3 px-2 sm:px-3 hidden sm:table-cell`}>Days</th>
+                  <th className={`text-left text-[10px] sm:text-xs font-medium ${tc.textMuted} py-2 sm:py-3 px-2 sm:px-3`}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayLeaves.map((leave) => (
+                  <tr key={leave.id} className={`${tc.border} border-b ${tc.bgCardHover} transition`}>
+                    <td className="py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-sm font-medium text-indigo-400">{leave.id}</td>
+                    <td className={`py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-sm ${tc.text} hidden sm:table-cell`}>{leave.type}</td>
+                    <td className={`py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-sm ${tc.textSecondary}`}>{leave.from} – {leave.to}</td>
+                    <td className={`py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-sm ${tc.text} hidden sm:table-cell`}>{leave.days}</td>
+                    <td className="py-2 sm:py-3 px-2 sm:px-3">
+                      <span className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-[8px] sm:text-xs font-medium ${getLeaveStatusColor(leave.status)}`}>
+                        {leave.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Render Payslips Tab
+  const renderPayslips = () => (
+    <div className="space-y-4 sm:space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow} hover:scale-[1.02] transition-transform duration-300`}>
+          <h4 className={`text-sm ${tc.textSecondary}`}>Sick Leave</h4>
+          <p className={`text-xl sm:text-2xl font-bold ${tc.text}`}>4 / 10</p>
+          <p className={`text-xs ${tc.textMuted}`}>days remaining</p>
+        </div>
+        <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow} hover:scale-[1.02] transition-transform duration-300`}>
+          <h4 className={`text-sm ${tc.textSecondary}`}>Earned Leave</h4>
+          <p className={`text-xl sm:text-2xl font-bold ${tc.text}`}>9 / 18</p>
+          <p className={`text-xs ${tc.textMuted}`}>days remaining</p>
+        </div>
+        <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow} hover:scale-[1.02] transition-transform duration-300`}>
+          <h4 className={`text-sm ${tc.textSecondary}`}>Total Earned</h4>
+          <p className="text-xl sm:text-2xl font-bold text-emerald-400">₹3,52,274</p>
+          <p className={`text-xs ${tc.textMuted}`}>last 3 months</p>
+        </div>
+      </div>
+
+      <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
+          <div>
+            <h3 className={`font-semibold ${tc.text} mb-1 text-base sm:text-lg`}>Payslips</h3>
+            <p className={`text-sm ${tc.textSecondary}`}>Download your monthly payslip with ServEase branding</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => downloadPayslip()}
+            className={`px-3 sm:px-4 py-1.5 sm:py-2 ${tc.btnBg} rounded-xl transition-all duration-300 text-xs sm:text-sm font-medium flex items-center gap-2 hover:scale-105`}
+          >
+            <ArrowPathIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+            Generate Current
+          </button>
+        </div>
+        
+        <div className="space-y-3 sm:space-y-4">
+          {payslips.map((payslip, index) => (
+            <div key={index} className={`flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 ${tc.border} border rounded-2xl ${tc.bgCardHover} transition-all duration-300 hover:shadow-md hover:scale-[1.01] gap-3 sm:gap-0`}>
+              <div>
+                <div className="flex items-center gap-3">
+                  <DocumentTextIcon className={`w-6 h-6 sm:w-8 sm:h-8 ${tc.textMuted}`} />
+                  <div>
+                    <h4 className={`font-semibold ${tc.text} text-sm sm:text-base`}>{payslip.month}</h4>
+                    <p className={`text-xs ${tc.textMuted}`}>Paid on {payslip.paidOn}</p>
+                  </div>
+                </div>
+                <div className="flex gap-3 sm:gap-4 mt-1 sm:mt-2 ml-9 sm:ml-11">
+                  <span className={`text-xs sm:text-sm ${tc.textSecondary}`}>Gross: <span className={`font-medium ${tc.text}`}>{payslip.gross}</span></span>
+                  <span className={`text-xs sm:text-sm ${tc.textSecondary}`}>Net: <span className="font-medium text-emerald-400">{payslip.net}</span></span>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => downloadPayslip()}
+                className={`flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 ${tc.btnBg} rounded-xl transition-all duration-300 text-xs sm:text-sm font-medium hover:scale-105 self-start sm:self-center`}
+              >
+                <ArrowUpTrayIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                Download PDF
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
   // Main render with sidebar navigation
   const renderContent = () => {
     switch (activeTab) {
@@ -1454,6 +2469,10 @@ const HRDashboard = () => {
         return renderAnnouncements();
       case 'queries':
         return renderQueries();
+      case 'leave':
+        return renderLeave();
+      case 'payslips':
+        return renderPayslips();
       default:
         return renderOverview();
     }

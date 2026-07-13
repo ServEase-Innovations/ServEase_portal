@@ -1,4 +1,4 @@
-// Sidebar.tsx - Updated with responsive mobile support
+// Sidebar.tsx - Fully updated with complete navigation for all roles
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
@@ -44,7 +44,13 @@ import {
   WrenchScrewdriverIcon,
   EnvelopeIcon,
   XMarkIcon,
-  Bars3Icon
+  Bars3Icon,
+  MegaphoneIcon,
+  DevicePhoneMobileIcon,
+  ShieldCheckIcon,
+  SparklesIcon,
+  GlobeAltIcon,
+  ArrowRightIcon
 } from '@heroicons/react/24/outline';
 
 interface SidebarProps {
@@ -96,10 +102,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const getMenuSections = (): MenuSection[] => {
-    const commonItems: MenuItem[] = [
-      { icon: HomeIcon, label: 'Dashboard', path: '/dashboard', description: 'Overview' }
-    ];
-
     const roleSections: Record<string, MenuSection[]> = {
       'employee': [
         {
@@ -140,14 +142,16 @@ const Sidebar: React.FC<SidebarProps> = ({
             { icon: UserPlusIcon, label: 'Onboarding', path: '/dashboard/onboarding', description: 'New hires' },
             { icon: UserGroupIcon, label: 'Attendance', path: '/dashboard/attendance', description: 'Track attendance' },
             { icon: ClipboardDocumentCheckIcon, label: 'Leave Management', path: '/dashboard/leaves', description: 'Manage leaves' },
-            { icon: BanknotesIcon, label: 'Salary & Attendance', path: '/dashboard/salary', description: 'Payroll & attendance' }
+            { icon: BanknotesIcon, label: 'Salary & Attendance', path: '/dashboard/salary', description: 'Payroll & attendance' },
+            { icon: CalendarDaysIcon, label: 'My Leave', path: '/dashboard/leave', description: 'Apply for leave' },
+            { icon: CreditCardIcon, label: 'Payslips', path: '/dashboard/payslips', description: 'Salary payslips' }
           ]
         },
         {
           title: 'Company',
           items: [
             { icon: CalendarIcon, label: 'Holidays', path: '/dashboard/holidays', description: 'Company holidays' },
-            { icon: BellIcon, label: 'Announcements', path: '/dashboard/announcements', description: 'Make announcements' }
+            { icon: MegaphoneIcon, label: 'Announcements', path: '/dashboard/announcements', description: 'Make announcements' }
           ]
         },
         {
@@ -168,6 +172,8 @@ const Sidebar: React.FC<SidebarProps> = ({
             { icon: QueueListIcon, label: 'Tasks Board', path: '/dashboard/tasks-board', description: 'Task management' },
             { icon: ClockIcon, label: 'Attendance', path: '/dashboard/attendance', description: 'Team attendance' },
             { icon: ClipboardDocumentCheckIcon, label: 'Leave Approvals', path: '/dashboard/leave-approvals', description: 'Approve leaves' },
+            { icon: CalendarDaysIcon, label: 'My Leave', path: '/dashboard/leave', description: 'Apply for leave' },
+            { icon: CreditCardIcon, label: 'Payslips', path: '/dashboard/payslips', description: 'Salary payslips' },
             { icon: TrophyIcon, label: 'Performance', path: '/dashboard/performance', description: 'Team performance' },
             { icon: DocumentTextIcon, label: 'Reports', path: '/dashboard/reports', description: 'Team reports' }
           ]
@@ -188,7 +194,9 @@ const Sidebar: React.FC<SidebarProps> = ({
             { icon: BuildingOfficeIcon, label: 'Departments', path: '/dashboard/departments', description: 'Manage departments' },
             { icon: UserGroupIcon, label: 'Teams', path: '/dashboard/teams', description: 'Manage teams' },
             { icon: ViewColumnsIcon, label: 'Project Teams', path: '/dashboard/project-teams', description: 'Project teams' },
-            { icon: QueueListIcon, label: 'Tasks', path: '/dashboard/tasks', description: 'All tasks' }
+            { icon: QueueListIcon, label: 'Tasks', path: '/dashboard/tasks', description: 'All tasks' },
+            { icon: CalendarDaysIcon, label: 'My Leave', path: '/dashboard/leave', description: 'Apply for leave' },
+            { icon: CreditCardIcon, label: 'Payslips', path: '/dashboard/payslips', description: 'Salary payslips' }
           ]
         },
         {
@@ -197,7 +205,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             { icon: UserGroupIcon, label: 'Attendance', path: '/dashboard/attendance', description: 'Track attendance' },
             { icon: ClipboardDocumentCheckIcon, label: 'Leave Approvals', path: '/dashboard/leave-approvals', description: 'Approve leaves' },
             { icon: CalendarIcon, label: 'Holidays', path: '/dashboard/holidays', description: 'Company holidays' },
-            { icon: BellIcon, label: 'Announcements', path: '/dashboard/announcements', description: 'Make announcements' },
+            { icon: MegaphoneIcon, label: 'Announcements', path: '/dashboard/announcements', description: 'Make announcements' },
             { icon: BookOpenIcon, label: 'Activity Logs', path: '/dashboard/activity-logs', description: 'View activity logs' }
           ]
         },
@@ -439,7 +447,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 Quick Actions
               </p>
               <div className="grid grid-cols-2 gap-1.5">
-                {role === 'employee' ? (
+                {role === 'employee' && (
                   <>
                     <button 
                       onClick={() => navigate('/dashboard/leave')}
@@ -453,8 +461,21 @@ const Sidebar: React.FC<SidebarProps> = ({
                     >
                       View Tasks
                     </button>
+                    <button 
+                      onClick={() => navigate('/dashboard/payslips')}
+                      className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all duration-200 text-white/90 font-medium"
+                    >
+                      Payslips
+                    </button>
+                    <button 
+                      onClick={() => navigate('/dashboard/attendance')}
+                      className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all duration-200 text-white/90 font-medium"
+                    >
+                      Attendance
+                    </button>
                   </>
-                ) : role === 'manager' ? (
+                )}
+                {role === 'manager' && (
                   <>
                     <button 
                       onClick={() => navigate('/dashboard/assign-tasks')}
@@ -468,8 +489,21 @@ const Sidebar: React.FC<SidebarProps> = ({
                     >
                       Approve Leave
                     </button>
+                    <button 
+                      onClick={() => navigate('/dashboard/leave')}
+                      className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all duration-200 text-white/90 font-medium"
+                    >
+                      My Leave
+                    </button>
+                    <button 
+                      onClick={() => navigate('/dashboard/payslips')}
+                      className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all duration-200 text-white/90 font-medium"
+                    >
+                      Payslips
+                    </button>
                   </>
-                ) : role === 'hr-partner' ? (
+                )}
+                {role === 'hr-partner' && (
                   <>
                     <button 
                       onClick={() => navigate('/dashboard/onboarding')}
@@ -483,8 +517,21 @@ const Sidebar: React.FC<SidebarProps> = ({
                     >
                       Announce
                     </button>
+                    <button 
+                      onClick={() => navigate('/dashboard/leave')}
+                      className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all duration-200 text-white/90 font-medium"
+                    >
+                      My Leave
+                    </button>
+                    <button 
+                      onClick={() => navigate('/dashboard/payslips')}
+                      className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all duration-200 text-white/90 font-medium"
+                    >
+                      Payslips
+                    </button>
                   </>
-                ) : (
+                )}
+                {role === 'super-admin' && (
                   <>
                     <button 
                       onClick={() => navigate('/dashboard/employees')}
@@ -497,6 +544,18 @@ const Sidebar: React.FC<SidebarProps> = ({
                       className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all duration-200 text-white/90 font-medium"
                     >
                       Analytics
+                    </button>
+                    <button 
+                      onClick={() => navigate('/dashboard/leave')}
+                      className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all duration-200 text-white/90 font-medium"
+                    >
+                      My Leave
+                    </button>
+                    <button 
+                      onClick={() => navigate('/dashboard/payslips')}
+                      className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all duration-200 text-white/90 font-medium"
+                    >
+                      Payslips
                     </button>
                   </>
                 )}
@@ -517,9 +576,16 @@ const Sidebar: React.FC<SidebarProps> = ({
             <button 
               onClick={() => navigate('/dashboard/leave')}
               className="w-full p-2.5 text-blue-200/70 rounded-xl hover:bg-white/10 transition-all duration-200 group"
-              title="Quick Action"
+              title="My Leave"
             >
               <ClipboardDocumentCheckIcon className="w-5 h-5 mx-auto group-hover:scale-110 transition-transform" />
+            </button>
+            <button 
+              onClick={() => navigate('/dashboard/payslips')}
+              className="w-full p-2.5 text-blue-200/70 rounded-xl hover:bg-white/10 transition-all duration-200 group"
+              title="Payslips"
+            >
+              <CreditCardIcon className="w-5 h-5 mx-auto group-hover:scale-110 transition-transform" />
             </button>
             <button
               onClick={handleLogout}
