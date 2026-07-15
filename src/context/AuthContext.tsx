@@ -114,7 +114,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Handle the API response structure
       const employeeData = response.data?.employee || response.employee;
-      const token = response.data?.token || response.accessToken;
+      const accessToken =
+        response.data?.token || response.token || response.accessToken;
+
+      if (!employeeData || !accessToken) {
+        throw new Error('The login response is missing employee or token data');
+      }
       
       // Map the employee data to your User type
       const userData: User = {
@@ -140,10 +145,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('Mapped role:', userData.role);
       
       // Store token and user
-      localStorage.setItem('servease_token',token);
+      localStorage.setItem('servease_token', accessToken);
       localStorage.setItem('servease_user', JSON.stringify(userData));
       
-      setToken(token);
+      setToken(accessToken);
       setUser(userData);
       setIsAuthenticated(true);
       

@@ -1,4 +1,5 @@
 const path = require('path');
+const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 module.exports = (env, argv) => {
@@ -48,6 +49,11 @@ module.exports = (env, argv) => {
     plugins: [
       new HtmlWebpackPlugin({
         template: './public/index.html',
+      }),
+      new webpack.DefinePlugin({
+        'process.env.SERVEASE_API_URL': JSON.stringify(
+          process.env.SERVEASE_API_URL || 'http://localhost:5001'
+        ),
       }),
     ],
     devServer: {

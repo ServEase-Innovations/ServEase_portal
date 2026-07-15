@@ -2,7 +2,9 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import { Provider } from 'react-redux';
 import { AuthProvider } from './context/AuthContext';
+import { store } from './store/store';
 import { useAuth } from './hooks/useAuth';
 import Home from './pages/Home';
 import LoginPage from './pages/LoginPage';
@@ -83,10 +85,11 @@ const AppRoutes = () => {
 const App = () => {
   console.log('App rendering with AuthProvider');
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <AppRoutes />
-        <Toaster 
+    <Provider store={store}>
+      <AuthProvider>
+        <BrowserRouter>
+          <AppRoutes />
+          <Toaster 
           position="top-right"
           toastOptions={{
             duration: 4000,
@@ -119,9 +122,10 @@ const App = () => {
               },
             },
           }}
-        />
-      </BrowserRouter>
-    </AuthProvider>
+          />
+        </BrowserRouter>
+      </AuthProvider>
+    </Provider>
   );
 };
 
