@@ -4,10 +4,11 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import Profile from './Profile';
 import Settings from './Settings';
-import ManagerDashboard from '../components/Dashboard/ManagerDashBoard';
+// import ManagerDashboard from '../components/Dashboard/ManagerDashBoard';
 import HRDashboard from '../components/Dashboard/HRDashboard';
 import SuperAdminDashboard from '../components/Dashboard/SuperAdminDashBoard';
 import EmployeeDashboard from '../components/Dashboard/EmployeeDashboard/EmployeeDashboard';
+import ManagerDashboard from '../components/Dashboard/ManagerDashboard/ManagerDashboard';
 // import EmployeeDashboard from '../components/Dashboard/EmployeeDashboard';
 
 const DashboardRouter: React.FC = () => {

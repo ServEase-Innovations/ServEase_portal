@@ -1,15 +1,13 @@
-// tabs/PayslipsTab.tsx
+// components/payslips/PayslipsTab.tsx
 import React, { useState, useMemo } from 'react';
-import { useAuth } from '../../../hooks/useAuth';
-import { getThemeClasses } from './themeUtils';
-import moment from 'moment';
-import {
-  DocumentTextIcon,
-  ArrowUpTrayIcon,
-  ArrowPathIcon,
+import { 
+  DocumentTextIcon, 
+  ArrowUpTrayIcon, 
+  ArrowUpIcon,
   MagnifyingGlassIcon,
   CalendarIcon,
   ChevronDownIcon,
+  ChevronUpIcon,
   EyeIcon,
   PrinterIcon,
   CloudArrowDownIcon,
@@ -17,36 +15,12 @@ import {
   ClockIcon,
   SparklesIcon,
   FireIcon,
-  GiftIcon,
-  ArrowUpIcon
+  GiftIcon
 } from '@heroicons/react/24/outline';
-
-interface PayslipsTabProps {
-  theme: 'light' | 'dark';
-  attendance: any;
-}
+import { ThemeClasses } from '../types';
+import moment from 'moment';
 
 interface PayslipData {
-  employeeId: string;
-  name: string;
-  designation: string;
-  email: string;
-  payPeriod: string;
-  paymentDate: string;
-  earnings: {
-    basic: number;
-    hra: number;
-    special: number;
-    performanceBonus: number;
-  };
-  deductions: {
-    providentFund: number;
-    tds: number;
-    professionalTax: number;
-  };
-}
-
-interface PayslipDisplay {
   id: string;
   month: string;
   year: string;
@@ -59,11 +33,13 @@ interface PayslipDisplay {
   department: string;
 }
 
-const PayslipsTab: React.FC<PayslipsTabProps> = ({ theme, attendance }) => {
-  const { user } = useAuth();
-  const tc = getThemeClasses(theme);
+interface PayslipsTabProps {
+  tc: ThemeClasses;
+  downloadPayslip: (month?: string, year?: string) => void;
+  payslips: { month: string; paidOn: string; gross: string; net: string; }[];
+}
 
-  // State for filters and UI
+const PayslipsTab: React.FC<PayslipsTabProps> = ({ tc, downloadPayslip, payslips }) => {
   const currentDate = moment();
   const currentYear = currentDate.year();
   const currentMonth = currentDate.month() + 1; // 1-12
@@ -75,8 +51,9 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ theme, attendance }) => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [expandedPayslip, setExpandedPayslip] = useState<string | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string>('');
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
 
   // Generate years from 2020 to current year (past years only)
   const years = useMemo(() => {
@@ -113,328 +90,9 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ theme, attendance }) => {
     return months;
   }, [selectedYear, currentYear, currentMonth]);
 
-  const generatePayslipData = (employeeName?: string, month?: string, year?: string): PayslipData => {
-    const baseSalary = 145390;
-    const hra = Math.round(baseSalary * 0.4);
-    const special = Math.round(baseSalary * 0.3);
-    const bonus = Math.round(baseSalary * 0.1);
-    const pf = Math.round(baseSalary * 0.12);
-    const tds = Math.round(baseSalary * 0.08);
-    const pt = 200;
-
-    // Determine pay period
-    let payPeriod = 'May 2026';
-    let paymentDate = '2026-05-31';
-    
-    if (month && year) {
-      // Use provided month and year
-      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
-                         'July', 'August', 'September', 'October', 'November', 'December'];
-      const monthIndex = parseInt(month) - 1;
-      payPeriod = `${monthNames[monthIndex]} ${year}`;
-      
-      // Generate payment date (last day of month)
-      const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
-      paymentDate = `${year}-${month}-${lastDay}`;
-    } else {
-      // Use current month
-      const now = moment();
-      payPeriod = now.format('MMMM YYYY');
-      paymentDate = now.format('YYYY-MM-DD');
-    }
-
-    return {
-      employeeId: user?.id || 'SE-118',
-      name: employeeName || user?.name || 'Karan Singh',
-      designation: ((user as any)?.designation) || 'Backend Engineer',
-      email: user?.email || 'karan.singh@serveasein.com',
-      payPeriod: payPeriod,
-      paymentDate: paymentDate,
-      earnings: {
-        basic: baseSalary,
-        hra: hra,
-        special: special,
-        performanceBonus: bonus,
-      },
-      deductions: {
-        providentFund: pf,
-        tds: tds,
-        professionalTax: pt,
-      }
-    };
-  };
-
-  const downloadPayslip = (month?: string, year?: string) => {
-    // If month and year are provided, use them
-    let targetMonth = month;
-    let targetYear = year;
-    
-    if (!targetMonth || !targetYear) {
-      // Generate current month's payslip
-      const now = moment();
-      targetMonth = now.format('MM');
-      targetYear = now.format('YYYY');
-    }
-
-    const data = generatePayslipData(user?.name, targetMonth, targetYear);
-    
-    const totalEarnings = Object.values(data.earnings).reduce((a, b) => a + b, 0);
-    const totalDeductions = Object.values(data.deductions).reduce((a, b) => a + b, 0);
-    const netPayable = totalEarnings - totalDeductions;
-
-    // Generate month name for display
-    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
-                       'July', 'August', 'September', 'October', 'November', 'December'];
-    const monthName = monthNames[parseInt(targetMonth) - 1];
-    const displayPeriod = `${monthName} ${targetYear}`;
-
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { 
-            font-family: 'Segoe UI', Arial, sans-serif; 
-            background: #f0f2f5; 
-            padding: 20px;
-          }
-          .payslip { 
-            max-width: 900px; 
-            margin: 0 auto; 
-            background: white; 
-            border-radius: 16px; 
-            box-shadow: 0 8px 32px rgba(0,0,0,0.12); 
-            overflow: hidden;
-          }
-          .header { 
-            background: linear-gradient(135deg, #1a2744 0%, #2a3f6a 100%); 
-            color: white; 
-            padding: 25px 30px;
-            position: relative;
-          }
-          .header::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, #6366f1, #8b5cf6, #a855f7);
-          }
-          .header h1 { 
-            font-size: 24px; 
-            font-weight: 700;
-            letter-spacing: 1px;
-          }
-          .header .sub { 
-            opacity: 0.8; 
-            font-size: 13px; 
-            font-weight: 300;
-            margin-top: 4px;
-          }
-          .header .company { 
-            font-size: 11px; 
-            opacity: 0.6; 
-            margin-top: 6px;
-          }
-          .header .badge {
-            float: right;
-            background: rgba(255,255,255,0.15);
-            padding: 6px 14px;
-            border-radius: 8px;
-            font-size: 11px;
-            border: 1px solid rgba(255,255,255,0.1);
-          }
-          .employee-details { 
-            padding: 20px 30px; 
-            background: #f8fafc; 
-            display: grid; 
-            grid-template-columns: 1fr 1fr; 
-            gap: 6px 20px; 
-            border-bottom: 2px solid #e2e8f0;
-          }
-          .employee-details .label { 
-            color: #64748b; 
-            font-size: 10px; 
-            font-weight: 600; 
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-          }
-          .employee-details .value { 
-            color: #0f172a; 
-            font-size: 13px; 
-            font-weight: 500;
-          }
-          .table-section { 
-            padding: 25px 30px; 
-          }
-          .table-section h2 { 
-            font-size: 15px; 
-            color: #1a2744; 
-            margin-bottom: 16px;
-            font-weight: 600;
-          }
-          table { 
-            width: 100%; 
-            border-collapse: collapse;
-          }
-          th { 
-            background: #f1f5f9; 
-            color: #475569; 
-            font-weight: 600; 
-            font-size: 11px; 
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            padding: 10px 14px; 
-            text-align: left; 
-            border-bottom: 2px solid #e2e8f0;
-          }
-          td { 
-            padding: 10px 14px; 
-            border-bottom: 1px solid #f1f5f9; 
-            font-size: 13px;
-          }
-          .total-row { 
-            background: #f8fafc; 
-            font-weight: 600;
-          }
-          .total-row td {
-            border-bottom: 2px solid #e2e8f0;
-          }
-          .net-row {
-            background: #ecfdf5;
-          }
-          .net-row td {
-            border-bottom: none;
-            padding: 14px;
-          }
-          .amount { 
-            font-family: 'Courier New', monospace;
-            font-weight: 500;
-          }
-          .footer { 
-            padding: 16px 30px; 
-            background: #f8fafc; 
-            border-top: 2px solid #e2e8f0; 
-            font-size: 11px; 
-            color: #94a3b8; 
-            text-align: center;
-          }
-          .footer strong {
-            color: #64748b;
-          }
-          @media print {
-            body { padding: 0; background: white; }
-            .payslip { box-shadow: none; border-radius: 0; }
-          }
-          @media (max-width: 600px) {
-            .header { padding: 20px; }
-            .header .badge { float: none; display: inline-block; margin-top: 10px; }
-            .employee-details { grid-template-columns: 1fr; padding: 15px 20px; }
-            .table-section { padding: 15px 20px; }
-            td, th { padding: 8px 10px; font-size: 12px; }
-            .footer { padding: 12px 20px; font-size: 10px; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="payslip">
-          <div class="header">
-            <h1>ServEase</h1>
-            <div class="sub">INNOVATION PVT LTD</div>
-            <div class="company">TOWER B, Cyber Hub, Gurugram, Haryana 122002, India</div>
-            <div class="badge">📄 PAYSLIP</div>
-          </div>
-          
-          <div class="employee-details">
-            <div><span class="label">Employee ID</span><div class="value">${data.employeeId}</div></div>
-            <div><span class="label">Name</span><div class="value">${data.name}</div></div>
-            <div><span class="label">Designation</span><div class="value">${data.designation}</div></div>
-            <div><span class="label">Email</span><div class="value">${data.email}</div></div>
-            <div><span class="label">Pay Period</span><div class="value">${displayPeriod}</div></div>
-            <div><span class="label">Payment Date</span><div class="value">${data.paymentDate}</div></div>
-          </div>
-
-          <div class="table-section">
-            <h2>📊 Salary Breakdown</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th style="width:40%">Earnings</th>
-                  <th style="width:10%;text-align:right">Amount</th>
-                  <th style="width:40%">Deductions</th>
-                  <th style="width:10%;text-align:right">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>💰 Basic</td>
-                  <td style="text-align:right" class="amount">₹${data.earnings.basic.toLocaleString()}</td>
-                  <td>🏦 Provident Fund</td>
-                  <td style="text-align:right" class="amount">₹${data.deductions.providentFund.toLocaleString()}</td>
-                </tr>
-                <tr>
-                  <td>🏠 House Rent Allowance</td>
-                  <td style="text-align:right" class="amount">₹${data.earnings.hra.toLocaleString()}</td>
-                  <td>📊 TDS</td>
-                  <td style="text-align:right" class="amount">₹${data.deductions.tds.toLocaleString()}</td>
-                </tr>
-                <tr>
-                  <td>⭐ Special Allowance</td>
-                  <td style="text-align:right" class="amount">₹${data.earnings.special.toLocaleString()}</td>
-                  <td>📋 Professional Tax</td>
-                  <td style="text-align:right" class="amount">₹${data.deductions.professionalTax.toLocaleString()}</td>
-                </tr>
-                <tr>
-                  <td>🎯 Performance Bonus</td>
-                  <td style="text-align:right" class="amount">₹${data.earnings.performanceBonus.toLocaleString()}</td>
-                  <td></td>
-                  <td></td>
-                </tr>
-                <tr class="total-row">
-                  <td><strong>📈 Total Earnings</strong></td>
-                  <td style="text-align:right" class="amount"><strong>₹${totalEarnings.toLocaleString()}</strong></td>
-                  <td><strong>📉 Total Deductions</strong></td>
-                  <td style="text-align:right" class="amount"><strong>₹${totalDeductions.toLocaleString()}</strong></td>
-                </tr>
-                <tr class="net-row">
-                  <td colspan="3" style="text-align:right; font-size:16px; font-weight:700; color:#065f46;">
-                    💰 Net Payable
-                  </td>
-                  <td style="text-align:right; font-size:18px; font-weight:700; color:#065f46;" class="amount">
-                    ₹${netPayable.toLocaleString()}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div class="footer">
-            This is a system-generated payslip and does not require a signature.<br>
-            <strong>© ${targetYear} ServEase Innovation Private Limited</strong> • All rights reserved
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-
-    const blob = new Blob([html], { type: 'application/pdf' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Payslip_${data.employeeId}_${displayPeriod.replace(' ', '_')}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  // Generate payslip display data with historical records
-  const allPayslips: PayslipDisplay[] = useMemo(() => {
-    const payslipData: PayslipDisplay[] = [];
+  // Generate payslip data with historical records
+  const allPayslips: PayslipData[] = useMemo(() => {
+    const payslipData: PayslipData[] = [];
 
     // Generate historical data from 2020 to current year
     for (let year = 2020; year <= currentYear; year++) {
@@ -465,12 +123,49 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ theme, attendance }) => {
           gross: `₹${baseGross.toLocaleString()}`,
           net: `₹${baseNet.toLocaleString()}`,
           status: status,
-          employeeName: isEven ? user?.name || 'Karan Singh' : 'Priya Nair',
-          employeeId: isEven ? user?.id || 'SE-118' : 'SE-042',
-          department: isEven ? ((user as any)?.designation) || 'Engineering' : 'Management'
+          employeeName: isEven ? 'Karan Singh' : 'Priya Nair',
+          employeeId: isEven ? 'SE-118' : 'SE-042',
+          department: isEven ? 'Engineering' : 'Management'
         });
       }
     }
+
+    // Override with existing payslips data for last 3 months
+    const existingData = payslips.map((p, index) => {
+      const monthNum = (currentMonth - (2 - index) + 12) % 12 || 12;
+      const yearNum = currentYear - (index === 2 && currentMonth <= 3 ? 1 : 0);
+      const monthStr = monthNum.toString().padStart(2, '0');
+      const monthName = new Date(yearNum, monthNum - 1).toLocaleString('default', { month: 'long' });
+      
+      // Find and update existing record or add new
+      const existingIndex = payslipData.findIndex(d => 
+        d.year === yearNum.toString() && 
+        d.month.includes(monthName)
+      );
+      
+      if (existingIndex !== -1) {
+        payslipData[existingIndex] = {
+          ...payslipData[existingIndex],
+          gross: p.gross,
+          net: p.net,
+          status: 'Generated'
+        };
+      } else {
+        payslipData.push({
+          id: `PS-${yearNum}-${monthStr}`,
+          month: `${monthName} ${yearNum}`,
+          year: yearNum.toString(),
+          paidOn: p.paidOn,
+          gross: p.gross,
+          net: p.net,
+          status: 'Generated',
+          employeeName: 'Karan Singh',
+          employeeId: 'SE-118',
+          department: 'Engineering'
+        });
+      }
+      return payslipData;
+    });
 
     // Sort by year descending, then month descending
     return payslipData.sort((a, b) => {
@@ -479,7 +174,7 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ theme, attendance }) => {
       const monthB = new Date(b.month).getMonth() || 0;
       return monthB - monthA;
     });
-  }, [currentYear, currentMonth, user]);
+  }, [payslips, currentYear, currentMonth]);
 
   // Filter payslips based on year, month, and search
   const filteredPayslips = useMemo(() => {
@@ -560,7 +255,7 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ theme, attendance }) => {
     }
   };
 
-  const handleDownload = (payslip: PayslipDisplay) => {
+  const handleDownload = (payslip: PayslipData) => {
     setIsAnimating(true);
     setTimeout(() => {
       const month = new Date(payslip.month).getMonth() + 1;
@@ -574,10 +269,15 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ theme, attendance }) => {
     const month = currentMonth.toString().padStart(2, '0');
     const year = currentYear.toString();
     downloadPayslip(month, year);
+    setShowGenerateModal(false);
   };
 
   const toggleExpand = (id: string) => {
     setExpandedPayslip(expandedPayslip === id ? null : id);
+  };
+
+  const formatCurrency = (value: string) => {
+    return value;
   };
 
   // Get current month name
@@ -924,7 +624,7 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ theme, attendance }) => {
 
                   {/* Earnings with Visual Enhancement */}
                   <div className={`mt-3 pt-3 ${tc.border} border-t grid grid-cols-2 gap-2`}>
-                    <div className={`p-2 rounded-lg ${tc.input}`}>
+                    <div className={`p-2 rounded-lg ${tc.bgInput}`}>
                       <p className={`text-[10px] ${tc.textMuted}`}>Gross</p>
                       <p className={`text-sm font-bold ${tc.text}`}>{payslip.gross}</p>
                     </div>
@@ -955,7 +655,7 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ theme, attendance }) => {
 
                   {/* Expandable Preview */}
                   {expandedPayslip === payslip.id && (
-                    <div className={`mt-3 pt-3 ${tc.border} border-t ${tc.input} rounded-xl p-3 animate-slideDown`}>
+                    <div className={`mt-3 pt-3 ${tc.border} border-t ${tc.bgInput} rounded-xl p-3 animate-slideDown`}>
                       <div className="space-y-2 text-xs">
                         <div className="flex justify-between">
                           <span className={tc.textMuted}>Generated On</span>
