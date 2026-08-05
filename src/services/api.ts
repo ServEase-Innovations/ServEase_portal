@@ -4,7 +4,7 @@ import { User, CreateAccountData, ApiResponse } from '../types';
 
 // Create axios instance with base URL
 const api: AxiosInstance = axios.create({
-  baseURL: 'http://localhost:5001/', //https://newportal-be.onrender.com/
+  baseURL: 'http://localhost:5001/',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -42,11 +42,16 @@ api.interceptors.response.use(
 export const authService = {
   login: async (username: string, password: string): Promise<any> => {
     const response = await api.post('auth/login', { username, password });
-    console.log('Login API response:', response.data); // Log the response data
+    console.log('Login API response:', response.data);
+    
+    // Store token from response
+    if (response.data.token) {
+      localStorage.setItem('servease_token', response.data.token);
+    }
+    
     return response.data;
   },
 
-  // Updated: Changed from auth/register to employees/register
   register: async (userData: any): Promise<any> => {
     const response = await api.post('employees/register', userData);
     return response.data;
@@ -65,7 +70,6 @@ export const authService = {
     localStorage.removeItem('servease_user');
   },
 
-  // Updated: Changed from /users/me to employees/profile
   getCurrentUser: async (): Promise<any> => {
     const response = await api.get('employees/profile');
     return response.data;
@@ -96,6 +100,72 @@ export const userService = {
 
   delete: async (id: string): Promise<any> => {
     const response = await api.delete(`/employees/${id}`);
+    return response.data;
+  },
+};
+
+// Daily Task API calls
+export const dailyTaskService = {
+  // Create a new daily task
+  create: async (data: {
+    workDescription: string;
+    status: 'Pending' | 'Completed';
+    newIdeas?: string;
+    jiraLinks?: Array<{ label?: string; url: string }>;
+  }): Promise<any> => {
+    const response = await api.post('/daily-tasks', data);
+    return response.data;
+  },
+
+  // Get all tasks (reviewer only)
+  getAll: async (params?: {
+    date?: string;
+    employeeId?: string;
+    status?: 'Pending' | 'Completed';
+  }): Promise<any> => {
+    const response = await api.get('/daily-tasks', { params });
+    return response.data;
+  },
+
+  // Get my tasks
+  getMyTasks: async (params?: {
+    date?: string;
+    status?: 'Pending' | 'Completed';
+  }): Promise<any> => {
+    const response = await api.get('/daily-tasks/mine', { params });
+    return response.data;
+  },
+
+  // Get task by ID
+  getById: async (id: string): Promise<any> => {
+    const response = await api.get(`/daily-tasks/${id}`);
+    return response.data;
+  },
+
+  // Update task
+  update: async (id: string, data: {
+    workDescription?: string;
+    status?: 'Pending' | 'Completed';
+    newIdeas?: string | null;
+    jiraLinks?: Array<{ label?: string; url: string }>;
+  }): Promise<any> => {
+    const response = await api.patch(`/daily-tasks/${id}`, data);
+    return response.data;
+  },
+
+  // Upload attachments
+  uploadAttachments: async (taskId: string, formData: FormData): Promise<any> => {
+    const response = await api.post(`/daily-tasks/${taskId}/attachments`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  // Delete attachment
+  deleteAttachment: async (taskId: string, attachmentId: string): Promise<any> => {
+    const response = await api.delete(`/daily-tasks/${taskId}/attachments/${attachmentId}`);
     return response.data;
   },
 };

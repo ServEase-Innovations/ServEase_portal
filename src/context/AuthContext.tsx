@@ -9,7 +9,7 @@ interface AuthContextType {
   token: string | null;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
-  createAccount: (userData: CreateAccountData | any) => Promise<void>; // Allow any type to handle both formats
+  createAccount: (userData: CreateAccountData | any) => Promise<void>;
   loading: boolean;
   error: string | null;
   clearError: () => void;
@@ -22,30 +22,23 @@ export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 // Helper function to map role from API to app role
 const mapRole = (apiRole: string): 'super-admin' | 'hr-partner' | 'manager' | 'employee' => {
   const roleMap: Record<string, 'super-admin' | 'hr-partner' | 'manager' | 'employee'> = {
-    // Super Admin variations
     'SUPERADMIN': 'super-admin',
     'SUPER ADMIN': 'super-admin',
     'super-admin': 'super-admin',
     'SuperAdmin': 'super-admin',
     'Super Admin': 'super-admin',
     'superadmin': 'super-admin',
-    
-    // HR variations
     'HR': 'hr-partner',
     'hr': 'hr-partner',
     'HR_PARTNER': 'hr-partner',
     'hr-partner': 'hr-partner',
     'Hr': 'hr-partner',
     'human resources': 'hr-partner',
-    
-    // Manager variations
     'MANAGER': 'manager',
     'manager': 'manager',
     'Manager': 'manager',
     'Project Manager': 'manager',
     'Team Manager': 'manager',
-    
-    // Employee variations - these all map to employee dashboard
     'DEVELOPER': 'employee',
     'Developer': 'employee',
     'developer': 'employee',
@@ -102,7 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
   }, []);
 
-  // Login function - handles API response structure
+  // Login function
   const login = useCallback(async (username: string, password: string) => {
     setLoading(true);
     setError(null);
@@ -114,7 +107,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Handle the API response structure
       const employeeData = response.data?.employee || response.employee;
-      const token = response.data?.token || response.accessToken;
+      const token = response.data?.token || response.token;
+      
+      // Store token
+      if (token) {
+        localStorage.setItem('servease_token', token);
+        setToken(token);
+      }
       
       // Map the employee data to your User type
       const userData: User = {
@@ -137,17 +136,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
       
       console.log('Mapped user data:', userData);
-      console.log('Mapped role:', userData.role);
       
-      // Store token and user
-      localStorage.setItem('servease_token',token);
+      // Store user
       localStorage.setItem('servease_user', JSON.stringify(userData));
-      
-      setToken(token);
       setUser(userData);
       setIsAuthenticated(true);
       
-      console.log('Auth state updated - isAuthenticated:', true);
       toast.success(`Welcome back, ${userData.name || 'User'}!`);
       setLoading(false);
     } catch (err: any) {
@@ -160,7 +154,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  // Create account function - FIXED to handle both frontend and backend role formats
   const createAccount = useCallback(async (userData: CreateAccountData | any) => {
     setLoading(true);
     setError(null);
@@ -168,33 +161,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       let backendRole: string;
       
-      // Check if the role is already a backend role or needs mapping
       if (userData.role && typeof userData.role === 'string') {
-        // If the role is already a backend role (SuperAdmin, HR, Manager, Developer, Marketing, CustomStaff)
         const backendRoles = ['SuperAdmin', 'HR', 'Manager', 'Developer', 'Marketing', 'CustomStaff'];
         if (backendRoles.includes(userData.role)) {
-          // It's already a backend role, use it directly
           backendRole = userData.role;
         } else {
-          // It's a frontend role, map it
           const roleMapping: Record<string, string> = {
             'super-admin': 'SuperAdmin',
             'hr-partner': 'HR',
             'manager': 'Manager',
-            'employee': 'Developer' // Default to Developer for employees
+            'employee': 'Developer'
           };
           backendRole = roleMapping[userData.role] || 'Developer';
         }
       } else {
-        // Default to Developer if role is missing
         backendRole = 'Developer';
       }
 
-      // Transform the data to match the backend schema
       const payload = {
         fullName: userData.name,
         emailAddress: userData.email,
-        assignedRole: backendRole, // Use the backend role directly
+        assignedRole: backendRole,
         assignedDepartment: userData.department || 'Engineering',
         baseSalary: userData.baseSalary || 0,
         allowances: userData.allowances || 0,
@@ -212,10 +199,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       toast.success('Account created successfully!');
-      
       setLoading(false);
-      
-      // Return the response for the component to handle
       return response;
     } catch (err: any) {
       console.error('Account creation error:', err);
@@ -246,7 +230,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const response = await authService.getCurrentUser();
       if (response) {
-        // Map the response to User type
         const userData: User = {
           id: response.employeeId || response.id,
           name: response.fullName || response.name,

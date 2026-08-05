@@ -28,6 +28,11 @@ const ManagerDashboard = () => {
   const { theme, toggleTheme, getThemeClasses } = useTheme();
   const tc = getThemeClasses();
 
+  // Mobile sidebar state
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
   // State declarations (all original state)
   const [searchQuery, setSearchQuery] = useState('');
   const [isWorking, setIsWorking] = useState(false);
@@ -220,6 +225,20 @@ const ManagerDashboard = () => {
     { month: 'April 2026', paidOn: '2026-04-30', gross: '₹1,42,500', net: '₹1,16,535' },
     { month: 'March 2026', paidOn: '2026-03-31', gross: '₹1,42,500', net: '₹1,16,535' },
   ];
+
+  // Check for mobile screen
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 1024;
+      setIsMobile(mobile);
+      if (!mobile) {
+        setIsMobileSidebarOpen(false);
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // All original functions
   const getActiveTab = () => {
@@ -901,7 +920,6 @@ const ManagerDashboard = () => {
         return (
           <DailyTasksTab
             tc={tc}
-            showTaskSuccess={showTaskSuccess}
             taskStatus={taskStatus}
             setTaskStatus={setTaskStatus}
             jiraLinks={jiraLinks}
@@ -998,17 +1016,46 @@ const ManagerDashboard = () => {
     }
   };
 
+  // Toggle sidebar functions
+  const toggleSidebar = () => {
+    setSidebarCollapsed(!sidebarCollapsed);
+  };
+
+  const toggleMobileSidebar = () => {
+    setIsMobileSidebarOpen(!isMobileSidebarOpen);
+  };
+
+  const closeMobileSidebar = () => {
+    setIsMobileSidebarOpen(false);
+  };
+
   return (
-    <div className={`flex h-screen ${tc.bg} transition-colors duration-300`}>
-      <Sidebar role="manager" />
-      <div className="flex-1 flex flex-col overflow-hidden">
+    <div className={`flex h-screen ${tc.bg} transition-colors duration-300 overflow-hidden`}>
+      {/* Desktop Sidebar */}
+      <Sidebar 
+        role="manager" 
+        collapsed={sidebarCollapsed}
+        onToggle={toggleSidebar}
+      />
+
+      {/* Mobile Sidebar */}
+      <Sidebar 
+        role="manager"
+        isMobile={true}
+        isMobileOpen={isMobileSidebarOpen}
+        onMobileClose={closeMobileSidebar}
+      />
+
+      <div className="flex-1 flex flex-col overflow-hidden w-full">
         <Header 
           title="Platform Team Overview"
           subtitle="Led by Priya Nair - 14 engineers - 6 active projects"
           theme={theme}
           onThemeToggle={toggleTheme}
+          onMobileMenuToggle={toggleMobileSidebar}
+          isMobile={isMobile}
         />
-        <div className={`flex-1 overflow-y-auto p-8 ${tc.scrollbar} scrollbar-thin`}>
+        <div className={`flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 lg:p-8 ${tc.scrollbar} scrollbar-thin`}>
           {renderContent()}
         </div>
       </div>

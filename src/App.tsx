@@ -5,7 +5,6 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './hooks/useAuth';
 import Home from './pages/Home';
-import LoginPage from './pages/LoginPage';
 import CreateAccountPage from './pages/CreateAccountPage';
 import DashboardRouter from './pages/DashboardRouter';
 
@@ -59,11 +58,7 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
-      <Route path="/login" element={
-        <PublicRoute>
-          <LoginPage />
-        </PublicRoute>
-      } />
+     
       <Route path="/create-account" element={
         <PublicRoute>
           <CreateAccountPage isOpen={true} onClose={() => {}} theme="light" />
