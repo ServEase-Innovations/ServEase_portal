@@ -1,8 +1,17 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const Dotenv = require('dotenv-webpack');
 
 module.exports = (env, argv) => {
   const isProduction = argv.mode === 'production';
+  
+  // Determine which .env file to use based on ENV_MODE
+  let envFile = '.env.local'; // default to local
+  if (env && env.ENV_MODE === 'dev') {
+    envFile = '.env.development';
+  } else if (env && env.ENV_MODE === 'prod') {
+    envFile = '.env.production';
+  }
 
   return {
     entry: './src/index.tsx',
@@ -48,6 +57,13 @@ module.exports = (env, argv) => {
     plugins: [
       new HtmlWebpackPlugin({
         template: './public/index.html',
+      }),
+      new Dotenv({
+        path: path.resolve(__dirname, envFile),
+        safe: false, // Don't require .env.example
+        systemvars: true, // Load system environment variables
+        silent: false, // Show warnings
+        defaults: false, // Don't load .env as defaults
       }),
     ],
     devServer: {
