@@ -219,14 +219,15 @@ export const useAttendance = (): UseAttendanceReturn => {
       // Save the accumulated hours from previous session(s)
       const previousHours = Number(todayAttendance.totalHoursComputed) || 0;
       
-      // Resume by clearing clockOut and keeping accumulated hours
+      // Resume by setting NEW clockIn time and clearing clockOut
       const updateData: UpdateAttendanceData = {
+        clockInTimestamp: now.toISOString(), // Set NEW clock-in time for this session
         clockOutTimestamp: undefined, // Clear clock-out to resume work
         totalHoursComputed: previousHours, // Keep previous accumulated hours
         shiftStatus: 'Working',
       };
 
-      console.log('📤 Resuming work - keeping accumulated hours:', previousHours);
+      console.log('📤 Resuming work - setting new clockIn time, keeping accumulated hours:', previousHours);
       const result = await attendanceService.updateAttendance(
         Number(todayAttendance.attendanceId),
         updateData
@@ -237,6 +238,7 @@ export const useAttendance = (): UseAttendanceReturn => {
       
       setIsClockedIn(true);
       setIsClockedOut(false);
+      setStartTime(now); // Set new start time for timer
       setEndTime(null); // Clear end time since we're resuming
       
       await refreshAttendance();

@@ -67,14 +67,24 @@ export const attendanceService = {
     if (data.clockInTimestamp) {
       payload.clockInTimestamp = new Date(data.clockInTimestamp).getTime();
     }
-    if (data.clockOutTimestamp) {
+    
+    // Handle clockOutTimestamp - explicitly send null to clear it
+    if (data.clockOutTimestamp === undefined) {
+      payload.clockOutTimestamp = null; // Explicitly clear the field
+    } else if (data.clockOutTimestamp) {
       payload.clockOutTimestamp = new Date(data.clockOutTimestamp).getTime();
     }
+    
     if (data.totalHoursComputed !== undefined) {
       payload.totalHoursComputed = data.totalHoursComputed;
     }
     
+    console.log('🔵 Attendance Service - Updating attendance');
+    console.log('Input data:', data);
+    console.log('Payload to send:', payload);
+    
     const response = await api.put(`/attendance/${id}`, payload);
+    console.log('✅ Attendance updated:', response.data);
     return response.data;
   },
 
