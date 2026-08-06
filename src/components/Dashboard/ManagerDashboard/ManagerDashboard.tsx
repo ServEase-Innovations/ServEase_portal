@@ -5,6 +5,8 @@ import Sidebar from '../../Layout/Sidebar';
 import Header from '../../Layout/Header';
 import { useTheme } from './hooks/useTheme';
 import { useAttendance } from '../../../hooks/useAttendance';
+import { useAttendanceHandlers, formatTime } from '../../../hooks/useAttendanceHandlers';
+import { useLeaveHandlers, LeaveRequestData } from '../../../hooks/useLeaveHandlers';
 import OverviewTab from './overview/OverviewTab';
 import MyTeamTab from './team/MyTeamTab';
 import ProjectTeamsTab from './team/ProjectTeamsTab';
@@ -375,112 +377,36 @@ const ManagerDashboard = () => {
     };
   }, [isClockedIn, isClockedOut, todayAttendance?.clockInTimestamp, todayAttendance?.clockOutTimestamp, todayAttendance?.totalHoursComputed]);
 
-  // Timer Functions - now using API
-  const handleStartWork = async () => {
-    console.log('🟢 Manager handleStartWork called');
-    try {
-      const now = moment();
-      setStartTime(now);
-      
-      console.log('📞 Calling clockIn API...');
-      await clockIn();
-      console.log('✅ clockIn completed');
-      
-      setSuccessMessage(`Work started at ${now.format('hh:mm A')}`);
-      setShowSuccessMessage(true);
-      setTimeout(() => setShowSuccessMessage(false), 3000);
-    } catch (error) {
-      console.error('❌ Failed to start work:', error);
-    }
-  };
+  // Use shared attendance handlers
+  const {
+    handleStartWork,
+    handleStopWork,
+    handleResumeWork,
+    showSuccessMessage,
+    successMessage
+  } = useAttendanceHandlers({
+    clockIn,
+    clockOut,
+    resumeWork,
+    totalHoursToday
+  });
 
-  const handleStopWork = async () => {
-    console.log('🔴 Manager handleStopWork called');
-    try {
-      console.log('📞 Calling clockOut API...');
-      await clockOut();
-      console.log('✅ clockOut completed');
-      
-      const totalHrs = totalHoursToday || 0;
-      const hrs = Math.floor(totalHrs);
-      const mins = Math.round((totalHrs - hrs) * 60);
-      
-      setSuccessMessage(
-        `Work session completed! Duration: ${hrs}h ${mins}m`
-      );
-      setShowSuccessMessage(true);
-      setTimeout(() => setShowSuccessMessage(false), 3000);
-      
-      const session: WorkSession = {
-        id: `WS-${Date.now()}`,
-        date: now.format('YYYY-MM-DD'),
-        startTime: start.toISOString(),
-        endTime: now.toISOString(),
-        duration: duration.asSeconds(),
-        status: 'working',
-        employeeName: 'Priya Nair'
-      };
-      
-      const updatedSessions = [session, ...workSessions];
-      setWorkSessions(updatedSessions);
-      localStorage.setItem('managerWorkSessions', JSON.stringify(updatedSessions));
-      
-      if (timerInterval) {
-        clearInterval(timerInterval);
-        setTimerInterval(null);
-      }
-    } catch (error) {
-      console.error('❌ Failed to stop work:', error);
-    }
-  };
+  // Use shared leave handlers
+  const { handleLeaveImageUpload: handleLeaveImageUploadUtil, validateLeaveRequest } = useLeaveHandlers();
 
-  const handleResumeWork = async () => {
-    console.log('🔄 Manager handleResumeWork called');
-    try {
-      const now = moment();
-      
-      console.log('📞 Calling resumeWork API...');
-      await resumeWork();
-      console.log('✅ resumeWork completed');
-      
-      setSuccessMessage(`Work resumed at ${now.format('hh:mm A')}`);
-      setShowSuccessMessage(true);
-      setTimeout(() => setShowSuccessMessage(false), 3000);
-    } catch (error) {
-      console.error('❌ Failed to resume work:', error);
-    }
-  };
-
-  const formatTime = (hours: number, minutes: number, seconds: number) => {
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  };
-
-  // Leave Functions
   const handleLeaveImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setLeaveRequest({ ...leaveRequest, imageFile: file });
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setLeaveRequest({ ...leaveRequest, imageFile: file, imagePreview: reader.result as string });
-      };
-      reader.readAsDataURL(file);
-    }
+    handleLeaveImageUploadUtil(e, leaveRequest, setLeaveRequest);
   };
 
   const handleSubmitLeave = () => {
-    if (!leaveRequest.fromDate || !leaveRequest.toDate || !leaveRequest.reason) {
-      alert('Please fill in all required fields');
+    const validation = validateLeaveRequest(leaveRequest);
+    if (!validation.valid) {
+      alert(validation.error);
       return;
     }
 
     const fromDate = moment(leaveRequest.fromDate);
     const toDate = moment(leaveRequest.toDate);
-    
-    if (toDate.isBefore(fromDate)) {
-      alert('End date cannot be before start date');
-      return;
-    }
 
     const newLeave: LeaveRequest = {
       id: `L-${String(leaveHistory.length + 1).padStart(3, '0')}`,

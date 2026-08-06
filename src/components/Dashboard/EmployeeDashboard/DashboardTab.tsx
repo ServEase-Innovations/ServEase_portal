@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../hooks/useAuth';
 import { getThemeClasses } from './themeUtils';
+import { useAttendanceHandlers, formatTime } from '../../../hooks/useAttendanceHandlers';
+import { useLeaveHandlers, LeaveRequestData } from '../../../hooks/useLeaveHandlers';
 import moment from 'moment';
 import LeaveModal from '../ManagerDashboard/leave/LeaveModal';
 import { InfoCard } from '../shared/InfoCard';
@@ -91,8 +93,23 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
   });
   const [workSessions, setWorkSessions] = useState<WorkSession[]>([]);
   const [leaveHistory, setLeaveHistory] = useState<LeaveRequest[]>([]);
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
+
+  // Use shared attendance handlers
+  const {
+    handleStartWork,
+    handleStopWork,
+    handleResumeWork,
+    showSuccessMessage,
+    successMessage
+  } = useAttendanceHandlers({
+    clockIn,
+    clockOut,
+    resumeWork,
+    totalHoursToday
+  });
+
+  // Use shared leave handlers
+  const { handleLeaveImageUpload: handleLeaveImageUploadUtil, validateLeaveRequest } = useLeaveHandlers();
 
   // Sync with attendance state - recalculate from DB timestamps on every mount/change
   useEffect(() => {
@@ -195,125 +212,19 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
     }
   }, []);
 
-  // Handle Start Work - uses API with moment
-  const handleStartWork = async () => {
-    console.log('🟢 handleStartWork called in DashboardTab');
-    console.log('Attendance loading:', attendanceLoading);
-    console.log('isClockedIn:', isClockedIn);
-    console.log('isClockedOut:', isClockedOut);
-    
-    try {
-      // Set start time using moment
-      const now = moment();
-      setStartTime(now);
-      
-      console.log('📞 Calling clockIn from attendance hook...');
-      await clockIn();
-      console.log('✅ clockIn completed');
-      
-      setSuccessMessage(`Work started at ${now.format('hh:mm A')}`);
-      setShowSuccessMessage(true);
-      setTimeout(() => setShowSuccessMessage(false), 3000);
-    } catch (error) {
-      console.error('❌ Failed to start work:', error);
-    }
-  };
-
-  // Handle Stop Work - uses API with moment
-  const handleStopWork = async () => {
-    try {
-      const now = moment();
-      const start = startTime || moment(todayAttendance?.clockInTimestamp);
-      
-      // Calculate duration using moment
-      const duration = moment.duration(now.diff(start));
-      const hours = Math.floor(duration.asHours());
-      const minutes = duration.minutes();
-      const seconds = duration.seconds();
-      
-      await clockOut();
-      
-      const totalHrs = totalHoursToday || 0;
-      const hrs = Math.floor(totalHrs);
-      const mins = Math.round((totalHrs - hrs) * 60);
-      
-      setSuccessMessage(
-        `Work session completed! Duration: ${hrs}h ${mins}m | ` +
-        `Started: ${start.format('hh:mm A')} | Ended: ${now.format('hh:mm A')}`
-      );
-      setShowSuccessMessage(true);
-      setTimeout(() => setShowSuccessMessage(false), 3000);
-      
-      // Save work session with moment timestamps
-      const session: WorkSession = {
-        id: `WS-${Date.now()}`,
-        date: now.format('YYYY-MM-DD'),
-        startTime: start.toISOString(),
-        endTime: now.toISOString(),
-        duration: duration.asSeconds(),
-        status: 'working'
-      };
-      
-      const updatedSessions = [session, ...workSessions];
-      setWorkSessions(updatedSessions);
-      localStorage.setItem('workSessions', JSON.stringify(updatedSessions));
-      
-      if (timerInterval) {
-        clearInterval(timerInterval);
-        setTimerInterval(null);
-      }
-    } catch (error) {
-      console.error('Failed to stop work:', error);
-    }
-  };
-
-  const handleResumeWork = async () => {
-    console.log('🔄 handleResumeWork called in DashboardTab');
-    try {
-      const now = moment();
-      
-      console.log('📞 Calling resumeWork API...');
-      await resumeWork();
-      console.log('✅ resumeWork completed');
-      
-      setSuccessMessage(`Work resumed at ${now.format('hh:mm A')}`);
-      setShowSuccessMessage(true);
-      setTimeout(() => setShowSuccessMessage(false), 3000);
-    } catch (error) {
-      console.error('❌ Failed to resume work:', error);
-    }
-  };
-
-  const formatTime = (hours: number, minutes: number, seconds: number) => {
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  };
-
   const handleLeaveImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setLeaveRequest({ ...leaveRequest, imageFile: file });
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setLeaveRequest({ ...leaveRequest, imageFile: file, imagePreview: reader.result as string });
-      };
-      reader.readAsDataURL(file);
-    }
+    handleLeaveImageUploadUtil(e, leaveRequest, setLeaveRequest);
   };
 
   const handleSubmitLeave = () => {
-    if (!leaveRequest.fromDate || !leaveRequest.toDate || !leaveRequest.reason) {
-      alert('Please fill in all required fields');
+    const validation = validateLeaveRequest(leaveRequest);
+    if (!validation.valid) {
+      alert(validation.error);
       return;
     }
 
-    // Validate dates with moment
     const fromDate = moment(leaveRequest.fromDate);
     const toDate = moment(leaveRequest.toDate);
-    
-    if (toDate.isBefore(fromDate)) {
-      alert('End date cannot be before start date');
-      return;
-    }
 
     const newLeave: LeaveRequest = {
       id: `L-${String(leaveHistory.length + 1).padStart(3, '0')}`,
