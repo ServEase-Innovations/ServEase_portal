@@ -51,6 +51,7 @@ const ManagerDashboard = () => {
     isLoading: attendanceLoading,
     clockIn,
     clockOut,
+    resumeWork,
     isClockedIn,
     isClockedOut,
     totalHoursToday,
@@ -427,6 +428,23 @@ const ManagerDashboard = () => {
       }
     } catch (error) {
       console.error('❌ Failed to stop work:', error);
+    }
+  };
+
+  const handleResumeWork = async () => {
+    console.log('🔄 Manager handleResumeWork called');
+    try {
+      const now = moment();
+      
+      console.log('📞 Calling resumeWork API...');
+      await resumeWork();
+      console.log('✅ resumeWork completed');
+      
+      setSuccessMessage(`Work resumed at ${now.format('hh:mm A')}`);
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+    } catch (error) {
+      console.error('❌ Failed to resume work:', error);
     }
   };
 
@@ -955,6 +973,7 @@ const ManagerDashboard = () => {
             setLeaveRequest={setLeaveRequest}
             handleStartWork={handleStartWork}
             handleStopWork={handleStopWork}
+            handleResumeWork={handleResumeWork}
             handleSubmitLeave={handleSubmitLeave}
             handleLeaveImageUpload={handleLeaveImageUpload}
           />
@@ -1060,6 +1079,7 @@ const ManagerDashboard = () => {
             setLeaveRequest={setLeaveRequest}
             handleStartWork={handleStartWork}
             handleStopWork={handleStopWork}
+            handleResumeWork={handleResumeWork}
             handleSubmitLeave={handleSubmitLeave}
             handleLeaveImageUpload={handleLeaveImageUpload}
           />

@@ -12,6 +12,7 @@ interface UseAttendanceReturn {
   error: string | null;
   clockIn: () => Promise<void>;
   clockOut: () => Promise<void>;
+  resumeWork: () => Promise<void>;
   refreshAttendance: () => Promise<void>;
   isClockedIn: boolean;
   isClockedOut: boolean;
@@ -188,6 +189,68 @@ export const useAttendance = (): UseAttendanceReturn => {
     }
   }, [employeeId, todayAttendance, refreshAttendance]);
 
+  const resumeWork = useCallback(async () => {
+    console.log('🔵 resumeWork called');
+    console.log('Employee ID:', employeeId);
+    console.log('Today Attendance:', todayAttendance);
+    
+    if (!employeeId || !todayAttendance) {
+      toast.error('No attendance record found to resume');
+      return;
+    }
+
+    if (!todayAttendance.attendanceId) {
+      toast.error('Invalid attendance record');
+      return;
+    }
+
+    // If already clocked in, don't allow resume
+    if (todayAttendance.clockInTimestamp && !todayAttendance.clockOutTimestamp) {
+      toast.error('Already working! Cannot resume.');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const now = new Date();
+      
+      // Save the accumulated hours from previous session(s)
+      const previousHours = Number(todayAttendance.totalHoursComputed) || 0;
+      
+      // Resume by clearing clockOut and keeping accumulated hours
+      const updateData: UpdateAttendanceData = {
+        clockOutTimestamp: undefined, // Clear clock-out to resume work
+        totalHoursComputed: previousHours, // Keep previous accumulated hours
+        shiftStatus: 'Working',
+      };
+
+      console.log('📤 Resuming work - keeping accumulated hours:', previousHours);
+      const result = await attendanceService.updateAttendance(
+        Number(todayAttendance.attendanceId),
+        updateData
+      );
+      
+      console.log('✅ Work resumed:', result);
+      toast.success(`🔄 Work resumed! Previous hours: ${previousHours.toFixed(2)}h`);
+      
+      setIsClockedIn(true);
+      setIsClockedOut(false);
+      setEndTime(null); // Clear end time since we're resuming
+      
+      await refreshAttendance();
+    } catch (err: any) {
+      console.error('❌ Resume work error:', err);
+      console.error('Error response:', err.response?.data);
+      const errorMsg = err.response?.data?.message || err.message || 'Failed to resume work';
+      setError(errorMsg);
+      toast.error(errorMsg);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [employeeId, todayAttendance, refreshAttendance]);
+
   const clockOut = useCallback(async () => {
     if (!employeeId || !todayAttendance) {
       toast.error('No active attendance record found');
@@ -205,7 +268,7 @@ export const useAttendance = (): UseAttendanceReturn => {
     try {
       const now = new Date();
       
-      // Calculate total hours from clock in time
+      // Calculate hours for THIS session
       let clockInTime: Date;
       if (todayAttendance.clockInTimestamp) {
         clockInTime = new Date(todayAttendance.clockInTimestamp);
@@ -216,8 +279,13 @@ export const useAttendance = (): UseAttendanceReturn => {
       }
       
       const diffMs = now.getTime() - clockInTime.getTime();
-      const diffHours = diffMs / (1000 * 60 * 60);
-      const totalHours = Math.round(diffHours * 100) / 100; // Round to 2 decimal places
+      const sessionHours = diffMs / (1000 * 60 * 60);
+      
+      // Get previous accumulated hours (if this is a resumed session)
+      const previousHours = Number(todayAttendance.totalHoursComputed) || 0;
+      
+      // Add current session hours to previous accumulated hours
+      const totalHours = Math.round((previousHours + sessionHours) * 100) / 100;
 
       const data: UpdateAttendanceData = {
         clockOutTimestamp: now.toISOString(),
@@ -225,13 +293,15 @@ export const useAttendance = (): UseAttendanceReturn => {
         shiftStatus: 'Working',
       };
 
+      console.log(`⏸️ Stopping work - Session: ${sessionHours.toFixed(2)}h + Previous: ${previousHours.toFixed(2)}h = Total: ${totalHours.toFixed(2)}h`);
+      
       const result = await attendanceService.updateAttendance(
         Number(todayAttendance.attendanceId),
         data
       );
       
       console.log('Clock out result:', result);
-      toast.success(`✅ Clocked out! Total hours: ${totalHours.toFixed(2)}h`);
+      toast.success(`⏸️ Work stopped! Total hours today: ${totalHours.toFixed(2)}h`);
       
       await refreshAttendance();
       
@@ -263,6 +333,7 @@ export const useAttendance = (): UseAttendanceReturn => {
     error,
     clockIn,
     clockOut,
+    resumeWork,
     refreshAttendance,
     isClockedIn,
     isClockedOut,

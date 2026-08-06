@@ -41,6 +41,7 @@ interface OverviewTabProps {
   setLeaveRequest: (request: any) => void;
   handleStartWork: () => void;
   handleStopWork: () => void;
+  handleResumeWork: () => void;
   handleSubmitLeave: () => void;
   handleLeaveImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
@@ -64,6 +65,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
   setLeaveRequest,
   handleStartWork,
   handleStopWork,
+  handleResumeWork,
   handleSubmitLeave,
   handleLeaveImageUpload,
 }) => {
@@ -141,11 +143,11 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
           {isClockedOut && (
             <button
               type="button"
-              onClick={handleStartWork}
+              onClick={handleResumeWork}
               disabled={attendanceLoading}
-              className="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl text-xs sm:text-sm font-medium hover:bg-amber-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs sm:text-sm font-medium hover:bg-emerald-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {attendanceLoading ? '⏳ Starting...' : '🔄 Start New Session'}
+              {attendanceLoading ? '⏳ Resuming...' : '▶️ Resume Work'}
             </button>
           )}
           {workStatus === 'on-leave' && (
