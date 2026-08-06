@@ -10,11 +10,11 @@ import DashboardRouter from './pages/DashboardRouter';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, loading, user } = useAuth();
+  const { isAuthenticated, loading, initializing, user } = useAuth();
   
-  console.log('ProtectedRoute - isAuthenticated:', isAuthenticated, 'loading:', loading, 'user:', user);
+  console.log('ProtectedRoute - isAuthenticated:', isAuthenticated, 'loading:', loading, 'initializing:', initializing, 'user:', user);
   
-  if (loading) {
+  if (loading || initializing) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -26,8 +26,8 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   }
   
   if (!isAuthenticated) {
-    console.log('ProtectedRoute - Not authenticated, redirecting to login');
-    return <Navigate to="/login" replace />;
+    console.log('ProtectedRoute - Not authenticated, redirecting to home');
+    return <Navigate to="/" replace />;
   }
   
   console.log('ProtectedRoute - Authenticated, rendering children');
@@ -36,9 +36,9 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 // Public Route Component
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, initializing } = useAuth();
   
-  if (loading) {
+  if (loading || initializing) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600"></div>
@@ -59,6 +59,7 @@ const AppRoutes = () => {
     <Routes>
       <Route path="/" element={<Home />} />
      
+      <Route path="/login" element={<Navigate to="/" replace />} />
       <Route path="/create-account" element={
         <PublicRoute>
           <CreateAccountPage isOpen={true} onClose={() => {}} theme="light" />

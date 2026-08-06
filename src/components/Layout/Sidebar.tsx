@@ -1,4 +1,4 @@
-// Sidebar.tsx - Updated with complete navigation for all roles including Daily Tasks
+// Sidebar.tsx - Updated with complete navigation including Generate Payslip
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
@@ -53,7 +53,8 @@ import {
   ArrowRightIcon,
   LinkIcon,
   LightBulbIcon,
-  PhotoIcon
+  PhotoIcon,
+  DocumentArrowDownIcon
 } from '@heroicons/react/24/outline';
 
 interface SidebarProps {
@@ -178,6 +179,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             { icon: ClipboardDocumentCheckIcon, label: 'Leave Approvals', path: '/dashboard/leave-approvals', description: 'Approve leaves' },
             { icon: CalendarDaysIcon, label: 'My Leave', path: '/dashboard/leave', description: 'Apply for leave' },
             { icon: CreditCardIcon, label: 'Payslips', path: '/dashboard/payslips', description: 'Salary payslips' },
+            { icon: DocumentArrowDownIcon, label: 'Generate Payslip', path: '/dashboard/generate-payslip', description: 'Generate employee payslip' },
             { icon: TrophyIcon, label: 'Performance', path: '/dashboard/performance', description: 'Team performance' },
             { icon: DocumentTextIcon, label: 'Reports', path: '/dashboard/reports', description: 'Team reports' }
           ]
@@ -200,7 +202,8 @@ const Sidebar: React.FC<SidebarProps> = ({
             { icon: ViewColumnsIcon, label: 'Project Teams', path: '/dashboard/project-teams', description: 'Project teams' },
             { icon: QueueListIcon, label: 'Tasks', path: '/dashboard/tasks', description: 'All tasks' },
             { icon: CalendarDaysIcon, label: 'My Leave', path: '/dashboard/leave', description: 'Apply for leave' },
-            { icon: CreditCardIcon, label: 'Payslips', path: '/dashboard/payslips', description: 'Salary payslips' }
+            { icon: CreditCardIcon, label: 'Payslips', path: '/dashboard/payslips', description: 'Salary payslips' },
+            { icon: DocumentArrowDownIcon, label: 'Generate Payslip', path: '/dashboard/generate-payslip', description: 'Generate employee payslip' }
           ]
         },
         {
@@ -510,6 +513,12 @@ const Sidebar: React.FC<SidebarProps> = ({
                     >
                       Payslips
                     </button>
+                    <button 
+                      onClick={() => navigate('/dashboard/generate-payslip')}
+                      className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all duration-200 text-white/90 font-medium"
+                    >
+                      Generate Pay
+                    </button>
                   </>
                 ) : role === 'hr-partner' ? (
                   <>
@@ -564,6 +573,12 @@ const Sidebar: React.FC<SidebarProps> = ({
                     >
                       Payslips
                     </button>
+                    <button 
+                      onClick={() => navigate('/dashboard/generate-payslip')}
+                      className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all duration-200 text-white/90 font-medium"
+                    >
+                      Generate Pay
+                    </button>
                   </>
                 )}
               </div>
@@ -595,13 +610,22 @@ const Sidebar: React.FC<SidebarProps> = ({
               <CreditCardIcon className="w-5 h-5 mx-auto group-hover:scale-110 transition-transform" />
             </button>
             {role === 'manager' && (
-              <button 
-                onClick={() => navigate('/dashboard/daily-tasks')}
-                className="w-full p-2.5 text-blue-200/70 rounded-xl hover:bg-white/10 transition-all duration-200 group"
-                title="Daily Tasks"
-              >
-                <ClipboardDocumentCheckIcon className="w-5 h-5 mx-auto group-hover:scale-110 transition-transform" />
-              </button>
+              <>
+                <button 
+                  onClick={() => navigate('/dashboard/daily-tasks')}
+                  className="w-full p-2.5 text-blue-200/70 rounded-xl hover:bg-white/10 transition-all duration-200 group"
+                  title="Daily Tasks"
+                >
+                  <ClipboardDocumentCheckIcon className="w-5 h-5 mx-auto group-hover:scale-110 transition-transform" />
+                </button>
+                <button 
+                  onClick={() => navigate('/dashboard/generate-payslip')}
+                  className="w-full p-2.5 text-blue-200/70 rounded-xl hover:bg-white/10 transition-all duration-200 group"
+                  title="Generate Payslip"
+                >
+                  <DocumentArrowDownIcon className="w-5 h-5 mx-auto group-hover:scale-110 transition-transform" />
+                </button>
+              </>
             )}
             <button
               onClick={handleLogout}

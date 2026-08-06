@@ -17,9 +17,10 @@ import ReportsTab from './reports/ReportsTab';
 import QueriesTab from './messages/QueriesTab';
 import LeaveTab from './leave/LeaveTab';
 import PayslipsTab from './payslips/PayslipsTab';
+import GeneratePayslipTab from './payslips/GeneratePayslipTab';
 import { 
   TeamMember, Task, LeaveRequest, ProjectTeam, Message, 
-  WorkSession, TaskHistory, PerformanceData 
+  WorkSession, TaskHistory, PerformanceData, GeneratePayslipData 
 } from './types';
 import moment from 'moment';
 
@@ -33,7 +34,7 @@ const ManagerDashboard = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
-  // State declarations (all original state)
+  // State declarations
   const [searchQuery, setSearchQuery] = useState('');
   const [isWorking, setIsWorking] = useState(false);
   const [workHours, setWorkHours] = useState(0);
@@ -181,7 +182,7 @@ const ManagerDashboard = () => {
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'unread' | 'read'>('all');
   const [selectedCategory, setSelectedCategory] = useState<Message['category'] | 'all'>('all');
 
-  // Data (all original data)
+  // Data
   const teamMembers: TeamMember[] = [
     { id: 'SE-042', name: 'Priya Nair', role: 'Engineering Manager', status: 'Active', joined: '2021-09-01', initials: 'PN' },
     { id: 'SE-101', name: 'Ishita Roy', role: 'Frontend Engineer', status: 'Working', joined: '2022-06-12', initials: 'IR' },
@@ -239,27 +240,6 @@ const ManagerDashboard = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
-  // All original functions
-  const getActiveTab = () => {
-    const path = location.pathname;
-    if (path === '/dashboard' || path === '/dashboard/overview') return 'overview';
-    if (path === '/dashboard/team') return 'my-team';
-    if (path === '/dashboard/project-teams') return 'project-teams';
-    if (path === '/dashboard/assign-tasks') return 'assign-tasks';
-    if (path === '/dashboard/tasks-board') return 'tasks-board';
-    if (path === '/dashboard/daily-tasks') return 'daily-tasks';
-    if (path === '/dashboard/attendance') return 'attendance';
-    if (path === '/dashboard/leave-approvals') return 'leave-approvals';
-    if (path === '/dashboard/performance') return 'performance';
-    if (path === '/dashboard/reports') return 'reports';
-    if (path === '/dashboard/queries') return 'queries';
-    if (path === '/dashboard/leave') return 'leave';
-    if (path === '/dashboard/payslips') return 'payslips';
-    return 'overview';
-  };
-
-  const activeTab = getActiveTab();
 
   // Load saved work sessions and leave history
   useEffect(() => {
@@ -554,6 +534,13 @@ const ManagerDashboard = () => {
     setShowCompose(true);
   };
 
+  // Generate Payslip Function
+  const handleGeneratePayslip = (data: GeneratePayslipData) => {
+    console.log('Generating payslip for:', data);
+    // Call the existing downloadPayslip function with the month and year
+    downloadPayslip(String(data.month).padStart(2, '0'), String(data.year));
+  };
+
   // Enhanced Payslip Functions
   const generatePayslipData = (employeeName?: string, month?: string, year?: string) => {
     const baseSalary = 145390;
@@ -564,22 +551,18 @@ const ManagerDashboard = () => {
     const tds = Math.round(baseSalary * 0.08);
     const pt = 200;
 
-    // Determine pay period
     let payPeriod = 'May 2026';
     let paymentDate = '2026-05-31';
     
     if (month && year) {
-      // Use provided month and year
       const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
                          'July', 'August', 'September', 'October', 'November', 'December'];
       const monthIndex = parseInt(month) - 1;
       payPeriod = `${monthNames[monthIndex]} ${year}`;
       
-      // Generate payment date (last day of month)
       const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
       paymentDate = `${year}-${month}-${lastDay}`;
     } else {
-      // Use current month
       const now = moment();
       payPeriod = now.format('MMMM YYYY');
       paymentDate = now.format('YYYY-MM-DD');
@@ -607,12 +590,10 @@ const ManagerDashboard = () => {
   };
 
   const downloadPayslip = (month?: string, year?: string) => {
-    // If month and year are provided, use them
     let targetMonth = month;
     let targetYear = year;
     
     if (!targetMonth || !targetYear) {
-      // Generate current month's payslip
       const now = moment();
       targetMonth = now.format('MM');
       targetYear = now.format('YYYY');
@@ -624,7 +605,6 @@ const ManagerDashboard = () => {
     const totalDeductions = Object.values(data.deductions).reduce((a, b) => a + b, 0);
     const netPayable = totalEarnings - totalDeductions;
 
-    // Generate month name for display
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
                        'July', 'August', 'September', 'October', 'November', 'December'];
     const monthName = monthNames[parseInt(targetMonth) - 1];
@@ -880,6 +860,28 @@ const ManagerDashboard = () => {
     return readFilter && categoryFilter;
   });
 
+  // Get active tab
+  const getActiveTab = () => {
+    const path = location.pathname;
+    if (path === '/dashboard' || path === '/dashboard/overview') return 'overview';
+    if (path === '/dashboard/team') return 'my-team';
+    if (path === '/dashboard/project-teams') return 'project-teams';
+    if (path === '/dashboard/assign-tasks') return 'assign-tasks';
+    if (path === '/dashboard/tasks-board') return 'tasks-board';
+    if (path === '/dashboard/daily-tasks') return 'daily-tasks';
+    if (path === '/dashboard/attendance') return 'attendance';
+    if (path === '/dashboard/leave-approvals') return 'leave-approvals';
+    if (path === '/dashboard/performance') return 'performance';
+    if (path === '/dashboard/reports') return 'reports';
+    if (path === '/dashboard/queries') return 'queries';
+    if (path === '/dashboard/leave') return 'leave';
+    if (path === '/dashboard/payslips') return 'payslips';
+    if (path === '/dashboard/generate-payslip') return 'generate-payslip';
+    return 'overview';
+  };
+
+  const activeTab = getActiveTab();
+
   // Render content based on active tab
   const renderContent = () => {
     switch (activeTab) {
@@ -986,6 +988,13 @@ const ManagerDashboard = () => {
             tc={tc}
             downloadPayslip={downloadPayslip}
             payslips={payslips}
+          />
+        );
+      case 'generate-payslip':
+        return (
+          <GeneratePayslipTab
+            tc={tc}
+            generatePayslip={handleGeneratePayslip}
           />
         );
       default:

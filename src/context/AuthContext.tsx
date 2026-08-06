@@ -11,6 +11,7 @@ interface AuthContextType {
   logout: () => void;
   createAccount: (userData: CreateAccountData | any) => Promise<void>;
   loading: boolean;
+  initializing: boolean;
   error: string | null;
   clearError: () => void;
   isAuthenticated: boolean;
@@ -68,6 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [initializing, setInitializing] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
@@ -89,6 +91,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.removeItem('servease_user');
       }
     }
+
+    setInitializing(false);
   }, []);
 
   const clearError = useCallback(() => {
@@ -263,6 +267,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logout,
     createAccount,
     loading,
+    initializing,
     error,
     clearError,
     isAuthenticated,

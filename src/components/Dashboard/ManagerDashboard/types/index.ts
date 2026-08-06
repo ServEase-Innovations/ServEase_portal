@@ -8,6 +8,13 @@ export interface TeamMember {
   initials: string;
 }
 
+export interface GeneratePayslipData {
+  employeeId: string;
+  date: string;
+  month: number;
+  year: number;
+}
+
 export interface Task {
   id: string;
   title: string;

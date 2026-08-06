@@ -2,9 +2,11 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import { User, CreateAccountData, ApiResponse } from '../types';
 
+// const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/';
+
 // Create axios instance with base URL
 const api: AxiosInstance = axios.create({
-  baseURL: 'http://localhost:5001/',
+  baseURL: 'http://localhost:5001/', //http://localhost:5001/
   headers: {
     'Content-Type': 'application/json',
   },
@@ -32,7 +34,9 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('servease_token');
       localStorage.removeItem('servease_user');
-      window.location.href = '/login';
+      if (window.location.pathname !== '/') {
+        window.location.href = '/';
+      }
     }
     return Promise.reject(error);
   }

@@ -35,6 +35,8 @@ export interface SalaryRecord {
   payable: string;
 }
 
+// types.ts - Add this interface
+
 export interface Holiday {
   id: string;
   name: string;
