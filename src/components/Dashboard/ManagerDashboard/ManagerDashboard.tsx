@@ -988,6 +988,8 @@ const ManagerDashboard = () => {
             handleResumeWork={handleResumeWork}
             handleSubmitLeave={handleSubmitLeave}
             handleLeaveImageUpload={handleLeaveImageUpload}
+            attendanceRecords={attendance.attendanceRecords}
+            todayAttendance={todayAttendance}
           />
         );
       case 'my-team':

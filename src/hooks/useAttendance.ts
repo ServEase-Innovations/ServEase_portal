@@ -216,18 +216,19 @@ export const useAttendance = (): UseAttendanceReturn => {
     try {
       const now = new Date();
       
-      // Save the accumulated hours from previous session(s)
+      // Save the accumulated hours from previous session(s) for display only
       const previousHours = Number(todayAttendance.totalHoursComputed) || 0;
       
       // Resume by setting NEW clockIn time and clearing clockOut
+      // DON'T send totalHoursComputed - backend will keep it unchanged
       const updateData: UpdateAttendanceData = {
         clockInTimestamp: now.toISOString(), // Set NEW clock-in time for this session
         clockOutTimestamp: undefined, // Clear clock-out to resume work
-        totalHoursComputed: previousHours, // Keep previous accumulated hours
+        // DON'T send totalHoursComputed - backend preserves it automatically
         shiftStatus: 'Working',
       };
 
-      console.log('📤 Resuming work - setting new clockIn time, keeping accumulated hours:', previousHours);
+      console.log('📤 Resuming work - setting new clockIn time, backend keeps accumulated hours:', previousHours);
       const result = await attendanceService.updateAttendance(
         Number(todayAttendance.attendanceId),
         updateData
@@ -270,32 +271,21 @@ export const useAttendance = (): UseAttendanceReturn => {
     try {
       const now = new Date();
       
-      // Calculate hours for THIS session
-      let clockInTime: Date;
-      if (todayAttendance.clockInTimestamp) {
-        clockInTime = new Date(todayAttendance.clockInTimestamp);
-      } else {
+      if (!todayAttendance.clockInTimestamp) {
         toast.error('No clock in time found');
         setIsLoading(false);
         return;
       }
-      
-      const diffMs = now.getTime() - clockInTime.getTime();
-      const sessionHours = diffMs / (1000 * 60 * 60);
-      
-      // Get previous accumulated hours (if this is a resumed session)
-      const previousHours = Number(todayAttendance.totalHoursComputed) || 0;
-      
-      // Add current session hours to previous accumulated hours
-      const totalHours = Math.round((previousHours + sessionHours) * 100) / 100;
 
+      // SECURITY: Let backend calculate hours - don't trust client calculation
+      // Backend will use the ACTUAL clockIn from database and calculate correctly
       const data: UpdateAttendanceData = {
         clockOutTimestamp: now.toISOString(),
-        totalHoursComputed: totalHours,
+        // DON'T send totalHoursComputed - backend calculates it securely
         shiftStatus: 'Working',
       };
 
-      console.log(`⏸️ Stopping work - Session: ${sessionHours.toFixed(2)}h + Previous: ${previousHours.toFixed(2)}h = Total: ${totalHours.toFixed(2)}h`);
+      console.log(`⏸️ Stopping work - letting backend calculate hours`);
       
       const result = await attendanceService.updateAttendance(
         Number(todayAttendance.attendanceId),
@@ -303,6 +293,9 @@ export const useAttendance = (): UseAttendanceReturn => {
       );
       
       console.log('Clock out result:', result);
+      
+      // Get the total from backend response
+      const totalHours = Number(result.totalHoursComputed) || 0;
       toast.success(`⏸️ Work stopped! Total hours today: ${totalHours.toFixed(2)}h`);
       
       await refreshAttendance();

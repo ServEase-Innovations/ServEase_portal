@@ -44,6 +44,8 @@ interface OverviewTabProps {
   handleResumeWork: () => void;
   handleSubmitLeave: () => void;
   handleLeaveImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  attendanceRecords?: any[];
+  todayAttendance?: any;
 }
 
 const OverviewTab: React.FC<OverviewTabProps> = ({
@@ -68,7 +70,44 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
   handleResumeWork,
   handleSubmitLeave,
   handleLeaveImageUpload,
+  attendanceRecords = [],
+  todayAttendance,
 }) => {
+  // Calculate monthly stats from actual attendance records
+  const calculateMonthlyStats = () => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    const monthRecords = attendanceRecords.filter(record => {
+      if (!record.calendarDate) return false;
+      const recordDate = new Date(typeof record.calendarDate === 'number' ? record.calendarDate : record.calendarDate);
+      return recordDate.getMonth() === currentMonth && recordDate.getFullYear() === currentYear;
+    });
+    
+    const presentDays = monthRecords.filter(r => r.shiftStatus === 'Working').length;
+    const wfhDays = 0; // Can be added later
+    const halfDays = 0; // Can be added later
+    const leaveDays = monthRecords.filter(r => r.shiftStatus === 'OnLeave').length;
+    const totalHours = monthRecords.reduce((sum, r) => sum + (Number(r.totalHoursComputed) || 0), 0);
+    
+    return { presentDays, wfhDays, halfDays, leaveDays, totalHours };
+  };
+  
+  const stats = calculateMonthlyStats();
+  
+  // Calculate today's progress percentage (assuming 8 hour workday)
+  const todayProgressPercent = Math.min((workHours * 3600 + workMinutes * 60 + workSeconds) / (8 * 3600) * 100, 100);
+  
+  // Format time for display
+  const formatTime = (date: any) => {
+    if (!date) return '--:--';
+    const d = new Date(typeof date === 'number' ? date : date);
+    return moment(d).format('HH:mm');
+  };
+  
+  const firstClockIn = todayAttendance?.clockInTimestamp ? formatTime(todayAttendance.clockInTimestamp) : '--:--';
+  const lastClockOut = todayAttendance?.clockOutTimestamp ? formatTime(todayAttendance.clockOutTimestamp) : '--:--';
   const stats = [
     { label: 'Team Size', value: '4', icon: UsersIcon, subtitle: '2 on leave today' },
     { label: 'Open Tasks', value: '5', icon: ClipboardDocumentCheckIcon, subtitle: '3 blocked' },
@@ -196,16 +235,21 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
         <div className={`lg:col-span-2 ${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
           <h3 className={`font-semibold ${tc.text} mb-2 sm:mb-4 text-base sm:text-lg`}>Today's Working Progress</h3>
-          <p className={`text-sm ${tc.textSecondary} mb-3 sm:mb-4`}>111.5h logged this month - 14 present days</p>
+          <p className={`text-sm ${tc.textSecondary} mb-3 sm:mb-4`}>
+            {stats.totalHours.toFixed(1)}h logged this month - {stats.presentDays} present days
+          </p>
           <div className="flex items-center gap-4 sm:gap-8">
             <div className="flex-1">
               <div className="w-full bg-gray-200/20 rounded-full h-3 sm:h-4">
-                <div className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-3 sm:h-4 rounded-full transition-all duration-1000" style={{ width: isClockedIn ? `${Math.min((workHours * 3600 + workMinutes * 60 + workSeconds) / 28800 * 100, 100)}%` : isClockedOut ? '100%' : '65%' }}></div>
+                <div 
+                  className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-3 sm:h-4 rounded-full transition-all duration-1000" 
+                  style={{ width: `${todayProgressPercent}%` }}
+                ></div>
               </div>
               <div className={`flex flex-wrap justify-between mt-2 text-[10px] sm:text-sm ${tc.textMuted} gap-1`}>
-                <span>100% DAY</span>
-                <span>LOGIN 09:18</span>
-                <span>LOGOUT 18:32</span>
+                <span>{todayProgressPercent.toFixed(0)}% DAY</span>
+                <span>LOGIN {firstClockIn}</span>
+                <span>LOGOUT {lastClockOut}</span>
               </div>
             </div>
           </div>
@@ -236,29 +280,29 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        <AttendanceCalendar tc={tc} />
+        <AttendanceCalendar tc={tc} attendanceRecords={attendanceRecords} />
         <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
           <h3 className={`font-semibold ${tc.text} mb-2 sm:mb-4 text-base sm:text-lg`}>Monthly Summary</h3>
           <div className="space-y-2 sm:space-y-3">
             <div className={`flex justify-between items-center pb-2 ${tc.border} border-b`}>
               <span className={tc.textSecondary}>Present</span>
-              <span className={`font-bold ${tc.text}`}>14 days</span>
+              <span className={`font-bold ${tc.text}`}>{stats.presentDays} days</span>
             </div>
             <div className={`flex justify-between items-center pb-2 ${tc.border} border-b`}>
               <span className={tc.textSecondary}>WFH</span>
-              <span className={`font-bold ${tc.text}`}>0 days</span>
+              <span className={`font-bold ${tc.text}`}>{stats.wfhDays} days</span>
             </div>
             <div className={`flex justify-between items-center pb-2 ${tc.border} border-b`}>
               <span className={tc.textSecondary}>Half-Day</span>
-              <span className={`font-bold ${tc.text}`}>0 days</span>
+              <span className={`font-bold ${tc.text}`}>{stats.halfDays} days</span>
             </div>
             <div className={`flex justify-between items-center pb-2 ${tc.border} border-b`}>
               <span className={tc.textSecondary}>Leave</span>
-              <span className={`font-bold ${tc.text}`}>2 days</span>
+              <span className={`font-bold ${tc.text}`}>{stats.leaveDays} days</span>
             </div>
             <div className="flex justify-between items-center pt-2">
               <span className={`${tc.textSecondary} font-medium`}>Total Hours</span>
-              <span className="font-bold text-indigo-400">111.5 hours</span>
+              <span className="font-bold text-indigo-400">{stats.totalHours.toFixed(1)} hours</span>
             </div>
           </div>
         </div>
