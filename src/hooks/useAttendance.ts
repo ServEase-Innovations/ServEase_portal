@@ -135,9 +135,9 @@ export const useAttendance = (): UseAttendanceReturn => {
           
           const updateData: UpdateAttendanceData = {
             clockInTimestamp: now.toISOString(),
-            clockOutTimestamp: undefined, // Clear clock-out to start new session
-            totalHoursComputed: 0, // Reset hours
+            clockOutTimestamp: null, // Clear clock-out to start new session
             shiftStatus: 'Working',
+            // totalHoursComputed NOT sent - backend calculates it
           };
           
           // Update instead of create
@@ -165,7 +165,7 @@ export const useAttendance = (): UseAttendanceReturn => {
         calendarDate: now.toISOString(),
         shiftStatus: 'Working',
         clockInTimestamp: now.toISOString(),
-        totalHoursComputed: 0,
+        // totalHoursComputed NOT sent - backend calculates it
       };
 
       console.log('📤 Sending clock in request (new record):', data);
@@ -223,9 +223,9 @@ export const useAttendance = (): UseAttendanceReturn => {
       // DON'T send totalHoursComputed - backend will keep it unchanged
       const updateData: UpdateAttendanceData = {
         clockInTimestamp: now.toISOString(), // Set NEW clock-in time for this session
-        clockOutTimestamp: undefined, // Clear clock-out to resume work
-        // DON'T send totalHoursComputed - backend preserves it automatically
+        clockOutTimestamp: null, // Clear clock-out to resume work
         shiftStatus: 'Working',
+        // totalHoursComputed NOT sent - backend preserves accumulated hours
       };
 
       console.log('📤 Resuming work - setting new clockIn time, backend keeps accumulated hours:', previousHours);

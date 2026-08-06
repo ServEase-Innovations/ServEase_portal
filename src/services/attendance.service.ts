@@ -8,14 +8,14 @@ export interface CreateAttendanceData {
   shiftStatus: 'Working' | 'OnLeave' | 'Absent';
   clockInTimestamp?: string;
   clockOutTimestamp?: string;
-  totalHoursComputed: number;
+  // totalHoursComputed is removed - server calculates it
 }
 
 export interface UpdateAttendanceData {
   shiftStatus?: 'Working' | 'OnLeave' | 'Absent';
   clockInTimestamp?: string;
-  clockOutTimestamp?: string;
-  totalHoursComputed?: number;
+  clockOutTimestamp?: string | null; // null to explicitly clear
+  // totalHoursComputed is removed - server calculates it
 }
 
 export const attendanceService = {
@@ -23,13 +23,12 @@ export const attendanceService = {
   createAttendance: async (data: CreateAttendanceData): Promise<Attendance> => {
     // Backend expects epoch milliseconds (numbers), not ISO strings
     const payload = {
-      ...data,
       employeeId: data.employeeId,
       calendarDate: new Date(data.calendarDate).getTime(), // Convert to epoch milliseconds
+      shiftStatus: data.shiftStatus,
       clockInTimestamp: data.clockInTimestamp ? new Date(data.clockInTimestamp).getTime() : undefined,
       clockOutTimestamp: data.clockOutTimestamp ? new Date(data.clockOutTimestamp).getTime() : undefined,
-      shiftStatus: data.shiftStatus,
-      totalHoursComputed: data.totalHoursComputed,
+      // totalHoursComputed is NOT sent - server calculates it
     };
     
     console.log('🔵 Attendance Service - Creating attendance');
@@ -62,22 +61,24 @@ export const attendanceService = {
   // Update attendance record
   updateAttendance: async (id: string | number, data: UpdateAttendanceData): Promise<Attendance> => {
     // Backend expects epoch milliseconds (numbers), not ISO strings
-    const payload: any = { ...data };
+    const payload: any = {};
+    
+    if (data.shiftStatus !== undefined) {
+      payload.shiftStatus = data.shiftStatus;
+    }
     
     if (data.clockInTimestamp) {
       payload.clockInTimestamp = new Date(data.clockInTimestamp).getTime();
     }
     
-    // Handle clockOutTimestamp - explicitly send null to clear it
-    if (data.clockOutTimestamp === undefined) {
+    // Handle clockOutTimestamp - can be null (to clear it) or a timestamp
+    if (data.clockOutTimestamp === null) {
       payload.clockOutTimestamp = null; // Explicitly clear the field
-    } else if (data.clockOutTimestamp) {
+    } else if (data.clockOutTimestamp !== undefined) {
       payload.clockOutTimestamp = new Date(data.clockOutTimestamp).getTime();
     }
     
-    if (data.totalHoursComputed !== undefined) {
-      payload.totalHoursComputed = data.totalHoursComputed;
-    }
+    // totalHoursComputed is NOT sent - server calculates it
     
     console.log('🔵 Attendance Service - Updating attendance');
     console.log('Input data:', data);
