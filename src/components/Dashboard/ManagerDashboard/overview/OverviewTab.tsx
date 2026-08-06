@@ -141,12 +141,11 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
           {isClockedOut && (
             <button
               type="button"
-              onClick={() => {
-                // Reset clock out state - handled in parent
-              }}
-              className="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl text-xs sm:text-sm font-medium hover:bg-amber-500/30 transition-all"
+              onClick={handleStartWork}
+              disabled={attendanceLoading}
+              className="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl text-xs sm:text-sm font-medium hover:bg-amber-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              🔄 Start New Session
+              {attendanceLoading ? '⏳ Starting...' : '🔄 Start New Session'}
             </button>
           )}
           {workStatus === 'on-leave' && (

@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import Sidebar from '../../Layout/Sidebar';
 import Header from '../../Layout/Header';
 import { useTheme } from './hooks/useTheme';
+import { useAttendance } from '../../../hooks/useAttendance';
 import OverviewTab from './overview/OverviewTab';
 import MyTeamTab from './team/MyTeamTab';
 import ProjectTeamsTab from './team/ProjectTeamsTab';
@@ -27,6 +28,14 @@ const ManagerDashboard = () => {
   const location = useLocation();
   const { theme, toggleTheme, getThemeClasses } = useTheme();
   const tc = getThemeClasses();
+  
+  // Get attendance hook for API integration
+  const attendance = useAttendance();
+  
+  console.log('🔷 ManagerDashboard rendered');
+  console.log('Attendance from hook:', attendance);
+  console.log('isClockedIn:', attendance.isClockedIn);
+  console.log('isClockedOut:', attendance.isClockedOut);
 
   // Mobile sidebar state
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -35,18 +44,27 @@ const ManagerDashboard = () => {
 
   // State declarations (all original state)
   const [searchQuery, setSearchQuery] = useState('');
-  const [isWorking, setIsWorking] = useState(false);
+  
+  // Use attendance hook values instead of local state
+  const {
+    todayAttendance,
+    isLoading: attendanceLoading,
+    clockIn,
+    clockOut,
+    isClockedIn,
+    isClockedOut,
+    totalHoursToday,
+    startTime: apiStartTime,
+    endTime: apiEndTime,
+  } = attendance;
+  
+  // Local state for UI
   const [workHours, setWorkHours] = useState(0);
   const [workMinutes, setWorkMinutes] = useState(0);
   const [workSeconds, setWorkSeconds] = useState(0);
   const [timerInterval, setTimerInterval] = useState<ReturnType<typeof setInterval> | null>(null);
   const [startTime, setStartTime] = useState<moment.Moment | null>(null);
   const [workStatus, setWorkStatus] = useState<'working' | 'on-leave' | 'not-working'>('not-working');
-  const [totalHoursToday, setTotalHoursToday] = useState(0);
-  const [isClockedIn, setIsClockedIn] = useState(false);
-  const [isClockedOut, setIsClockedOut] = useState(false);
-  const [attendanceLoading, setAttendanceLoading] = useState(false);
-  const [todayAttendance, setTodayAttendance] = useState<any>(null);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   
@@ -282,74 +300,109 @@ const ManagerDashboard = () => {
     }
   }, []);
 
-  // Timer logic
+  // Timer logic - sync with API attendance data
   useEffect(() => {
-    if (isClockedIn && !timerInterval) {
-      const interval = setInterval(() => {
-        setWorkSeconds(prev => {
-          if (prev >= 59) {
-            setWorkMinutes(m => {
-              if (m >= 59) {
-                setWorkHours(h => h + 1);
-                return 0;
-              }
-              return m + 1;
-            });
-            return 0;
-          }
-          return prev + 1;
-        });
-      }, 1000);
-      setTimerInterval(interval);
+    // Clear any existing interval
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      setTimerInterval(null);
     }
-    
+
+    if (isClockedIn && todayAttendance?.clockInTimestamp) {
+      setWorkStatus('working');
+      
+      const start = moment(todayAttendance.clockInTimestamp);
+      setStartTime(start);
+      
+      // Function to update timer from DB timestamp
+      const updateTimerFromDB = () => {
+        const now = moment();
+        const duration = moment.duration(now.diff(start));
+        const hours = Math.floor(duration.asHours());
+        const minutes = duration.minutes();
+        const seconds = duration.seconds();
+        
+        setWorkHours(hours);
+        setWorkMinutes(minutes);
+        setWorkSeconds(seconds);
+      };
+      
+      // Initial calculation
+      updateTimerFromDB();
+      
+      // Update every second based on DB timestamp
+      const interval = setInterval(updateTimerFromDB, 1000);
+      setTimerInterval(interval);
+      
+    } else if (isClockedOut && todayAttendance) {
+      setWorkStatus('not-working');
+      
+      const totalHrs = Number(todayAttendance.totalHoursComputed) || 0;
+      const hrs = Math.floor(totalHrs);
+      const mins = Math.round((totalHrs - hrs) * 60);
+      setWorkHours(hrs);
+      setWorkMinutes(mins);
+      setWorkSeconds(0);
+      
+      if (todayAttendance.clockInTimestamp) {
+        setStartTime(moment(todayAttendance.clockInTimestamp));
+      }
+    } else {
+      // Not clocked in yet
+      setWorkStatus('not-working');
+      setWorkHours(0);
+      setWorkMinutes(0);
+      setWorkSeconds(0);
+      setStartTime(null);
+    }
+
+    // Cleanup on unmount or when dependencies change
     return () => {
       if (timerInterval) {
         clearInterval(timerInterval);
       }
     };
-  }, [isClockedIn]);
+  }, [isClockedIn, isClockedOut, todayAttendance?.clockInTimestamp, todayAttendance?.clockOutTimestamp]);
 
-  // Timer Functions
+  // Timer Functions - now using API
   const handleStartWork = async () => {
-    setAttendanceLoading(true);
+    console.log('🟢 Manager handleStartWork called');
     try {
       const now = moment();
       setStartTime(now);
-      setIsClockedIn(true);
-      setIsClockedOut(false);
-      setWorkStatus('working');
-      setIsWorking(true);
+      
+      console.log('📞 Calling clockIn API...');
+      await clockIn();
+      console.log('✅ clockIn completed');
       
       setSuccessMessage(`Work started at ${now.format('hh:mm A')}`);
       setShowSuccessMessage(true);
       setTimeout(() => setShowSuccessMessage(false), 3000);
     } catch (error) {
-      console.error('Failed to start work:', error);
-    } finally {
-      setAttendanceLoading(false);
+      console.error('❌ Failed to start work:', error);
     }
   };
 
   const handleStopWork = async () => {
-    setAttendanceLoading(true);
+    console.log('🔴 Manager handleStopWork called');
     try {
       const now = moment();
-      const start = startTime || moment();
+      const start = startTime || moment(todayAttendance?.clockInTimestamp);
       
       const duration = moment.duration(now.diff(start));
       const hours = Math.floor(duration.asHours());
       const minutes = duration.minutes();
-      const seconds = duration.seconds();
       
-      setIsClockedIn(false);
-      setIsClockedOut(true);
-      setWorkStatus('not-working');
-      setIsWorking(false);
-      setTotalHoursToday(hours + minutes / 60);
+      console.log('📞 Calling clockOut API...');
+      await clockOut();
+      console.log('✅ clockOut completed');
+      
+      const totalHrs = totalHoursToday || 0;
+      const hrs = Math.floor(totalHrs);
+      const mins = Math.round((totalHrs - hrs) * 60);
       
       setSuccessMessage(
-        `Work session completed! Duration: ${hours}h ${minutes}m`
+        `Work session completed! Duration: ${hrs}h ${mins}m`
       );
       setShowSuccessMessage(true);
       setTimeout(() => setShowSuccessMessage(false), 3000);
@@ -373,9 +426,7 @@ const ManagerDashboard = () => {
         setTimerInterval(null);
       }
     } catch (error) {
-      console.error('Failed to stop work:', error);
-    } finally {
-      setAttendanceLoading(false);
+      console.error('❌ Failed to stop work:', error);
     }
   };
 

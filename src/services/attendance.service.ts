@@ -21,14 +21,30 @@ export interface UpdateAttendanceData {
 export const attendanceService = {
   // Create attendance record
   createAttendance: async (data: CreateAttendanceData): Promise<Attendance> => {
-    // Ensure clockInTimestamp is a full ISO datetime
+    // Backend expects epoch milliseconds (numbers), not ISO strings
     const payload = {
       ...data,
-      clockInTimestamp: data.clockInTimestamp ? new Date(data.clockInTimestamp).toISOString() : undefined,
-      calendarDate: new Date(data.calendarDate).toISOString().split('T')[0],
+      employeeId: data.employeeId,
+      calendarDate: new Date(data.calendarDate).getTime(), // Convert to epoch milliseconds
+      clockInTimestamp: data.clockInTimestamp ? new Date(data.clockInTimestamp).getTime() : undefined,
+      clockOutTimestamp: data.clockOutTimestamp ? new Date(data.clockOutTimestamp).getTime() : undefined,
+      shiftStatus: data.shiftStatus,
+      totalHoursComputed: data.totalHoursComputed,
     };
-    const response = await api.post('/attendance', payload);
-    return response.data;
+    
+    console.log('🔵 Attendance Service - Creating attendance');
+    console.log('Input data:', data);
+    console.log('Payload to send:', payload);
+    
+    try {
+      const response = await api.post('/attendance', payload);
+      console.log('✅ Attendance created:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Create attendance error:', error);
+      console.error('Error response:', error.response?.data);
+      throw error;
+    }
   },
 
   // Get all attendance records
@@ -45,14 +61,14 @@ export const attendanceService = {
 
   // Update attendance record
   updateAttendance: async (id: string | number, data: UpdateAttendanceData): Promise<Attendance> => {
-    // Ensure timestamps are proper ISO strings
+    // Backend expects epoch milliseconds (numbers), not ISO strings
     const payload: any = { ...data };
     
     if (data.clockInTimestamp) {
-      payload.clockInTimestamp = new Date(data.clockInTimestamp).toISOString();
+      payload.clockInTimestamp = new Date(data.clockInTimestamp).getTime();
     }
     if (data.clockOutTimestamp) {
-      payload.clockOutTimestamp = new Date(data.clockOutTimestamp).toISOString();
+      payload.clockOutTimestamp = new Date(data.clockOutTimestamp).getTime();
     }
     if (data.totalHoursComputed !== undefined) {
       payload.totalHoursComputed = data.totalHoursComputed;

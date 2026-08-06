@@ -4,7 +4,7 @@ import { User, CreateAccountData, ApiResponse } from '../types';
 
 // Create axios instance with base URL
 const api: AxiosInstance = axios.create({
-  baseURL: 'http://localhost:5001/',
+  baseURL: 'http://localhost:4000/',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -29,10 +29,17 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
+    console.log('🔴 API Error:', error.response?.status, error.response?.data);
+    
     if (error.response?.status === 401) {
-      localStorage.removeItem('servease_token');
-      localStorage.removeItem('servease_user');
-      window.location.href = '/login';
+      // Only redirect to login if it's an auth-related endpoint
+      // Don't redirect on attendance errors
+      const url = error.config?.url || '';
+      if (url.includes('/auth/') || url.includes('/employees/profile')) {
+        localStorage.removeItem('servease_token');
+        localStorage.removeItem('servease_user');
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

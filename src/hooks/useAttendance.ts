@@ -44,11 +44,22 @@ export const useAttendance = (): UseAttendanceReturn => {
       const records = await attendanceService.getAttendanceByEmployee(employeeId);
       setAttendanceRecords(records);
       
-      // Get today's record
-      const today = new Date().toISOString().split('T')[0];
-      const todayRecord = records.find(
-        record => record.calendarDate?.split('T')[0] === today
-      );
+      // Get today's record - compare using epoch timestamps
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+      
+      const todayRecord = records.find(record => {
+        if (!record.calendarDate) return false;
+        
+        // calendarDate comes as epoch milliseconds from backend
+        const recordDate = typeof record.calendarDate === 'number' 
+          ? record.calendarDate 
+          : new Date(record.calendarDate).getTime();
+        
+        return recordDate >= todayStart.getTime() && recordDate <= todayEnd.getTime();
+      });
       
       setTodayAttendance(todayRecord || null);
       
@@ -61,10 +72,17 @@ export const useAttendance = (): UseAttendanceReturn => {
         setIsClockedOut(hasClockOut);
         
         if (todayRecord.clockInTimestamp) {
-          setStartTime(new Date(todayRecord.clockInTimestamp));
+          // Handle both number (epoch) and string (ISO) formats
+          const clockInValue = typeof todayRecord.clockInTimestamp === 'number'
+            ? todayRecord.clockInTimestamp
+            : new Date(todayRecord.clockInTimestamp).getTime();
+          setStartTime(new Date(clockInValue));
         }
         if (todayRecord.clockOutTimestamp) {
-          setEndTime(new Date(todayRecord.clockOutTimestamp));
+          const clockOutValue = typeof todayRecord.clockOutTimestamp === 'number'
+            ? todayRecord.clockOutTimestamp
+            : new Date(todayRecord.clockOutTimestamp).getTime();
+          setEndTime(new Date(clockOutValue));
         }
         
         setTotalHoursToday(Number(todayRecord.totalHoursComputed) || 0);
@@ -84,6 +102,10 @@ export const useAttendance = (): UseAttendanceReturn => {
   }, [employeeId]);
 
   const clockIn = useCallback(async () => {
+    console.log('🔵 clockIn called');
+    console.log('Employee ID:', employeeId);
+    console.log('Today Attendance:', todayAttendance);
+    
     if (!employeeId) {
       toast.error('Employee ID not found');
       return;
@@ -94,21 +116,49 @@ export const useAttendance = (): UseAttendanceReturn => {
 
     try {
       const now = new Date();
-      
-      // Check if already clocked in today
+
+      // Check if there's already an attendance record for today
       if (todayAttendance) {
+        console.log('Found existing attendance:', todayAttendance);
+        
+        // If currently clocked in, don't allow another clock-in
         if (todayAttendance.clockInTimestamp && !todayAttendance.clockOutTimestamp) {
-          toast.error('Already clocked in today!');
+          toast.error('Already clocked in! Please clock out first.');
           setIsLoading(false);
           return;
         }
+        
+        // If clocked out, start a new session by updating the existing record
         if (todayAttendance.clockOutTimestamp) {
-          toast.error('Already clocked out for today!');
+          console.log('Previous session completed, starting new session by updating record...');
+          
+          const updateData: UpdateAttendanceData = {
+            clockInTimestamp: now.toISOString(),
+            clockOutTimestamp: undefined, // Clear clock-out to start new session
+            totalHoursComputed: 0, // Reset hours
+            shiftStatus: 'Working',
+          };
+          
+          // Update instead of create
+          const result = await attendanceService.updateAttendance(
+            Number(todayAttendance.attendanceId),
+            updateData
+          );
+          
+          console.log('✅ Session updated (new clock-in):', result);
+          toast.success('✅ New work session started!');
+          
+          setIsClockedIn(true);
+          setIsClockedOut(false);
+          setStartTime(now);
+          
+          await refreshAttendance();
           setIsLoading(false);
           return;
         }
       }
 
+      // No existing record, create a new one
       const data: CreateAttendanceData = {
         employeeId: employeeId,
         calendarDate: now.toISOString(),
@@ -117,16 +167,19 @@ export const useAttendance = (): UseAttendanceReturn => {
         totalHoursComputed: 0,
       };
 
-      await attendanceService.createAttendance(data);
+      console.log('📤 Sending clock in request (new record):', data);
+      const result = await attendanceService.createAttendance(data);
+      console.log('✅ Clock in result:', result);
       toast.success('✅ Clocked in successfully!');
-      
-      await refreshAttendance();
       
       setIsClockedIn(true);
       setIsClockedOut(false);
       setStartTime(now);
+      
+      await refreshAttendance();
     } catch (err: any) {
-      console.error('Clock in error:', err);
+      console.error('❌ Clock in error:', err);
+      console.error('Error response:', err.response?.data);
       const errorMsg = err.response?.data?.message || err.message || 'Failed to clock in';
       setError(errorMsg);
       toast.error(errorMsg);
@@ -172,11 +225,12 @@ export const useAttendance = (): UseAttendanceReturn => {
         shiftStatus: 'Working',
       };
 
-      await attendanceService.updateAttendance(
+      const result = await attendanceService.updateAttendance(
         Number(todayAttendance.attendanceId),
         data
       );
       
+      console.log('Clock out result:', result);
       toast.success(`✅ Clocked out! Total hours: ${totalHours.toFixed(2)}h`);
       
       await refreshAttendance();

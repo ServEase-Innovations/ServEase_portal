@@ -44,6 +44,14 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
   const { user } = useAuth();
   const tc = getThemeClasses(theme);
   
+  console.log('🔷 DashboardTab rendered');
+  console.log('Attendance prop:', attendance);
+  console.log('Attendance clockIn function:', typeof attendance.clockIn);
+  console.log('🔍 Button visibility check:');
+  console.log('  - isClockedIn:', attendance.isClockedIn);
+  console.log('  - isClockedOut:', attendance.isClockedOut);
+  console.log('  - todayAttendance:', attendance.todayAttendance);
+  
   const {
     todayAttendance,
     isLoading: attendanceLoading,
@@ -53,6 +61,9 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
     isClockedOut,
     totalHoursToday,
   } = attendance;
+  
+  console.log('  - workStatus will be checked after useState');
+
 
   const [isWorking, setIsWorking] = useState(false);
   const [workHours, setWorkHours] = useState(0);
@@ -62,6 +73,10 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
   const [startTime, setStartTime] = useState<moment.Moment | null>(null);
   const [totalWorkedToday, setTotalWorkedToday] = useState('0h 0m');
   const [workStatus, setWorkStatus] = useState<'working' | 'on-leave' | 'not-working'>('not-working');
+  
+  console.log('  - workStatus:', workStatus);
+  console.log('  - Should show Start Work button:', !isClockedIn && !isClockedOut && workStatus === 'not-working');
+  
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [leaveRequest, setLeaveRequest] = useState({
     type: 'Sick' as 'Sick' | 'Casual' | 'Earned' | 'Other',
@@ -76,17 +91,23 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
-  // Sync with attendance state
+  // Sync with attendance state - recalculate from DB timestamps on every mount/change
   useEffect(() => {
-    if (isClockedIn) {
+    // Clear any existing interval
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      setTimerInterval(null);
+    }
+
+    if (isClockedIn && todayAttendance?.clockInTimestamp) {
       setWorkStatus('working');
       setIsWorking(true);
       
-      if (todayAttendance?.clockInTimestamp) {
-        const start = moment(todayAttendance.clockInTimestamp);
-        setStartTime(start);
-        
-        // Calculate elapsed time using moment
+      const start = moment(todayAttendance.clockInTimestamp);
+      setStartTime(start);
+      
+      // Function to update timer from DB timestamp
+      const updateTimerFromDB = () => {
         const now = moment();
         const duration = moment.duration(now.diff(start));
         const hours = Math.floor(duration.asHours());
@@ -96,26 +117,15 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
         setWorkHours(hours);
         setWorkMinutes(minutes);
         setWorkSeconds(seconds);
-        
-        if (!timerInterval) {
-          const interval = setInterval(() => {
-            setWorkSeconds(prev => {
-              if (prev >= 59) {
-                setWorkMinutes(m => {
-                  if (m >= 59) {
-                    setWorkHours(h => h + 1);
-                    return 0;
-                  }
-                  return m + 1;
-                });
-                return 0;
-              }
-              return prev + 1;
-            });
-          }, 1000);
-          setTimerInterval(interval);
-        }
-      }
+      };
+      
+      // Initial calculation
+      updateTimerFromDB();
+      
+      // Update every second based on DB timestamp (not local state)
+      const interval = setInterval(updateTimerFromDB, 1000);
+      setTimerInterval(interval);
+      
     } else if (isClockedOut && todayAttendance) {
       setWorkStatus('not-working');
       setIsWorking(false);
@@ -128,39 +138,27 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
       setWorkMinutes(mins);
       setWorkSeconds(0);
       
-      if (timerInterval) {
-        clearInterval(timerInterval);
-        setTimerInterval(null);
+      if (todayAttendance.clockInTimestamp) {
+        setStartTime(moment(todayAttendance.clockInTimestamp));
       }
+    } else {
+      // Not clocked in yet
+      setWorkStatus('not-working');
+      setIsWorking(false);
+      setWorkHours(0);
+      setWorkMinutes(0);
+      setWorkSeconds(0);
+      setStartTime(null);
+      setTotalWorkedToday('0h 0m');
     }
-  }, [isClockedIn, isClockedOut, todayAttendance]);
 
-  useEffect(() => {
-    if (isClockedIn && !timerInterval) {
-      const interval = setInterval(() => {
-        setWorkSeconds(prev => {
-          if (prev >= 59) {
-            setWorkMinutes(m => {
-              if (m >= 59) {
-                setWorkHours(h => h + 1);
-                return 0;
-              }
-              return m + 1;
-            });
-            return 0;
-          }
-          return prev + 1;
-        });
-      }, 1000);
-      setTimerInterval(interval);
-    }
-    
+    // Cleanup on unmount or when dependencies change
     return () => {
       if (timerInterval) {
         clearInterval(timerInterval);
       }
     };
-  }, [isClockedIn]);
+  }, [isClockedIn, isClockedOut, todayAttendance?.clockInTimestamp, todayAttendance?.clockOutTimestamp]);
 
   useEffect(() => {
     const savedSessions = localStorage.getItem('workSessions');
@@ -184,17 +182,25 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
 
   // Handle Start Work - uses API with moment
   const handleStartWork = async () => {
+    console.log('🟢 handleStartWork called in DashboardTab');
+    console.log('Attendance loading:', attendanceLoading);
+    console.log('isClockedIn:', isClockedIn);
+    console.log('isClockedOut:', isClockedOut);
+    
     try {
       // Set start time using moment
       const now = moment();
       setStartTime(now);
       
+      console.log('📞 Calling clockIn from attendance hook...');
       await clockIn();
+      console.log('✅ clockIn completed');
+      
       setSuccessMessage(`Work started at ${now.format('hh:mm A')}`);
       setShowSuccessMessage(true);
       setTimeout(() => setShowSuccessMessage(false), 3000);
     } catch (error) {
-      console.error('Failed to start work:', error);
+      console.error('❌ Failed to start work:', error);
     }
   };
 
