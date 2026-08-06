@@ -107,13 +107,25 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
       const start = moment(todayAttendance.clockInTimestamp);
       setStartTime(start);
       
+      // Get previous accumulated hours (if this is a resumed session)
+      const previousHours = Number(todayAttendance.totalHoursComputed) || 0;
+      
       // Function to update timer from DB timestamp
       const updateTimerFromDB = () => {
         const now = moment();
-        const duration = moment.duration(now.diff(start));
-        const hours = Math.floor(duration.asHours());
-        const minutes = duration.minutes();
-        const seconds = duration.seconds();
+        const currentSessionDuration = moment.duration(now.diff(start));
+        
+        // Calculate current session time in hours
+        const currentSessionHours = currentSessionDuration.asHours();
+        
+        // Add previous accumulated hours to current session
+        const totalHours = previousHours + currentSessionHours;
+        
+        // Convert total hours to hours:minutes:seconds
+        const hours = Math.floor(totalHours);
+        const remainingMinutes = (totalHours - hours) * 60;
+        const minutes = Math.floor(remainingMinutes);
+        const seconds = Math.floor((remainingMinutes - minutes) * 60);
         
         setWorkHours(hours);
         setWorkMinutes(minutes);
@@ -159,7 +171,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
         clearInterval(timerInterval);
       }
     };
-  }, [isClockedIn, isClockedOut, todayAttendance?.clockInTimestamp, todayAttendance?.clockOutTimestamp]);
+  }, [isClockedIn, isClockedOut, todayAttendance?.clockInTimestamp, todayAttendance?.clockOutTimestamp, todayAttendance?.totalHoursComputed]);
 
   useEffect(() => {
     const savedSessions = localStorage.getItem('workSessions');
