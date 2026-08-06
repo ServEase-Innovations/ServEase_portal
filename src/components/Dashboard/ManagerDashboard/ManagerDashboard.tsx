@@ -7,6 +7,7 @@ import { useTheme } from './hooks/useTheme';
 import { useAttendance } from '../../../hooks/useAttendance';
 import { useAttendanceHandlers, formatTime } from '../../../hooks/useAttendanceHandlers';
 import { useLeaveHandlers, LeaveRequestData } from '../../../hooks/useLeaveHandlers';
+import { useAttendanceTimer } from '../../../hooks/useAttendanceTimer';
 import OverviewTab from './overview/OverviewTab';
 import MyTeamTab from './team/MyTeamTab';
 import ProjectTeamsTab from './team/ProjectTeamsTab';
@@ -59,13 +60,22 @@ const ManagerDashboard = () => {
     totalHoursToday,
   } = attendance;
   
-  // Local state for UI
-  const [workHours, setWorkHours] = useState(0);
-  const [workMinutes, setWorkMinutes] = useState(0);
-  const [workSeconds, setWorkSeconds] = useState(0);
-  const [timerInterval, setTimerInterval] = useState<ReturnType<typeof setInterval> | null>(null);
-  const [startTime, setStartTime] = useState<moment.Moment | null>(null);
-  const [workStatus, setWorkStatus] = useState<'working' | 'on-leave' | 'not-working'>('not-working');
+  // Use shared timer logic
+  const {
+    workHours,
+    workMinutes,
+    workSeconds,
+    startTime,
+    totalWorkedToday,
+    isWorking,
+    workStatus,
+    setWorkStatus,
+    timerInterval
+  } = useAttendanceTimer({
+    isClockedIn,
+    isClockedOut,
+    todayAttendance
+  });
   
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [leaveRequest, setLeaveRequest] = useState({
@@ -298,82 +308,6 @@ const ManagerDashboard = () => {
       }
     }
   }, []);
-
-  // Timer logic - sync with API attendance data
-  useEffect(() => {
-    // Clear any existing interval
-    if (timerInterval) {
-      clearInterval(timerInterval);
-      setTimerInterval(null);
-    }
-
-    if (isClockedIn && todayAttendance?.clockInTimestamp) {
-      setWorkStatus('working');
-      
-      const start = moment(todayAttendance.clockInTimestamp);
-      setStartTime(start);
-      
-      // Get previous accumulated hours (if this is a resumed session)
-      const previousHours = Number(todayAttendance.totalHoursComputed) || 0;
-      
-      // Function to update timer from DB timestamp
-      const updateTimerFromDB = () => {
-        const now = moment();
-        const currentSessionDuration = moment.duration(now.diff(start));
-        
-        // Calculate current session time in hours
-        const currentSessionHours = currentSessionDuration.asHours();
-        
-        // Add previous accumulated hours to current session
-        const totalHours = previousHours + currentSessionHours;
-        
-        // Convert total hours to hours:minutes:seconds
-        const hours = Math.floor(totalHours);
-        const remainingMinutes = (totalHours - hours) * 60;
-        const minutes = Math.floor(remainingMinutes);
-        const seconds = Math.floor((remainingMinutes - minutes) * 60);
-        
-        setWorkHours(hours);
-        setWorkMinutes(minutes);
-        setWorkSeconds(seconds);
-      };
-      
-      // Initial calculation
-      updateTimerFromDB();
-      
-      // Update every second based on DB timestamp
-      const interval = setInterval(updateTimerFromDB, 1000);
-      setTimerInterval(interval);
-      
-    } else if (isClockedOut && todayAttendance) {
-      setWorkStatus('not-working');
-      
-      const totalHrs = Number(todayAttendance.totalHoursComputed) || 0;
-      const hrs = Math.floor(totalHrs);
-      const mins = Math.round((totalHrs - hrs) * 60);
-      setWorkHours(hrs);
-      setWorkMinutes(mins);
-      setWorkSeconds(0);
-      
-      if (todayAttendance.clockInTimestamp) {
-        setStartTime(moment(todayAttendance.clockInTimestamp));
-      }
-    } else {
-      // Not clocked in yet
-      setWorkStatus('not-working');
-      setWorkHours(0);
-      setWorkMinutes(0);
-      setWorkSeconds(0);
-      setStartTime(null);
-    }
-
-    // Cleanup on unmount or when dependencies change
-    return () => {
-      if (timerInterval) {
-        clearInterval(timerInterval);
-      }
-    };
-  }, [isClockedIn, isClockedOut, todayAttendance?.clockInTimestamp, todayAttendance?.clockOutTimestamp, todayAttendance?.totalHoursComputed]);
 
   // Use shared attendance handlers
   const {
