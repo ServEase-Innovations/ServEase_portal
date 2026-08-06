@@ -35,17 +35,22 @@ const InfoCard: React.FC<InfoCardProps> = ({ title, subtitle, rows, tc }) => (
     <h3 className={`font-semibold ${tc.text} mb-2 sm:mb-4 text-base sm:text-lg`}>{title}</h3>
     {subtitle && <p className={`text-sm ${tc.textSecondary} mb-3 sm:mb-4`}>{subtitle}</p>}
     <div className="space-y-2 sm:space-y-3 text-sm">
-      {rows.map((row, idx) => (
-        <div 
-          key={idx} 
-          className={`flex justify-between items-center ${row.noBorder ? '' : `pb-2 ${tc.border} border-b`} ${row.topPadding ? 'pt-2' : ''}`}
-        >
-          <span className={row.labelClass || tc.textSecondary}>{row.label}</span>
-          <span className={`${row.bold ? 'font-bold' : 'font-medium'} ${row.valueClass || tc.text}`}>
-            {row.value}
-          </span>
-        </div>
-      ))}
+      {rows.map((row) => {
+        const borderClass = row.noBorder ? '' : `pb-2 ${tc.border} border-b`;
+        const paddingClass = row.topPadding ? 'pt-2' : '';
+        
+        return (
+          <div 
+            key={row.label} 
+            className={`flex justify-between items-center ${borderClass} ${paddingClass}`}
+          >
+            <span className={row.labelClass || tc.textSecondary}>{row.label}</span>
+            <span className={`${row.bold ? 'font-bold' : 'font-medium'} ${row.valueClass || tc.text}`}>
+              {row.value}
+            </span>
+          </div>
+        );
+      })}
     </div>
   </div>
 );
@@ -459,18 +464,6 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
     return [];
   };
 
-  const renderButton = (btn: ActionButton, index: number) => (
-    <button
-      key={index}
-      type="button"
-      onClick={btn.onClick}
-      disabled={btn.disabled}
-      className={`flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 border rounded-xl text-xs sm:text-sm font-medium transition-all ${btn.colorClass}`}
-    >
-      {btn.disabled && btn.loadingLabel ? btn.loadingLabel : btn.label}
-    </button>
-  );
-
   const stats = [
     { 
       label: "Today's Hours", 
@@ -511,7 +504,17 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
-          {getActionButtons().map(renderButton)}
+          {getActionButtons().map((btn, index) => (
+            <button
+              key={`action-${index}`}
+              type="button"
+              onClick={btn.onClick}
+              disabled={btn.disabled}
+              className={`flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 border rounded-xl text-xs sm:text-sm font-medium transition-all ${btn.colorClass}`}
+            >
+              {btn.disabled && btn.loadingLabel ? btn.loadingLabel : btn.label}
+            </button>
+          ))}
         </div>
       </div>
 

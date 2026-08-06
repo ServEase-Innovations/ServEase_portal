@@ -21,7 +21,8 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({ tc, attendanceR
   const attendanceMap = new Map();
   attendanceRecords.forEach(record => {
     if (!record.calendarDate) return;
-    const recordDate = new Date(typeof record.calendarDate === 'number' ? record.calendarDate : record.calendarDate);
+    // Date constructor handles both numbers and strings
+    const recordDate = new Date(record.calendarDate);
     if (recordDate.getMonth() === currentMonth && recordDate.getFullYear() === currentYear) {
       attendanceMap.set(recordDate.getDate(), record);
     }

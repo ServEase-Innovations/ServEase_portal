@@ -35,6 +35,53 @@ export const useAttendance = (): UseAttendanceReturn => {
 
   const employeeId = user?.id || '';
 
+  // Helper function to normalize timestamp to epoch milliseconds
+  const normalizeTimestamp = (timestamp: number | string | null | undefined): number | null => {
+    if (!timestamp) return null;
+    return typeof timestamp === 'number' 
+      ? timestamp 
+      : new Date(timestamp).getTime();
+  };
+
+  // Helper function to check if record is from today
+  const isTodayRecord = (record: Attendance): boolean => {
+    if (!record.calendarDate) return false;
+    
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+    
+    const recordDate = normalizeTimestamp(record.calendarDate);
+    if (!recordDate) return false;
+    
+    return recordDate >= todayStart.getTime() && recordDate <= todayEnd.getTime();
+  };
+
+  // Helper function to update attendance state from record
+  const updateStateFromRecord = (todayRecord: Attendance | null) => {
+    if (todayRecord) {
+      const hasClockIn = !!todayRecord.clockInTimestamp;
+      const hasClockOut = !!todayRecord.clockOutTimestamp;
+      
+      setIsClockedIn(hasClockIn && !hasClockOut);
+      setIsClockedOut(hasClockOut);
+      
+      const clockInValue = normalizeTimestamp(todayRecord.clockInTimestamp);
+      const clockOutValue = normalizeTimestamp(todayRecord.clockOutTimestamp);
+      
+      setStartTime(clockInValue ? new Date(clockInValue) : null);
+      setEndTime(clockOutValue ? new Date(clockOutValue) : null);
+      setTotalHoursToday(Number(todayRecord.totalHoursComputed) || 0);
+    } else {
+      setIsClockedIn(false);
+      setIsClockedOut(false);
+      setTotalHoursToday(0);
+      setStartTime(null);
+      setEndTime(null);
+    }
+  };
+
   const refreshAttendance = useCallback(async () => {
     if (!employeeId) return;
     
@@ -45,55 +92,9 @@ export const useAttendance = (): UseAttendanceReturn => {
       const records = await attendanceService.getAttendanceByEmployee(employeeId);
       setAttendanceRecords(records);
       
-      // Get today's record - compare using epoch timestamps
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      const todayEnd = new Date();
-      todayEnd.setHours(23, 59, 59, 999);
-      
-      const todayRecord = records.find(record => {
-        if (!record.calendarDate) return false;
-        
-        // calendarDate comes as epoch milliseconds from backend
-        const recordDate = typeof record.calendarDate === 'number' 
-          ? record.calendarDate 
-          : new Date(record.calendarDate).getTime();
-        
-        return recordDate >= todayStart.getTime() && recordDate <= todayEnd.getTime();
-      });
-      
+      const todayRecord = records.find(isTodayRecord);
       setTodayAttendance(todayRecord || null);
-      
-      if (todayRecord) {
-        // Check if clocked in (has clockIn but no clockOut)
-        const hasClockIn = !!todayRecord.clockInTimestamp;
-        const hasClockOut = !!todayRecord.clockOutTimestamp;
-        
-        setIsClockedIn(hasClockIn && !hasClockOut);
-        setIsClockedOut(hasClockOut);
-        
-        if (todayRecord.clockInTimestamp) {
-          // Handle both number (epoch) and string (ISO) formats
-          const clockInValue = typeof todayRecord.clockInTimestamp === 'number'
-            ? todayRecord.clockInTimestamp
-            : new Date(todayRecord.clockInTimestamp).getTime();
-          setStartTime(new Date(clockInValue));
-        }
-        if (todayRecord.clockOutTimestamp) {
-          const clockOutValue = typeof todayRecord.clockOutTimestamp === 'number'
-            ? todayRecord.clockOutTimestamp
-            : new Date(todayRecord.clockOutTimestamp).getTime();
-          setEndTime(new Date(clockOutValue));
-        }
-        
-        setTotalHoursToday(Number(todayRecord.totalHoursComputed) || 0);
-      } else {
-        setIsClockedIn(false);
-        setIsClockedOut(false);
-        setTotalHoursToday(0);
-        setStartTime(null);
-        setEndTime(null);
-      }
+      updateStateFromRecord(todayRecord || null);
     } catch (err: any) {
       console.error('Error fetching attendance:', err);
       const errorMsg = err.response?.status === 401 
@@ -101,7 +102,6 @@ export const useAttendance = (): UseAttendanceReturn => {
         : err.message || 'Failed to fetch attendance records';
       setError(errorMsg);
       
-      // Show toast for 401 errors
       if (err.response?.status === 401) {
         toast.error('Session expired. Please login again.');
       }

@@ -397,13 +397,6 @@ const ManagerDashboard = () => {
   const handleStopWork = async () => {
     console.log('🔴 Manager handleStopWork called');
     try {
-      const now = moment();
-      const start = startTime || moment(todayAttendance?.clockInTimestamp);
-      
-      const duration = moment.duration(now.diff(start));
-      const hours = Math.floor(duration.asHours());
-      const minutes = duration.minutes();
-      
       console.log('📞 Calling clockOut API...');
       await clockOut();
       console.log('✅ clockOut completed');
