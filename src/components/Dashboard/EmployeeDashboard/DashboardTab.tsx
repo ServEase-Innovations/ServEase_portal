@@ -57,6 +57,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
     isLoading: attendanceLoading,
     clockIn,
     clockOut,
+    resumeWork,
     isClockedIn,
     isClockedOut,
     totalHoursToday,
@@ -252,6 +253,23 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
     }
   };
 
+  const handleResumeWork = async () => {
+    console.log('🔄 handleResumeWork called in DashboardTab');
+    try {
+      const now = moment();
+      
+      console.log('📞 Calling resumeWork API...');
+      await resumeWork();
+      console.log('✅ resumeWork completed');
+      
+      setSuccessMessage(`Work resumed at ${now.format('hh:mm A')}`);
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+    } catch (error) {
+      console.error('❌ Failed to resume work:', error);
+    }
+  };
+
   const formatTime = (hours: number, minutes: number, seconds: number) => {
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   };
@@ -408,12 +426,11 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
           {isClockedOut && (
             <button
               type="button"
-              onClick={() => {
-                setWorkStatus('not-working');
-              }}
-              className="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl text-xs sm:text-sm font-medium hover:bg-amber-500/30 transition-all"
+              onClick={handleResumeWork}
+              disabled={attendanceLoading}
+              className="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs sm:text-sm font-medium hover:bg-emerald-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              🔄 Start New Session
+              {attendanceLoading ? '⏳ Resuming...' : '▶️ Resume Work'}
             </button>
           )}
           {workStatus === 'on-leave' && (
