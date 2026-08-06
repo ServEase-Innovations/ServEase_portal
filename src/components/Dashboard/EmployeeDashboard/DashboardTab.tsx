@@ -4,6 +4,9 @@ import { useAuth } from '../../../hooks/useAuth';
 import { getThemeClasses } from './themeUtils';
 import moment from 'moment';
 import LeaveModal from '../ManagerDashboard/leave/LeaveModal';
+import { InfoCard } from '../shared/InfoCard';
+import { StatusBadge, getStatusBadge } from '../shared/StatusBadge';
+import { ActionButtons, getActionButtonsForState } from '../shared/ActionButtons';
 import { 
   ClockIcon,
   CheckCircleIcon, 
@@ -12,48 +15,6 @@ import {
   PlayIcon,
   StopIcon
 } from '@heroicons/react/24/outline';
-
-type InfoRow = {
-  label: string;
-  value: string;
-  bold?: boolean;
-  noBorder?: boolean;
-  topPadding?: boolean;
-  valueClass?: string;
-  labelClass?: string;
-};
-
-type InfoCardProps = {
-  title: string;
-  subtitle?: string;
-  rows: InfoRow[];
-  tc: ReturnType<typeof getThemeClasses>;
-};
-
-const InfoCard: React.FC<InfoCardProps> = ({ title, subtitle, rows, tc }) => (
-  <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
-    <h3 className={`font-semibold ${tc.text} mb-2 sm:mb-4 text-base sm:text-lg`}>{title}</h3>
-    {subtitle && <p className={`text-sm ${tc.textSecondary} mb-3 sm:mb-4`}>{subtitle}</p>}
-    <div className="space-y-2 sm:space-y-3 text-sm">
-      {rows.map((row) => {
-        const borderClass = row.noBorder ? '' : `pb-2 ${tc.border} border-b`;
-        const paddingClass = row.topPadding ? 'pt-2' : '';
-        
-        return (
-          <div 
-            key={row.label} 
-            className={`flex justify-between items-center ${borderClass} ${paddingClass}`}
-          >
-            <span className={row.labelClass || tc.textSecondary}>{row.label}</span>
-            <span className={`${row.bold ? 'font-bold' : 'font-medium'} ${row.valueClass || tc.text}`}>
-              {row.value}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  </div>
-);
 
 
 interface DashboardTabProps {
@@ -385,18 +346,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
     setTimeout(() => setShowSuccessMessage(false), 3000);
   };
 
-  const getStatusBadge = () => {
-    if (isClockedIn) {
-      return { label: '🟢 Working', class: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' };
-    } else if (isClockedOut) {
-      return { label: '✅ Clocked Out', class: 'bg-blue-500/20 text-blue-400 border border-blue-500/30' };
-    } else if (workStatus === 'on-leave') {
-      return { label: '🔵 On Leave', class: 'bg-blue-500/20 text-blue-400 border border-blue-500/30' };
-    }
-    return { label: '⚪ Not Working', class: 'bg-gray-500/20 text-gray-400 border border-gray-500/30' };
-  };
-
-  const statusBadge = getStatusBadge();
+  const statusBadge = getStatusBadge(isClockedIn, isClockedOut, workStatus);
 
   const getTodayHoursDisplay = () => {
     if (isClockedIn) {
@@ -407,62 +357,18 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
     return totalWorkedToday || '0h 0m';
   };
 
-  // Action button configurations
-  type ActionButton = {
-    onClick: () => void;
-    disabled?: boolean;
-    colorClass: string;
-    label: string;
-    loadingLabel?: string;
-  };
-
-  const getActionButtons = (): ActionButton[] => {
-    if (!isClockedIn && !isClockedOut && workStatus === 'not-working') {
-      return [
-        {
-          onClick: handleStartWork,
-          disabled: attendanceLoading,
-          colorClass: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed',
-          label: '✅ Working Today',
-          loadingLabel: '⏳ Processing...'
-        },
-        {
-          onClick: () => setShowLeaveModal(true),
-          colorClass: 'bg-blue-500/20 text-blue-400 border-blue-500/30 hover:bg-blue-500/30',
-          label: '📋 On Leave'
-        }
-      ];
+  const actionButtons = getActionButtonsForState(
+    isClockedIn,
+    isClockedOut,
+    workStatus,
+    attendanceLoading,
+    {
+      handleStartWork,
+      handleStopWork,
+      handleResumeWork,
+      setShowLeaveModal
     }
-    if (isClockedIn) {
-      return [{
-        onClick: handleStopWork,
-        disabled: attendanceLoading,
-        colorClass: 'bg-rose-500/20 text-rose-400 border-rose-500/30 hover:bg-rose-500/30 disabled:opacity-50 disabled:cursor-not-allowed',
-        label: '⏹️ Stop Working',
-        loadingLabel: '⏳ Processing...'
-      }];
-    }
-    if (isClockedOut) {
-      return [{
-        onClick: handleResumeWork,
-        disabled: attendanceLoading,
-        colorClass: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed',
-        label: '▶️ Resume Work',
-        loadingLabel: '⏳ Resuming...'
-      }];
-    }
-    if (workStatus === 'on-leave') {
-      return [{
-        onClick: () => {
-          setWorkStatus('not-working');
-          setShowLeaveModal(true);
-        },
-        colorClass: 'bg-amber-500/20 text-amber-400 border-amber-500/30 hover:bg-amber-500/30',
-        label: '✏️ Modify Leave'
-      }];
-    }
-    return [];
-  };
+  );
 
   const stats = [
     { 
@@ -492,9 +398,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
 
       <div className={`${tc.bgCard} p-3 sm:p-4 rounded-2xl ${tc.border} ${tc.shadow} mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0`}>
         <div className="flex items-center gap-3 sm:gap-4">
-          <span className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium ${statusBadge.class}`}>
-            {statusBadge.label}
-          </span>
+          <StatusBadge isClockedIn={isClockedIn} isClockedOut={isClockedOut} workStatus={workStatus} />
           <span className={`text-xs sm:text-sm ${tc.textSecondary}`}>
             {isClockedIn && startTime && `Started at: ${startTime.format('hh:mm A')}`}
             {isClockedIn && !startTime && todayAttendance?.clockInTimestamp && `Started at: ${moment(todayAttendance.clockInTimestamp).format('hh:mm A')}`}
@@ -504,17 +408,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
-          {getActionButtons().map((btn, index) => (
-            <button
-              key={`action-${index}`}
-              type="button"
-              onClick={btn.onClick}
-              disabled={btn.disabled}
-              className={`flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 border rounded-xl text-xs sm:text-sm font-medium transition-all ${btn.colorClass}`}
-            >
-              {btn.disabled && btn.loadingLabel ? btn.loadingLabel : btn.label}
-            </button>
-          ))}
+          <ActionButtons buttons={actionButtons} />
         </div>
       </div>
 
