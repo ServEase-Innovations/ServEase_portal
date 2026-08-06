@@ -15,6 +15,44 @@ import LeaveModal from '../leave/LeaveModal';
 import AttendanceCalendar from './AttendanceCalendar';
 // import AttendanceCalendar from '../attendance/AttendanceCalendar';
 
+type InfoRow = {
+  label: string;
+  value: string;
+  bold?: boolean;
+  noBorder?: boolean;
+  topPadding?: boolean;
+  valueClass?: string;
+  labelClass?: string;
+};
+
+type InfoCardProps = {
+  title: string;
+  subtitle?: string;
+  rows: InfoRow[];
+  tc: ThemeClasses;
+};
+
+const InfoCard: React.FC<InfoCardProps> = ({ title, subtitle, rows, tc }) => (
+  <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
+    <h3 className={`font-semibold ${tc.text} mb-2 sm:mb-4 text-base sm:text-lg`}>{title}</h3>
+    {subtitle && <p className={`text-sm ${tc.textSecondary} mb-3 sm:mb-4`}>{subtitle}</p>}
+    <div className="space-y-2 sm:space-y-3 text-sm">
+      {rows.map((row, idx) => (
+        <div 
+          key={idx} 
+          className={`flex justify-between items-center ${row.noBorder ? '' : `pb-2 ${tc.border} border-b`} ${row.topPadding ? 'pt-2' : ''}`}
+        >
+          <span className={row.labelClass || tc.textSecondary}>{row.label}</span>
+          <span className={`${row.bold ? 'font-bold' : 'font-medium'} ${row.valueClass || tc.text}`}>
+            {row.value}
+          </span>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+
 interface OverviewTabProps {
   tc: ThemeClasses;
   showSuccessMessage: boolean;
@@ -129,6 +167,72 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
 
   const statusBadge = getStatusBadge();
 
+  // Action button configurations
+  type ActionButton = {
+    onClick: () => void;
+    disabled?: boolean;
+    colorClass: string;
+    label: string;
+    loadingLabel?: string;
+  };
+
+  const getActionButtons = (): ActionButton[] => {
+    if (!isClockedIn && !isClockedOut && workStatus === 'not-working') {
+      return [
+        {
+          onClick: handleStartWork,
+          disabled: attendanceLoading,
+          colorClass: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed',
+          label: '✅ Working Today',
+          loadingLabel: '⏳ Processing...'
+        },
+        {
+          onClick: () => setShowLeaveModal(true),
+          colorClass: 'bg-blue-500/20 text-blue-400 border-blue-500/30 hover:bg-blue-500/30',
+          label: '📋 On Leave'
+        }
+      ];
+    }
+    if (isClockedIn) {
+      return [{
+        onClick: handleStopWork,
+        disabled: attendanceLoading,
+        colorClass: 'bg-rose-500/20 text-rose-400 border-rose-500/30 hover:bg-rose-500/30 disabled:opacity-50 disabled:cursor-not-allowed',
+        label: '⏹️ Stop Working',
+        loadingLabel: '⏳ Processing...'
+      }];
+    }
+    if (isClockedOut) {
+      return [{
+        onClick: handleResumeWork,
+        disabled: attendanceLoading,
+        colorClass: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed',
+        label: '▶️ Resume Work',
+        loadingLabel: '⏳ Resuming...'
+      }];
+    }
+    if (workStatus === 'on-leave') {
+      return [{
+        onClick: () => setShowLeaveModal(true),
+        colorClass: 'bg-amber-500/20 text-amber-400 border-amber-500/30 hover:bg-amber-500/30',
+        label: '✏️ Modify Leave'
+      }];
+    }
+    return [];
+  };
+
+  const renderButton = (btn: ActionButton, index: number) => (
+    <button
+      key={index}
+      type="button"
+      onClick={btn.onClick}
+      disabled={btn.disabled}
+      className={`flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 border rounded-xl text-xs sm:text-sm font-medium transition-all ${btn.colorClass}`}
+    >
+      {btn.disabled && btn.loadingLabel ? btn.loadingLabel : btn.label}
+    </button>
+  );
+
   return (
     <>
       {showSuccessMessage && (
@@ -151,54 +255,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
-          {!isClockedIn && !isClockedOut && workStatus === 'not-working' && (
-            <>
-              <button
-                type="button"
-                onClick={handleStartWork}
-                disabled={attendanceLoading}
-                className="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs sm:text-sm font-medium hover:bg-emerald-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {attendanceLoading ? '⏳ Processing...' : '✅ Working Today'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowLeaveModal(true)}
-                className="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-xl text-xs sm:text-sm font-medium hover:bg-blue-500/30 transition-all"
-              >
-                📋 On Leave
-              </button>
-            </>
-          )}
-          {isClockedIn && (
-            <button
-              type="button"
-              onClick={handleStopWork}
-              disabled={attendanceLoading}
-              className="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl text-xs sm:text-sm font-medium hover:bg-rose-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {attendanceLoading ? '⏳ Processing...' : '⏹️ Stop Working'}
-            </button>
-          )}
-          {isClockedOut && (
-            <button
-              type="button"
-              onClick={handleResumeWork}
-              disabled={attendanceLoading}
-              className="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs sm:text-sm font-medium hover:bg-emerald-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {attendanceLoading ? '⏳ Resuming...' : '▶️ Resume Work'}
-            </button>
-          )}
-          {workStatus === 'on-leave' && (
-            <button
-              type="button"
-              onClick={() => setShowLeaveModal(true)}
-              className="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl text-xs sm:text-sm font-medium hover:bg-amber-500/30 transition-all"
-            >
-              ✏️ Modify Leave
-            </button>
-          )}
+          {getActionButtons().map(renderButton)}
         </div>
       </div>
 
@@ -256,57 +313,40 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
           </div>
         </div>
 
-        <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
-          <h3 className={`font-semibold ${tc.text} mb-2 sm:mb-4 text-base sm:text-lg`}>Team & Project</h3>
-          <p className={`text-sm ${tc.textSecondary} mb-3 sm:mb-4`}>Your current assignment</p>
-          <div className="space-y-2 sm:space-y-3 text-sm">
-            <div className={`flex justify-between items-center pb-2 ${tc.border} border-b`}>
-              <span className={tc.textSecondary}>Team</span>
-              <span className={`font-medium ${tc.text}`}>Platform</span>
-            </div>
-            <div className={`flex justify-between items-center pb-2 ${tc.border} border-b`}>
-              <span className={tc.textSecondary}>Manager</span>
-              <span className={`font-medium ${tc.text}`}>Priya Nair</span>
-            </div>
-            <div className={`flex justify-between items-center pb-2 ${tc.border} border-b`}>
-              <span className={tc.textSecondary}>Project</span>
-              <span className={`font-medium ${tc.text}`}>Atlas Core</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className={tc.textSecondary}>Squad size</span>
-              <span className={`font-medium ${tc.text}`}>14 people</span>
-            </div>
-          </div>
-        </div>
+        <InfoCard
+          title="Team & Project"
+          subtitle="Your current assignment"
+          rows={[
+            { label: 'Team', value: 'Platform' },
+            { label: 'Manager', value: 'Priya Nair' },
+            { label: 'Project', value: 'Atlas Core' },
+            { label: 'Squad size', value: '14 people', noBorder: true }
+          ]}
+          tc={tc}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         <AttendanceCalendar tc={tc} attendanceRecords={attendanceRecords} />
-        <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
-          <h3 className={`font-semibold ${tc.text} mb-2 sm:mb-4 text-base sm:text-lg`}>Monthly Summary</h3>
-          <div className="space-y-2 sm:space-y-3">
-            <div className={`flex justify-between items-center pb-2 ${tc.border} border-b`}>
-              <span className={tc.textSecondary}>Present</span>
-              <span className={`font-bold ${tc.text}`}>{monthlyStats.presentDays} days</span>
-            </div>
-            <div className={`flex justify-between items-center pb-2 ${tc.border} border-b`}>
-              <span className={tc.textSecondary}>WFH</span>
-              <span className={`font-bold ${tc.text}`}>{monthlyStats.wfhDays} days</span>
-            </div>
-            <div className={`flex justify-between items-center pb-2 ${tc.border} border-b`}>
-              <span className={tc.textSecondary}>Half-Day</span>
-              <span className={`font-bold ${tc.text}`}>{monthlyStats.halfDays} days</span>
-            </div>
-            <div className={`flex justify-between items-center pb-2 ${tc.border} border-b`}>
-              <span className={tc.textSecondary}>Leave</span>
-              <span className={`font-bold ${tc.text}`}>{monthlyStats.leaveDays} days</span>
-            </div>
-            <div className="flex justify-between items-center pt-2">
-              <span className={`${tc.textSecondary} font-medium`}>Total Hours</span>
-              <span className="font-bold text-indigo-400">{monthlyStats.totalHours.toFixed(1)} hours</span>
-            </div>
-          </div>
-        </div>
+        <InfoCard
+          title="Monthly Summary"
+          rows={[
+            { label: 'Present', value: `${monthlyStats.presentDays} days`, bold: true },
+            { label: 'WFH', value: `${monthlyStats.wfhDays} days`, bold: true },
+            { label: 'Half-Day', value: `${monthlyStats.halfDays} days`, bold: true },
+            { label: 'Leave', value: `${monthlyStats.leaveDays} days`, bold: true },
+            { 
+              label: 'Total Hours', 
+              value: `${monthlyStats.totalHours.toFixed(1)} hours`, 
+              bold: true, 
+              noBorder: true, 
+              topPadding: true,
+              valueClass: 'text-indigo-400',
+              labelClass: 'font-medium'
+            }
+          ]}
+          tc={tc}
+        />
       </div>
     </>
   );
