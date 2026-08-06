@@ -96,7 +96,15 @@ export const useAttendance = (): UseAttendanceReturn => {
       }
     } catch (err: any) {
       console.error('Error fetching attendance:', err);
-      setError(err.message || 'Failed to fetch attendance records');
+      const errorMsg = err.response?.status === 401 
+        ? 'Authentication required. Please login again.'
+        : err.message || 'Failed to fetch attendance records';
+      setError(errorMsg);
+      
+      // Show toast for 401 errors
+      if (err.response?.status === 401) {
+        toast.error('Session expired. Please login again.');
+      }
     } finally {
       setIsLoading(false);
     }

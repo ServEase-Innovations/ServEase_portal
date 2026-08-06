@@ -32,13 +32,19 @@ api.interceptors.response.use(
     console.log('🔴 API Error:', error.response?.status, error.response?.data);
     
     if (error.response?.status === 401) {
+      console.error('⚠️ Authentication failed. Token may be invalid or expired.');
+      console.error('Current token:', localStorage.getItem('servease_token') ? 'EXISTS' : 'MISSING');
+      
       // Only redirect to login if it's an auth-related endpoint
-      // Don't redirect on attendance errors
+      // Don't redirect on attendance errors - let the component handle it
       const url = error.config?.url || '';
       if (url.includes('/auth/') || url.includes('/employees/profile')) {
+        console.log('🔄 Redirecting to login...');
         localStorage.removeItem('servease_token');
         localStorage.removeItem('servease_user');
         window.location.href = '/login';
+      } else {
+        console.warn('⚠️ 401 on attendance endpoint - user needs to login');
       }
     }
     return Promise.reject(error);
