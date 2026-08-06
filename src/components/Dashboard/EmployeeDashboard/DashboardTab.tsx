@@ -100,7 +100,8 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
     handleStopWork,
     handleResumeWork,
     showSuccessMessage,
-    successMessage
+    successMessage,
+    showSuccess
   } = useAttendanceHandlers({
     clockIn,
     clockOut,
@@ -252,9 +253,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
       imagePreview: null,
     });
     
-    setSuccessMessage(`Leave request submitted for ${fromDate.format('MMM D')} - ${toDate.format('MMM D, YYYY')}`);
-    setShowSuccessMessage(true);
-    setTimeout(() => setShowSuccessMessage(false), 3000);
+    showSuccess(`Leave request submitted for ${fromDate.format('MMM D')} - ${toDate.format('MMM D, YYYY')}`);
   };
 
   const statusBadge = getStatusBadge(isClockedIn, isClockedOut, workStatus);

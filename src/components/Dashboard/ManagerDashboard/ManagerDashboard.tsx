@@ -66,8 +66,6 @@ const ManagerDashboard = () => {
   const [timerInterval, setTimerInterval] = useState<ReturnType<typeof setInterval> | null>(null);
   const [startTime, setStartTime] = useState<moment.Moment | null>(null);
   const [workStatus, setWorkStatus] = useState<'working' | 'on-leave' | 'not-working'>('not-working');
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
   
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [leaveRequest, setLeaveRequest] = useState({
@@ -383,7 +381,8 @@ const ManagerDashboard = () => {
     handleStopWork,
     handleResumeWork,
     showSuccessMessage,
-    successMessage
+    successMessage,
+    showSuccess
   } = useAttendanceHandlers({
     clockIn,
     clockOut,
@@ -436,9 +435,7 @@ const ManagerDashboard = () => {
       imagePreview: null,
     });
     
-    setSuccessMessage(`Leave request submitted for ${fromDate.format('MMM D')} - ${toDate.format('MMM D, YYYY')}`);
-    setShowSuccessMessage(true);
-    setTimeout(() => setShowSuccessMessage(false), 3000);
+    showSuccess(`Leave request submitted for ${fromDate.format('MMM D')} - ${toDate.format('MMM D, YYYY')}`);
   };
 
   // Task Functions
