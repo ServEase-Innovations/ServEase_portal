@@ -85,18 +85,22 @@ export const attendanceService = {
 
   // Get attendance for a specific employee
   getAttendanceByEmployee: async (employeeId: string): Promise<Attendance[]> => {
-    const allAttendance = await attendanceService.getAttendance();
-    return allAttendance.filter(record => record.employeeId === employeeId);
+    const response = await api.get(`/attendance/employee/${employeeId}`);
+    return response.data;
   },
 
   // Get today's attendance for an employee
   getTodayAttendance: async (employeeId: string): Promise<Attendance | null> => {
-    const allAttendance = await attendanceService.getAttendance();
-    const today = new Date().toISOString().split('T')[0];
-    const todayRecord = allAttendance.find(
-      record => record.employeeId === employeeId && 
-      record.calendarDate?.split('T')[0] === today
-    );
-    return todayRecord || null;
+    try {
+      const response = await api.get(`/attendance/employee/${employeeId}/today`);
+      return response.data;
+    } catch (error: any) {
+      // If 404, no record found for today
+      if (error.response?.status === 404) {
+        return null;
+      }
+      // For other errors, rethrow
+      throw error;
+    }
   }
 };
