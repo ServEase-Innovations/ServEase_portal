@@ -55,8 +55,6 @@ const ManagerDashboard = () => {
     isClockedIn,
     isClockedOut,
     totalHoursToday,
-    startTime: apiStartTime,
-    endTime: apiEndTime,
   } = attendance;
   
   // Local state for UI
