@@ -94,7 +94,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
     return { presentDays, wfhDays, halfDays, leaveDays, totalHours };
   };
   
-  const stats = calculateMonthlyStats();
+  const monthlyStats = calculateMonthlyStats();
   
   // Calculate today's progress percentage (assuming 8 hour workday)
   const todayProgressPercent = Math.min((workHours * 3600 + workMinutes * 60 + workSeconds) / (8 * 3600) * 100, 100);
@@ -108,7 +108,8 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
   
   const firstClockIn = todayAttendance?.clockInTimestamp ? formatTime(todayAttendance.clockInTimestamp) : '--:--';
   const lastClockOut = todayAttendance?.clockOutTimestamp ? formatTime(todayAttendance.clockOutTimestamp) : '--:--';
-  const stats = [
+  
+  const statsCards = [
     { label: 'Team Size', value: '4', icon: UsersIcon, subtitle: '2 on leave today' },
     { label: 'Open Tasks', value: '5', icon: ClipboardDocumentCheckIcon, subtitle: '3 blocked' },
     { label: 'Attendance', value: '92%', icon: UserGroupIcon, subtitle: '↑ 4% vs last week' },
@@ -227,7 +228,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
       />
 
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 mb-6 sm:mb-8">
-        {stats.map((stat, index) => (
+        {statsCards.map((stat, index) => (
           <StatsCard key={index} stat={stat} tc={tc} isClockedIn={isClockedIn} />
         ))}
       </div>
@@ -236,7 +237,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
         <div className={`lg:col-span-2 ${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
           <h3 className={`font-semibold ${tc.text} mb-2 sm:mb-4 text-base sm:text-lg`}>Today's Working Progress</h3>
           <p className={`text-sm ${tc.textSecondary} mb-3 sm:mb-4`}>
-            {stats.totalHours.toFixed(1)}h logged this month - {stats.presentDays} present days
+            {monthlyStats.totalHours.toFixed(1)}h logged this month - {monthlyStats.presentDays} present days
           </p>
           <div className="flex items-center gap-4 sm:gap-8">
             <div className="flex-1">
@@ -286,23 +287,23 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
           <div className="space-y-2 sm:space-y-3">
             <div className={`flex justify-between items-center pb-2 ${tc.border} border-b`}>
               <span className={tc.textSecondary}>Present</span>
-              <span className={`font-bold ${tc.text}`}>{stats.presentDays} days</span>
+              <span className={`font-bold ${tc.text}`}>{monthlyStats.presentDays} days</span>
             </div>
             <div className={`flex justify-between items-center pb-2 ${tc.border} border-b`}>
               <span className={tc.textSecondary}>WFH</span>
-              <span className={`font-bold ${tc.text}`}>{stats.wfhDays} days</span>
+              <span className={`font-bold ${tc.text}`}>{monthlyStats.wfhDays} days</span>
             </div>
             <div className={`flex justify-between items-center pb-2 ${tc.border} border-b`}>
               <span className={tc.textSecondary}>Half-Day</span>
-              <span className={`font-bold ${tc.text}`}>{stats.halfDays} days</span>
+              <span className={`font-bold ${tc.text}`}>{monthlyStats.halfDays} days</span>
             </div>
             <div className={`flex justify-between items-center pb-2 ${tc.border} border-b`}>
               <span className={tc.textSecondary}>Leave</span>
-              <span className={`font-bold ${tc.text}`}>{stats.leaveDays} days</span>
+              <span className={`font-bold ${tc.text}`}>{monthlyStats.leaveDays} days</span>
             </div>
             <div className="flex justify-between items-center pt-2">
               <span className={`${tc.textSecondary} font-medium`}>Total Hours</span>
-              <span className="font-bold text-indigo-400">{stats.totalHours.toFixed(1)} hours</span>
+              <span className="font-bold text-indigo-400">{monthlyStats.totalHours.toFixed(1)} hours</span>
             </div>
           </div>
         </div>
