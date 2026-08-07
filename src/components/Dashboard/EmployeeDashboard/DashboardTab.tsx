@@ -178,6 +178,12 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
       const currentSessionHours = workHours + (workMinutes / 60) + (workSeconds / 3600);
       const totalHours = previousSessionsHours + currentSessionHours;
       
+      console.log('📊 getTodayHoursDisplay WHILE WORKING:');
+      console.log('   - previousSessionsHours:', previousSessionsHours);
+      console.log('   - currentSessionHours:', currentSessionHours);
+      console.log('   - totalHours:', totalHours);
+      console.log('   - workHours:', workHours, 'workMinutes:', workMinutes, 'workSeconds:', workSeconds);
+      
       const hrs = Math.floor(totalHours);
       const remainingMinutes = (totalHours - hrs) * 60;
       const mins = Math.floor(remainingMinutes);

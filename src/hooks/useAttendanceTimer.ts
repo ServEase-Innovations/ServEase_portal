@@ -52,6 +52,9 @@ export const useAttendanceTimer = ({
       
       // Get previous accumulated hours from completed sessions
       const previousHours = Number(todayAttendance.totalHoursComputed) || 0;
+      console.log('🟢 useAttendanceTimer: Setting previousSessionsHours =', previousHours);
+      console.log('   - todayAttendance.totalHoursComputed:', todayAttendance.totalHoursComputed);
+      console.log('   - todayAttendance:', todayAttendance);
       setPreviousSessionsHours(previousHours); // Store for display
       
       // Function to update timer - shows CURRENT SESSION time only
