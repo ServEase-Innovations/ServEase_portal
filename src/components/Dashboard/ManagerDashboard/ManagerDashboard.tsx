@@ -67,7 +67,8 @@ const ManagerDashboard = () => {
     workSeconds,
     startTime,
     workStatus,
-    setWorkStatus
+    setWorkStatus,
+    previousSessionsHours, // Get previous sessions hours
   } = useAttendanceTimer({
     isClockedIn,
     isClockedOut,
@@ -825,6 +826,7 @@ const ManagerDashboard = () => {
             handleLeaveImageUpload={handleLeaveImageUpload}
             attendanceRecords={attendance.attendanceRecords}
             todayAttendance={todayAttendance}
+            previousSessionsHours={previousSessionsHours}
           />
         );
       case 'my-team':

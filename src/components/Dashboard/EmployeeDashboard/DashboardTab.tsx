@@ -78,7 +78,8 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
     startTime,
     totalWorkedToday,
     workStatus,
-    setWorkStatus
+    setWorkStatus,
+    previousSessionsHours, // Get previous sessions hours
   } = useAttendanceTimer({
     isClockedIn,
     isClockedOut,
@@ -173,7 +174,16 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
 
   const getTodayHoursDisplay = () => {
     if (isClockedIn) {
-      return formatTime(workHours, workMinutes, workSeconds);
+      // When working: Show TOTAL (previous sessions + current session)
+      const currentSessionHours = workHours + (workMinutes / 60) + (workSeconds / 3600);
+      const totalHours = previousSessionsHours + currentSessionHours;
+      
+      const hrs = Math.floor(totalHours);
+      const remainingMinutes = (totalHours - hrs) * 60;
+      const mins = Math.floor(remainingMinutes);
+      const secs = Math.floor((remainingMinutes - mins) * 60);
+      
+      return formatTime(hrs, mins, secs);
     } else if (isClockedOut) {
       return `${Math.floor(totalHoursToday)}h ${Math.round((totalHoursToday - Math.floor(totalHoursToday)) * 60)}m`;
     }

@@ -50,6 +50,7 @@ interface OverviewTabProps {
   handleLeaveImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   attendanceRecords?: any[];
   todayAttendance?: any;
+  previousSessionsHours?: number;
 }
 
 const OverviewTab: React.FC<OverviewTabProps> = ({
@@ -76,6 +77,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
   handleLeaveImageUpload,
   attendanceRecords = [],
   todayAttendance,
+  previousSessionsHours = 0,
 }) => {
   // Calculate monthly stats from actual attendance records
   const calculateMonthlyStats = () => {

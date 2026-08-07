@@ -21,6 +21,7 @@ export const useAttendanceTimer = ({
   const [totalWorkedToday, setTotalWorkedToday] = useState('0h 0m');
   const [isWorking, setIsWorking] = useState(false);
   const [workStatus, setWorkStatus] = useState<'working' | 'on-leave' | 'not-working'>('not-working');
+  const [previousSessionsHours, setPreviousSessionsHours] = useState(0); // NEW: Track previous sessions
 
   useEffect(() => {
     // Clear any existing interval
@@ -36,23 +37,21 @@ export const useAttendanceTimer = ({
       const start = moment(todayAttendance.clockInTimestamp);
       setStartTime(start);
       
-      // Get previous accumulated hours (if this is a resumed session)
+      // Get previous accumulated hours from completed sessions
       const previousHours = Number(todayAttendance.totalHoursComputed) || 0;
+      setPreviousSessionsHours(previousHours); // Store for display
       
-      // Function to update timer from DB timestamp
+      // Function to update timer - shows CURRENT SESSION time only
       const updateTimerFromDB = () => {
         const now = moment();
         const currentSessionDuration = moment.duration(now.diff(start));
         
-        // Calculate current session time in hours
+        // Calculate ONLY current session time (not including previous)
         const currentSessionHours = currentSessionDuration.asHours();
         
-        // Add previous accumulated hours to current session
-        const totalHours = previousHours + currentSessionHours;
-        
-        // Convert total hours to hours:minutes:seconds
-        const hours = Math.floor(totalHours);
-        const remainingMinutes = (totalHours - hours) * 60;
+        // Convert current session hours to hours:minutes:seconds
+        const hours = Math.floor(currentSessionHours);
+        const remainingMinutes = (currentSessionHours - hours) * 60;
         const minutes = Math.floor(remainingMinutes);
         const seconds = Math.floor((remainingMinutes - minutes) * 60);
         
@@ -79,6 +78,7 @@ export const useAttendanceTimer = ({
       setWorkHours(hrs);
       setWorkMinutes(mins);
       setWorkSeconds(0);
+      setPreviousSessionsHours(totalHrs); // Set previous hours for display
       
       if (todayAttendance.clockInTimestamp) {
         setStartTime(moment(todayAttendance.clockInTimestamp));
@@ -92,6 +92,7 @@ export const useAttendanceTimer = ({
       setWorkSeconds(0);
       setStartTime(null);
       setTotalWorkedToday('0h 0m');
+      setPreviousSessionsHours(0); // Reset previous hours
     }
 
     // Cleanup on unmount or when dependencies change
@@ -111,6 +112,7 @@ export const useAttendanceTimer = ({
     isWorking,
     workStatus,
     setWorkStatus,
-    timerInterval
+    timerInterval,
+    previousSessionsHours, // NEW: Return previous sessions hours
   };
 };
