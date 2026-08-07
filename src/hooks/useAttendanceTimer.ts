@@ -30,7 +30,20 @@ export const useAttendanceTimer = ({
       setTimerInterval(null);
     }
 
-    if (isClockedIn && todayAttendance?.clockInTimestamp) {
+    // Wait for valid attendance data before calculating
+    if (!todayAttendance) {
+      setWorkStatus('not-working');
+      setIsWorking(false);
+      setWorkHours(0);
+      setWorkMinutes(0);
+      setWorkSeconds(0);
+      setStartTime(null);
+      setTotalWorkedToday('0h 0m');
+      setPreviousSessionsHours(0);
+      return;
+    }
+
+    if (isClockedIn && todayAttendance.clockInTimestamp) {
       setWorkStatus('working');
       setIsWorking(true);
       
@@ -101,7 +114,7 @@ export const useAttendanceTimer = ({
         clearInterval(timerInterval);
       }
     };
-  }, [isClockedIn, isClockedOut, todayAttendance?.clockInTimestamp, todayAttendance?.clockOutTimestamp, todayAttendance?.totalHoursComputed]);
+  }, [isClockedIn, isClockedOut, todayAttendance?.attendanceId, todayAttendance?.clockInTimestamp, todayAttendance?.clockOutTimestamp, todayAttendance?.totalHoursComputed]);
 
   return {
     workHours,

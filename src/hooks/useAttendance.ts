@@ -243,14 +243,16 @@ export const useAttendance = (): UseAttendanceReturn => {
       );
       
       console.log('✅ Work resumed:', result);
-      toast.success(`🔄 Work resumed! Previous hours: ${previousHours.toFixed(2)}h`);
+      toast.success(`🔄 Work resumed!`);
       
+      // Wait for refresh to complete before updating local state
+      await refreshAttendance();
+      
+      // Now set local state after refresh
       setIsClockedIn(true);
       setIsClockedOut(false);
       setStartTime(now); // Set new start time for timer
       setEndTime(null); // Clear end time since we're resuming
-      
-      await refreshAttendance();
     } catch (err: any) {
       console.error('❌ Resume work error:', err);
       console.error('Error response:', err.response?.data);
