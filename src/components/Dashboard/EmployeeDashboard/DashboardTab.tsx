@@ -8,7 +8,7 @@ import { useAttendanceTimer } from '../../../hooks/useAttendanceTimer';
 import moment from 'moment';
 import LeaveModal from '../ManagerDashboard/leave/LeaveModal';
 import { InfoCard } from '../shared/InfoCard';
-import { StatusBadge, getStatusBadge } from '../shared/StatusBadge';
+import { StatusBadge } from '../shared/StatusBadge';
 import { ActionButtons, getActionButtonsForState } from '../shared/ActionButtons';
 import { 
   ClockIcon,

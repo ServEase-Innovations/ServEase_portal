@@ -14,7 +14,7 @@ import TimerControls from './TimerControls';
 import LeaveModal from '../leave/LeaveModal';
 import AttendanceCalendar from './AttendanceCalendar';
 import { InfoCard } from '../../shared/InfoCard';
-import { StatusBadge, getStatusBadge } from '../../shared/StatusBadge';
+import { StatusBadge } from '../../shared/StatusBadge';
 import { ActionButtons, getActionButtonsForState } from '../../shared/ActionButtons';
 // import AttendanceCalendar from '../attendance/AttendanceCalendar';
 

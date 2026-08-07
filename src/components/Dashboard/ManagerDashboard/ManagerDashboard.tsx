@@ -23,7 +23,7 @@ import LeaveTab from './leave/LeaveTab';
 import PayslipsTab from './payslips/PayslipsTab';
 import { 
   TeamMember, Task, LeaveRequest, ProjectTeam, Message, 
-  WorkSession, TaskHistory, PerformanceData 
+  TaskHistory, PerformanceData 
 } from './types';
 import moment from 'moment';
 
