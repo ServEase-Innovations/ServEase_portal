@@ -7,9 +7,9 @@ module.exports = (env, argv) => {
   
   // Determine which .env file to use based on ENV_MODE
   let envFile = '.env.local'; // default to local
-  if (env && env.ENV_MODE === 'dev') {
+  if (env?.ENV_MODE === 'dev') {
     envFile = '.env.development';
-  } else if (env && env.ENV_MODE === 'prod') {
+  } else if (env?.ENV_MODE === 'prod') {
     envFile = '.env.production';
   }
 
