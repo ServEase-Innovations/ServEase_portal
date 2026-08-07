@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../hooks/useAuth';
 import { getThemeClasses } from './themeUtils';
-import { useAttendanceHandlers, formatTime } from '../../../hooks/useAttendanceHandlers';
+import { useAttendanceHandlers } from '../../../hooks/useAttendanceHandlers';
+import { formatTime, getTodayHoursDisplay as calculateTodayHours } from '../../../utils/timeCalculations';
 import { useLeaveHandlers } from '../../../hooks/useLeaveHandlers';
 import { useAttendanceTimer } from '../../../hooks/useAttendanceTimer';
 import moment from 'moment';
@@ -173,27 +174,16 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
   };
 
   const getTodayHoursDisplay = () => {
-    if (isClockedIn) {
-      // When working: Show TOTAL (previous sessions + current session)
-      const currentSessionHours = workHours + (workMinutes / 60) + (workSeconds / 3600);
-      const totalHours = previousSessionsHours + currentSessionHours;
-      
-      console.log('📊 getTodayHoursDisplay WHILE WORKING:');
-      console.log('   - previousSessionsHours:', previousSessionsHours);
-      console.log('   - currentSessionHours:', currentSessionHours);
-      console.log('   - totalHours:', totalHours);
-      console.log('   - workHours:', workHours, 'workMinutes:', workMinutes, 'workSeconds:', workSeconds);
-      
-      const hrs = Math.floor(totalHours);
-      const remainingMinutes = (totalHours - hrs) * 60;
-      const mins = Math.floor(remainingMinutes);
-      const secs = Math.floor((remainingMinutes - mins) * 60);
-      
-      return formatTime(hrs, mins, secs);
-    } else if (isClockedOut) {
-      return `${Math.floor(totalHoursToday)}h ${Math.round((totalHoursToday - Math.floor(totalHoursToday)) * 60)}m`;
-    }
-    return totalWorkedToday || '0h 0m';
+    return calculateTodayHours(
+      isClockedIn,
+      isClockedOut,
+      workHours,
+      workMinutes,
+      workSeconds,
+      previousSessionsHours,
+      totalHoursToday,
+      totalWorkedToday
+    );
   };
 
   const actionButtons = getActionButtonsForState(

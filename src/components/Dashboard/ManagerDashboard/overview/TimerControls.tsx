@@ -2,6 +2,7 @@
 import React from 'react';
 import { ClockIcon, PlayIcon, StopIcon } from '@heroicons/react/24/outline';
 import { ThemeClasses } from '../types';
+import { formatTime, getTodayHoursDisplay as calculateTodayHours } from '../../../../utils/timeCalculations';
 
 interface TimerControlsProps {
   isClockedIn: boolean;
@@ -34,33 +35,17 @@ const TimerControls: React.FC<TimerControlsProps> = ({
   tc,
   previousSessionsHours = 0, // NEW: Default to 0 if not provided
 }) => {
-  const formatTime = (hours: number, minutes: number, seconds: number) => {
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  };
-
-  // NEW: Calculate total hours display (previous sessions + current session)
   const getTodayHoursDisplay = () => {
-    if (isClockedIn) {
-      // When working: Show TOTAL (previous sessions + current session)
-      const currentSessionHours = workHours + (workMinutes / 60) + (workSeconds / 3600);
-      const totalHours = previousSessionsHours + currentSessionHours;
-      
-      console.log('📊 TimerControls - getTodayHoursDisplay WHILE WORKING:');
-      console.log('   - previousSessionsHours:', previousSessionsHours);
-      console.log('   - currentSessionHours:', currentSessionHours);
-      console.log('   - totalHours:', totalHours);
-      console.log('   - workHours:', workHours, 'workMinutes:', workMinutes, 'workSeconds:', workSeconds);
-      
-      const hrs = Math.floor(totalHours);
-      const remainingMinutes = (totalHours - hrs) * 60;
-      const mins = Math.floor(remainingMinutes);
-      const secs = Math.floor((remainingMinutes - mins) * 60);
-      
-      return formatTime(hrs, mins, secs);
-    } else if (isClockedOut) {
-      return `${Math.floor(totalHoursToday)}h ${Math.round((totalHoursToday - Math.floor(totalHoursToday)) * 60)}m`;
-    }
-    return '00:00:00';
+    return calculateTodayHours(
+      isClockedIn,
+      isClockedOut,
+      workHours,
+      workMinutes,
+      workSeconds,
+      previousSessionsHours,
+      totalHoursToday,
+      '00:00:00'
+    );
   };
 
   return (

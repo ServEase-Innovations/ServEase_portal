@@ -2,6 +2,9 @@
 import { useState } from 'react';
 import moment from 'moment';
 
+// Re-export shared utilities for backwards compatibility
+export { formatTime } from '../utils/timeCalculations';
+
 interface UseAttendanceHandlersProps {
   clockIn: () => Promise<void>;
   clockOut: () => Promise<void>;
@@ -92,9 +95,4 @@ export const useAttendanceHandlers = ({
     successMessage,
     showSuccess
   };
-};
-
-// Shared utility functions
-export const formatTime = (hours: number, minutes: number, seconds: number): string => {
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 };
