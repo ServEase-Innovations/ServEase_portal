@@ -16,9 +16,9 @@ interface ActionButtonsProps {
 export const ActionButtons: React.FC<ActionButtonsProps> = ({ buttons }) => {
   return (
     <>
-      {buttons.map((btn, index) => (
+      {buttons.map((btn) => (
         <button
-          key={`action-${index}`}
+          key={`action-${btn.label}`}
           type="button"
           onClick={btn.onClick}
           disabled={btn.disabled}

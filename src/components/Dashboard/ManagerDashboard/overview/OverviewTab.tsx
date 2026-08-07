@@ -122,8 +122,6 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
     { label: 'Productivity', value: '89', icon: ChartBarIcon, subtitle: 'Team score this month' }
   ];
 
-  const statusBadge = getStatusBadge(isClockedIn, isClockedOut, workStatus);
-
   const actionButtons = getActionButtonsForState(
     isClockedIn,
     isClockedOut,

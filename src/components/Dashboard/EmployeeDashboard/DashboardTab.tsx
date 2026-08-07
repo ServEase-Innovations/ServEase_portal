@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../hooks/useAuth';
 import { getThemeClasses } from './themeUtils';
 import { useAttendanceHandlers, formatTime } from '../../../hooks/useAttendanceHandlers';
-import { useLeaveHandlers, LeaveRequestData } from '../../../hooks/useLeaveHandlers';
+import { useLeaveHandlers } from '../../../hooks/useLeaveHandlers';
 import { useAttendanceTimer } from '../../../hooks/useAttendanceTimer';
 import moment from 'moment';
 import LeaveModal from '../ManagerDashboard/leave/LeaveModal';
@@ -77,10 +77,8 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
     workSeconds,
     startTime,
     totalWorkedToday,
-    isWorking,
     workStatus,
-    setWorkStatus,
-    timerInterval
+    setWorkStatus
   } = useAttendanceTimer({
     isClockedIn,
     isClockedOut,
@@ -99,7 +97,6 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
     imageFile: null as File | null,
     imagePreview: null as string | null,
   });
-  const [workSessions, setWorkSessions] = useState<WorkSession[]>([]);
   const [leaveHistory, setLeaveHistory] = useState<LeaveRequest[]>([]);
 
   // Use shared attendance handlers
@@ -121,15 +118,6 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
   const { handleLeaveImageUpload: handleLeaveImageUploadUtil, validateLeaveRequest } = useLeaveHandlers();
 
   useEffect(() => {
-    const savedSessions = localStorage.getItem('workSessions');
-    if (savedSessions) {
-      try {
-        setWorkSessions(JSON.parse(savedSessions));
-      } catch (e) {
-        console.error('Error loading work sessions:', e);
-      }
-    }
-
     const savedLeaves = localStorage.getItem('leaveHistory');
     if (savedLeaves) {
       try {
@@ -182,8 +170,6 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
     
     showSuccess(`Leave request submitted for ${fromDate.format('MMM D')} - ${toDate.format('MMM D, YYYY')}`);
   };
-
-  const statusBadge = getStatusBadge(isClockedIn, isClockedOut, workStatus);
 
   const getTodayHoursDisplay = () => {
     if (isClockedIn) {

@@ -5,8 +5,8 @@ import Sidebar from '../../Layout/Sidebar';
 import Header from '../../Layout/Header';
 import { useTheme } from './hooks/useTheme';
 import { useAttendance } from '../../../hooks/useAttendance';
-import { useAttendanceHandlers, formatTime } from '../../../hooks/useAttendanceHandlers';
-import { useLeaveHandlers, LeaveRequestData } from '../../../hooks/useLeaveHandlers';
+import { useAttendanceHandlers } from '../../../hooks/useAttendanceHandlers';
+import { useLeaveHandlers } from '../../../hooks/useLeaveHandlers';
 import { useAttendanceTimer } from '../../../hooks/useAttendanceTimer';
 import OverviewTab from './overview/OverviewTab';
 import MyTeamTab from './team/MyTeamTab';
@@ -66,11 +66,8 @@ const ManagerDashboard = () => {
     workMinutes,
     workSeconds,
     startTime,
-    totalWorkedToday,
-    isWorking,
     workStatus,
-    setWorkStatus,
-    timerInterval
+    setWorkStatus
   } = useAttendanceTimer({
     isClockedIn,
     isClockedOut,
@@ -195,7 +192,6 @@ const ManagerDashboard = () => {
     }
   ]);
 
-  const [workSessions, setWorkSessions] = useState<WorkSession[]>([]);
   const [leaveHistory, setLeaveHistory] = useState<LeaveRequest[]>([]);
 
   const [newMessage, setNewMessage] = useState({
@@ -288,17 +284,8 @@ const ManagerDashboard = () => {
 
   const activeTab = getActiveTab();
 
-  // Load saved work sessions and leave history
+  // Load saved leave history
   useEffect(() => {
-    const savedSessions = localStorage.getItem('managerWorkSessions');
-    if (savedSessions) {
-      try {
-        setWorkSessions(JSON.parse(savedSessions));
-      } catch (e) {
-        console.error('Error loading work sessions:', e);
-      }
-    }
-
     const savedLeaves = localStorage.getItem('managerLeaveHistory');
     if (savedLeaves) {
       try {
