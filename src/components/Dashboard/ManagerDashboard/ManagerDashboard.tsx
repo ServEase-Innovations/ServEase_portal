@@ -4,6 +4,10 @@ import { useLocation } from 'react-router-dom';
 import Sidebar from '../../Layout/Sidebar';
 import Header from '../../Layout/Header';
 import { useTheme } from './hooks/useTheme';
+import { useAttendance } from '../../../hooks/useAttendance';
+import { useAttendanceHandlers } from '../../../hooks/useAttendanceHandlers';
+import { useLeaveHandlers } from '../../../hooks/useLeaveHandlers';
+import { useAttendanceTimer } from '../../../hooks/useAttendanceTimer';
 import OverviewTab from './overview/OverviewTab';
 import MyTeamTab from './team/MyTeamTab';
 import ProjectTeamsTab from './team/ProjectTeamsTab';
@@ -19,7 +23,7 @@ import LeaveTab from './leave/LeaveTab';
 import PayslipsTab from './payslips/PayslipsTab';
 import { 
   TeamMember, Task, LeaveRequest, ProjectTeam, Message, 
-  WorkSession, TaskHistory, PerformanceData 
+  TaskHistory, PerformanceData 
 } from './types';
 import moment from 'moment';
 
@@ -27,6 +31,14 @@ const ManagerDashboard = () => {
   const location = useLocation();
   const { theme, toggleTheme, getThemeClasses } = useTheme();
   const tc = getThemeClasses();
+  
+  // Get attendance hook for API integration
+  const attendance = useAttendance();
+  
+  console.log('🔷 ManagerDashboard rendered');
+  console.log('Attendance from hook:', attendance);
+  console.log('isClockedIn:', attendance.isClockedIn);
+  console.log('isClockedOut:', attendance.isClockedOut);
 
   // Mobile sidebar state
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -35,20 +47,33 @@ const ManagerDashboard = () => {
 
   // State declarations (all original state)
   const [searchQuery, setSearchQuery] = useState('');
-  const [isWorking, setIsWorking] = useState(false);
-  const [workHours, setWorkHours] = useState(0);
-  const [workMinutes, setWorkMinutes] = useState(0);
-  const [workSeconds, setWorkSeconds] = useState(0);
-  const [timerInterval, setTimerInterval] = useState<ReturnType<typeof setInterval> | null>(null);
-  const [startTime, setStartTime] = useState<moment.Moment | null>(null);
-  const [workStatus, setWorkStatus] = useState<'working' | 'on-leave' | 'not-working'>('not-working');
-  const [totalHoursToday, setTotalHoursToday] = useState(0);
-  const [isClockedIn, setIsClockedIn] = useState(false);
-  const [isClockedOut, setIsClockedOut] = useState(false);
-  const [attendanceLoading, setAttendanceLoading] = useState(false);
-  const [todayAttendance, setTodayAttendance] = useState<any>(null);
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
+  
+  // Use attendance hook values instead of local state
+  const {
+    todayAttendance,
+    isLoading: attendanceLoading,
+    clockIn,
+    clockOut,
+    resumeWork,
+    isClockedIn,
+    isClockedOut,
+    totalHoursToday,
+  } = attendance;
+  
+  // Use shared timer logic
+  const {
+    workHours,
+    workMinutes,
+    workSeconds,
+    startTime,
+    workStatus,
+    setWorkStatus,
+    previousSessionsHours, // Get previous sessions hours
+  } = useAttendanceTimer({
+    isClockedIn,
+    isClockedOut,
+    todayAttendance
+  });
   
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [leaveRequest, setLeaveRequest] = useState({
@@ -168,7 +193,6 @@ const ManagerDashboard = () => {
     }
   ]);
 
-  const [workSessions, setWorkSessions] = useState<WorkSession[]>([]);
   const [leaveHistory, setLeaveHistory] = useState<LeaveRequest[]>([]);
 
   const [newMessage, setNewMessage] = useState({
@@ -261,17 +285,8 @@ const ManagerDashboard = () => {
 
   const activeTab = getActiveTab();
 
-  // Load saved work sessions and leave history
+  // Load saved leave history
   useEffect(() => {
-    const savedSessions = localStorage.getItem('managerWorkSessions');
-    if (savedSessions) {
-      try {
-        setWorkSessions(JSON.parse(savedSessions));
-      } catch (e) {
-        console.error('Error loading work sessions:', e);
-      }
-    }
-
     const savedLeaves = localStorage.getItem('managerLeaveHistory');
     if (savedLeaves) {
       try {
@@ -282,133 +297,37 @@ const ManagerDashboard = () => {
     }
   }, []);
 
-  // Timer logic
-  useEffect(() => {
-    if (isClockedIn && !timerInterval) {
-      const interval = setInterval(() => {
-        setWorkSeconds(prev => {
-          if (prev >= 59) {
-            setWorkMinutes(m => {
-              if (m >= 59) {
-                setWorkHours(h => h + 1);
-                return 0;
-              }
-              return m + 1;
-            });
-            return 0;
-          }
-          return prev + 1;
-        });
-      }, 1000);
-      setTimerInterval(interval);
-    }
-    
-    return () => {
-      if (timerInterval) {
-        clearInterval(timerInterval);
-      }
-    };
-  }, [isClockedIn]);
+  // Use shared attendance handlers
+  const {
+    handleStartWork,
+    handleStopWork,
+    handleResumeWork,
+    showSuccessMessage,
+    successMessage,
+    showSuccess
+  } = useAttendanceHandlers({
+    clockIn,
+    clockOut,
+    resumeWork,
+    totalHoursToday
+  });
 
-  // Timer Functions
-  const handleStartWork = async () => {
-    setAttendanceLoading(true);
-    try {
-      const now = moment();
-      setStartTime(now);
-      setIsClockedIn(true);
-      setIsClockedOut(false);
-      setWorkStatus('working');
-      setIsWorking(true);
-      
-      setSuccessMessage(`Work started at ${now.format('hh:mm A')}`);
-      setShowSuccessMessage(true);
-      setTimeout(() => setShowSuccessMessage(false), 3000);
-    } catch (error) {
-      console.error('Failed to start work:', error);
-    } finally {
-      setAttendanceLoading(false);
-    }
-  };
+  // Use shared leave handlers
+  const { handleLeaveImageUpload: handleLeaveImageUploadUtil, validateLeaveRequest } = useLeaveHandlers();
 
-  const handleStopWork = async () => {
-    setAttendanceLoading(true);
-    try {
-      const now = moment();
-      const start = startTime || moment();
-      
-      const duration = moment.duration(now.diff(start));
-      const hours = Math.floor(duration.asHours());
-      const minutes = duration.minutes();
-      const seconds = duration.seconds();
-      
-      setIsClockedIn(false);
-      setIsClockedOut(true);
-      setWorkStatus('not-working');
-      setIsWorking(false);
-      setTotalHoursToday(hours + minutes / 60);
-      
-      setSuccessMessage(
-        `Work session completed! Duration: ${hours}h ${minutes}m`
-      );
-      setShowSuccessMessage(true);
-      setTimeout(() => setShowSuccessMessage(false), 3000);
-      
-      const session: WorkSession = {
-        id: `WS-${Date.now()}`,
-        date: now.format('YYYY-MM-DD'),
-        startTime: start.toISOString(),
-        endTime: now.toISOString(),
-        duration: duration.asSeconds(),
-        status: 'working',
-        employeeName: 'Priya Nair'
-      };
-      
-      const updatedSessions = [session, ...workSessions];
-      setWorkSessions(updatedSessions);
-      localStorage.setItem('managerWorkSessions', JSON.stringify(updatedSessions));
-      
-      if (timerInterval) {
-        clearInterval(timerInterval);
-        setTimerInterval(null);
-      }
-    } catch (error) {
-      console.error('Failed to stop work:', error);
-    } finally {
-      setAttendanceLoading(false);
-    }
-  };
-
-  const formatTime = (hours: number, minutes: number, seconds: number) => {
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  };
-
-  // Leave Functions
   const handleLeaveImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setLeaveRequest({ ...leaveRequest, imageFile: file });
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setLeaveRequest({ ...leaveRequest, imageFile: file, imagePreview: reader.result as string });
-      };
-      reader.readAsDataURL(file);
-    }
+    handleLeaveImageUploadUtil(e, leaveRequest, setLeaveRequest);
   };
 
   const handleSubmitLeave = () => {
-    if (!leaveRequest.fromDate || !leaveRequest.toDate || !leaveRequest.reason) {
-      alert('Please fill in all required fields');
+    const validation = validateLeaveRequest(leaveRequest);
+    if (!validation.valid) {
+      alert(validation.error);
       return;
     }
 
     const fromDate = moment(leaveRequest.fromDate);
     const toDate = moment(leaveRequest.toDate);
-    
-    if (toDate.isBefore(fromDate)) {
-      alert('End date cannot be before start date');
-      return;
-    }
 
     const newLeave: LeaveRequest = {
       id: `L-${String(leaveHistory.length + 1).padStart(3, '0')}`,
@@ -438,9 +357,7 @@ const ManagerDashboard = () => {
       imagePreview: null,
     });
     
-    setSuccessMessage(`Leave request submitted for ${fromDate.format('MMM D')} - ${toDate.format('MMM D, YYYY')}`);
-    setShowSuccessMessage(true);
-    setTimeout(() => setShowSuccessMessage(false), 3000);
+    showSuccess(`Leave request submitted for ${fromDate.format('MMM D')} - ${toDate.format('MMM D, YYYY')}`);
   };
 
   // Task Functions
@@ -904,8 +821,12 @@ const ManagerDashboard = () => {
             setLeaveRequest={setLeaveRequest}
             handleStartWork={handleStartWork}
             handleStopWork={handleStopWork}
+            handleResumeWork={handleResumeWork}
             handleSubmitLeave={handleSubmitLeave}
             handleLeaveImageUpload={handleLeaveImageUpload}
+            attendanceRecords={attendance.attendanceRecords}
+            todayAttendance={todayAttendance}
+            previousSessionsHours={previousSessionsHours}
           />
         );
       case 'my-team':
@@ -1009,6 +930,7 @@ const ManagerDashboard = () => {
             setLeaveRequest={setLeaveRequest}
             handleStartWork={handleStartWork}
             handleStopWork={handleStopWork}
+            handleResumeWork={handleResumeWork}
             handleSubmitLeave={handleSubmitLeave}
             handleLeaveImageUpload={handleLeaveImageUpload}
           />

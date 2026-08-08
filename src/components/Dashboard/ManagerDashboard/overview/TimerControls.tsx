@@ -2,6 +2,7 @@
 import React from 'react';
 import { ClockIcon, PlayIcon, StopIcon } from '@heroicons/react/24/outline';
 import { ThemeClasses } from '../types';
+import { formatTime, getTodayHoursDisplay as calculateTodayHours } from '../../../../utils/timeCalculations';
 
 interface TimerControlsProps {
   isClockedIn: boolean;
@@ -16,6 +17,7 @@ interface TimerControlsProps {
   handleStartWork: () => void;
   handleStopWork: () => void;
   tc: ThemeClasses;
+  previousSessionsHours?: number; // NEW: Add accumulated hours from previous sessions
 }
 
 const TimerControls: React.FC<TimerControlsProps> = ({
@@ -30,10 +32,20 @@ const TimerControls: React.FC<TimerControlsProps> = ({
   startTime,
   handleStartWork,
   handleStopWork,
-  tc
+  tc,
+  previousSessionsHours = 0, // NEW: Default to 0 if not provided
 }) => {
-  const formatTime = (hours: number, minutes: number, seconds: number) => {
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  const getTodayHoursDisplay = () => {
+    return calculateTodayHours({
+      isClockedIn,
+      isClockedOut,
+      workHours,
+      workMinutes,
+      workSeconds,
+      previousSessionsHours,
+      totalHoursToday,
+      totalWorkedToday: '00:00:00'
+    });
   };
 
   return (
@@ -58,7 +70,7 @@ const TimerControls: React.FC<TimerControlsProps> = ({
           <div className="hidden sm:block">
             <p className={`text-sm font-medium ${tc.text}`}>Today's Progress</p>
             <p className={`text-xs ${tc.textSecondary}`}>
-              {isClockedIn ? 'Click stop when you finish' : 
+              {isClockedIn ? getTodayHoursDisplay() : 
                isClockedOut ? `Total: ${totalHoursToday.toFixed(2)} hours` :
                workStatus === 'on-leave' ? 'On leave today' : 'Start tracking your work hours'}
             </p>
