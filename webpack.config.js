@@ -1,18 +1,17 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const Dotenv = require('dotenv-webpack');
 const webpack = require('webpack');
-const dotenv = require('dotenv');
 
 module.exports = (env, argv) => {
   const isProduction = argv.mode === 'production';
   
-  // Load environment variables from .env file
-  const envFile = isProduction ? '.env.production' : '.env.development';
-  const envConfig = dotenv.config({ path: path.resolve(__dirname, envFile) });
-  
-  // Fallback to .env if specific env file doesn't exist
-  if (envConfig.error) {
-    dotenv.config({ path: path.resolve(__dirname, '.env') });
+  // Determine which .env file to use based on ENV_MODE
+  let envFile = '.env.local'; // default to local
+  if (env?.ENV_MODE === 'dev') {
+    envFile = '.env.development';
+  } else if (env?.ENV_MODE === 'prod') {
+    envFile = '.env.production';
   }
 
   return {
@@ -60,11 +59,15 @@ module.exports = (env, argv) => {
       new HtmlWebpackPlugin({
         template: './public/index.html',
       }),
+      new Dotenv({
+        path: path.resolve(__dirname, envFile),
+        safe: false, // Don't require .env.example
+        systemvars: true, // Load system environment variables
+        silent: false, // Show warnings
+        defaults: false, // Don't load .env as defaults
+      }),
       new webpack.DefinePlugin({
         'process.env.NODE_ENV': JSON.stringify(isProduction ? 'production' : 'development'),
-        'process.env.REACT_APP_API_URL': JSON.stringify(process.env.REACT_APP_API_URL || 'http://localhost:4000/'),
-        'process.env.REACT_APP_ENV': JSON.stringify(process.env.REACT_APP_ENV || 'development'),
-        'process.env.REACT_APP_API_TIMEOUT': JSON.stringify(process.env.REACT_APP_API_TIMEOUT || '10000'),
       }),
     ],
     devServer: {
