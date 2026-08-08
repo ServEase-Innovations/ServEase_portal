@@ -1,8 +1,19 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const webpack = require('webpack');
+const dotenv = require('dotenv');
 
 module.exports = (env, argv) => {
   const isProduction = argv.mode === 'production';
+  
+  // Load environment variables from .env file
+  const envFile = isProduction ? '.env.production' : '.env.development';
+  const envConfig = dotenv.config({ path: path.resolve(__dirname, envFile) });
+  
+  // Fallback to .env if specific env file doesn't exist
+  if (envConfig.error) {
+    dotenv.config({ path: path.resolve(__dirname, '.env') });
+  }
 
   return {
     entry: './src/index.tsx',
@@ -48,6 +59,12 @@ module.exports = (env, argv) => {
     plugins: [
       new HtmlWebpackPlugin({
         template: './public/index.html',
+      }),
+      new webpack.DefinePlugin({
+        'process.env.NODE_ENV': JSON.stringify(isProduction ? 'production' : 'development'),
+        'process.env.REACT_APP_API_URL': JSON.stringify(process.env.REACT_APP_API_URL || 'http://localhost:4000/'),
+        'process.env.REACT_APP_ENV': JSON.stringify(process.env.REACT_APP_ENV || 'development'),
+        'process.env.REACT_APP_API_TIMEOUT': JSON.stringify(process.env.REACT_APP_API_TIMEOUT || '10000'),
       }),
     ],
     devServer: {
