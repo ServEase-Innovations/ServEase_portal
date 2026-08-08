@@ -36,7 +36,7 @@ const TimerControls: React.FC<TimerControlsProps> = ({
   previousSessionsHours = 0, // NEW: Default to 0 if not provided
 }) => {
   const getTodayHoursDisplay = () => {
-    return calculateTodayHours(
+    return calculateTodayHours({
       isClockedIn,
       isClockedOut,
       workHours,
@@ -44,8 +44,8 @@ const TimerControls: React.FC<TimerControlsProps> = ({
       workSeconds,
       previousSessionsHours,
       totalHoursToday,
-      '00:00:00'
-    );
+      totalWorkedToday: '00:00:00'
+    });
   };
 
   return (

@@ -11,29 +11,38 @@ export const formatTime = (hours: number, minutes: number, seconds: number): str
 };
 
 /**
+ * Parameters for getTodayHoursDisplay function
+ */
+export interface TodayHoursDisplayParams {
+  isClockedIn: boolean;
+  isClockedOut: boolean;
+  workHours: number;
+  workMinutes: number;
+  workSeconds: number;
+  previousSessionsHours: number;
+  totalHoursToday: number;
+  totalWorkedToday?: string;
+}
+
+/**
  * Calculate and format today's total hours display
  * Shows accumulated hours from previous sessions + current session time
  * 
- * @param isClockedIn - Whether user is currently clocked in
- * @param isClockedOut - Whether user is clocked out for the day
- * @param workHours - Current session hours
- * @param workMinutes - Current session minutes
- * @param workSeconds - Current session seconds
- * @param previousSessionsHours - Accumulated hours from previous sessions today
- * @param totalHoursToday - Total hours when clocked out
- * @param totalWorkedToday - Formatted string for display when not working
+ * @param params - Parameters object containing clock state and time values
  * @returns Formatted time string
  */
-export const getTodayHoursDisplay = (
-  isClockedIn: boolean,
-  isClockedOut: boolean,
-  workHours: number,
-  workMinutes: number,
-  workSeconds: number,
-  previousSessionsHours: number,
-  totalHoursToday: number,
-  totalWorkedToday: string = '0h 0m'
-): string => {
+export const getTodayHoursDisplay = (params: TodayHoursDisplayParams): string => {
+  const {
+    isClockedIn,
+    isClockedOut,
+    workHours,
+    workMinutes,
+    workSeconds,
+    previousSessionsHours,
+    totalHoursToday,
+    totalWorkedToday = '0h 0m'
+  } = params;
+
   if (isClockedIn) {
     // When working: Show TOTAL (previous sessions + current session)
     const currentSessionHours = workHours + (workMinutes / 60) + (workSeconds / 3600);

@@ -6,6 +6,7 @@ import { useAttendanceHandlers } from '../../../hooks/useAttendanceHandlers';
 import { formatTime, getTodayHoursDisplay as calculateTodayHours } from '../../../utils/timeCalculations';
 import { useLeaveHandlers } from '../../../hooks/useLeaveHandlers';
 import { useAttendanceTimer } from '../../../hooks/useAttendanceTimer';
+import { Attendance } from '../../../types';
 import moment from 'moment';
 import LeaveModal from '../ManagerDashboard/leave/LeaveModal';
 import { InfoCard } from '../shared/InfoCard';
@@ -20,10 +21,26 @@ import {
   StopIcon
 } from '@heroicons/react/24/outline';
 
+// Attendance hook return type
+interface AttendanceHookReturn {
+  attendanceRecords: Attendance[];
+  todayAttendance: Attendance | null;
+  isLoading: boolean;
+  error: string | null;
+  clockIn: () => Promise<void>;
+  clockOut: () => Promise<void>;
+  resumeWork: () => Promise<void>;
+  refreshAttendance: () => Promise<void>;
+  isClockedIn: boolean;
+  isClockedOut: boolean;
+  totalHoursToday: number;
+  startTime: Date | null;
+  endTime: Date | null;
+}
 
 interface DashboardTabProps {
   theme: 'light' | 'dark';
-  attendance: any;
+  attendance: AttendanceHookReturn;
 }
 
 interface WorkSession {
@@ -119,13 +136,33 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
   // Use shared leave handlers
   const { handleLeaveImageUpload: handleLeaveImageUploadUtil, validateLeaveRequest } = useLeaveHandlers();
 
+  // Validate and load leave history from localStorage
   useEffect(() => {
     const savedLeaves = localStorage.getItem('leaveHistory');
     if (savedLeaves) {
       try {
-        setLeaveHistory(JSON.parse(savedLeaves));
+        const parsed = JSON.parse(savedLeaves);
+        // Validate that it's an array with expected structure
+        if (Array.isArray(parsed)) {
+          const validLeaves = parsed.filter((leave: any) => 
+            leave && 
+            typeof leave.id === 'string' &&
+            typeof leave.type === 'string' &&
+            typeof leave.fromDate === 'string' &&
+            typeof leave.toDate === 'string' &&
+            typeof leave.reason === 'string' &&
+            typeof leave.status === 'string'
+          );
+          setLeaveHistory(validLeaves);
+        } else {
+          console.warn('Invalid leave history format in localStorage');
+          setLeaveHistory([]);
+        }
       } catch (e) {
         console.error('Error loading leave history:', e);
+        // Clear corrupted data
+        localStorage.removeItem('leaveHistory');
+        setLeaveHistory([]);
       }
     }
   }, []);
@@ -145,7 +182,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
     const toDate = moment(leaveRequest.toDate);
 
     const newLeave: LeaveRequest = {
-      id: `L-${String(leaveHistory.length + 1).padStart(3, '0')}`,
+      id: crypto.randomUUID(), // Use UUID instead of length-based ID
       type: leaveRequest.type,
       fromDate: fromDate.format('YYYY-MM-DD'),
       toDate: toDate.format('YYYY-MM-DD'),
@@ -174,7 +211,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
   };
 
   const getTodayHoursDisplay = () => {
-    return calculateTodayHours(
+    return calculateTodayHours({
       isClockedIn,
       isClockedOut,
       workHours,
@@ -183,7 +220,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
       previousSessionsHours,
       totalHoursToday,
       totalWorkedToday
-    );
+    });
   };
 
   const actionButtons = getActionButtonsForState(
@@ -308,7 +345,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
           </div>
         </div>
         {isClockedIn && (
-          <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 ${tc.border} border-t flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 text-xs ${tc.textMuted}">
+          <div className={`mt-3 sm:mt-4 pt-3 sm:pt-4 ${tc.border} border-t flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 text-xs ${tc.textMuted}`}>
             <span>Started at: {startTime?.format('hh:mm A') || (todayAttendance?.clockInTimestamp ? moment(todayAttendance.clockInTimestamp).format('hh:mm A') : 'N/A')}</span>
             <span className="hidden sm:inline w-px h-4 bg-gray-300/30"></span>
             <span>Elapsed: {formatTime(workHours, workMinutes, workSeconds)}</span>

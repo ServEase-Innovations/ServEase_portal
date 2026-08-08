@@ -6,14 +6,17 @@ import { AxiosError } from 'axios';
 export interface CreateAttendanceData {
   employeeId: string;
   calendarDate: string;
-  shiftStatus: 'Working' | 'OnLeave' | 'Absent';
+  shiftStatus: ShiftStatus;
   clockInTimestamp?: string;
   clockOutTimestamp?: string;
   // totalHoursComputed is removed - server calculates it
 }
 
+// Type alias for shift status to avoid union type repetition
+type ShiftStatus = 'Working' | 'OnLeave' | 'Absent';
+
 export interface UpdateAttendanceData {
-  shiftStatus?: 'Working' | 'OnLeave' | 'Absent';
+  shiftStatus?: ShiftStatus;
   clockInTimestamp?: string;
   clockOutTimestamp?: string | null; // null to explicitly clear
   // totalHoursComputed is removed - server calculates it
@@ -21,7 +24,7 @@ export interface UpdateAttendanceData {
 
 // Type-safe payload interface for update
 interface UpdateAttendancePayload {
-  shiftStatus?: 'Working' | 'OnLeave' | 'Absent';
+  shiftStatus?: ShiftStatus;
   clockInTimestamp?: number;
   clockOutTimestamp?: number | null;
 }
@@ -31,12 +34,12 @@ interface UpdateAttendancePayload {
  * @param date - Date string or timestamp
  * @param fieldName - Name of the field (for error messages)
  * @returns Epoch milliseconds
- * @throws Error if date is invalid
+ * @throws TypeError if date is invalid
  */
 const toEpochMilliseconds = (date: string | number, fieldName: string): number => {
   const timestamp = new Date(date).getTime();
-  if (isNaN(timestamp)) {
-    throw new Error(`Invalid date provided for ${fieldName}: ${date}`);
+  if (Number.isNaN(timestamp)) {
+    throw new TypeError(`Invalid date provided for ${fieldName}: ${date}`);
   }
   return timestamp;
 };

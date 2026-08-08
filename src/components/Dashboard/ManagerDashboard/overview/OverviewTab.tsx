@@ -8,6 +8,7 @@ import {
   UserGroupIcon, 
   ChartBarIcon 
 } from '@heroicons/react/24/outline';
+import { Attendance } from '../../../types';
 import { ThemeClasses, TeamMember } from '../types';
 import StatsCard from '../common/StatsCard';
 import TimerControls from './TimerControls';
@@ -16,8 +17,15 @@ import AttendanceCalendar from './AttendanceCalendar';
 import { InfoCard } from '../../shared/InfoCard';
 import { StatusBadge } from '../../shared/StatusBadge';
 import { ActionButtons, getActionButtonsForState } from '../../shared/ActionButtons';
-// import AttendanceCalendar from '../attendance/AttendanceCalendar';
 
+interface LeaveRequest {
+  type: 'Sick' | 'Casual' | 'Earned' | 'Other';
+  fromDate: string;
+  toDate: string;
+  reason: string;
+  imageFile: File | null;
+  imagePreview: string | null;
+}
 
 interface OverviewTabProps {
   tc: ThemeClasses;
@@ -34,22 +42,15 @@ interface OverviewTabProps {
   startTime: moment.Moment | null;
   showLeaveModal: boolean;
   setShowLeaveModal: (show: boolean) => void;
-  leaveRequest: {
-    type: 'Sick' | 'Casual' | 'Earned' | 'Other';
-    fromDate: string;
-    toDate: string;
-    reason: string;
-    imageFile: File | null;
-    imagePreview: string | null;
-  };
-  setLeaveRequest: (request: any) => void;
+  leaveRequest: LeaveRequest;
+  setLeaveRequest: (request: LeaveRequest) => void;
   handleStartWork: () => void;
   handleStopWork: () => void;
   handleResumeWork: () => void;
   handleSubmitLeave: () => void;
   handleLeaveImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  attendanceRecords?: any[];
-  todayAttendance?: any;
+  attendanceRecords?: Attendance[];
+  todayAttendance?: Attendance | null;
   previousSessionsHours?: number;
 }
 
@@ -87,9 +88,12 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
     
     const monthRecords = attendanceRecords.filter(record => {
       if (!record.calendarDate) return false;
-      // Convert to Date object regardless of input type
-      const recordDate = new Date(record.calendarDate);
-      return recordDate.getMonth() === currentMonth && recordDate.getFullYear() === currentYear;
+      // Use UTC methods to avoid timezone shifts
+      const timestamp = typeof record.calendarDate === 'number' 
+        ? record.calendarDate 
+        : new Date(record.calendarDate).getTime();
+      const recordDate = new Date(timestamp);
+      return recordDate.getUTCMonth() === currentMonth && recordDate.getUTCFullYear() === currentYear;
     });
     
     const presentDays = monthRecords.filter(r => r.shiftStatus === 'Working').length;
@@ -106,12 +110,12 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
   // Calculate today's progress percentage (assuming 8 hour workday)
   const todayProgressPercent = Math.min((workHours * 3600 + workMinutes * 60 + workSeconds) / (8 * 3600) * 100, 100);
   
-  // Format time for display
-  const formatTime = (date: any) => {
-    if (!date) return '--:--';
-    // Date constructor handles both numbers and strings
-    const d = new Date(date);
-    return moment(d).format('HH:mm');
+  // Format time for display with timezone safety
+  const formatTime = (timestamp: number | string | null | undefined): string => {
+    if (!timestamp) return '--:--';
+    const ts = typeof timestamp === 'number' ? timestamp : new Date(timestamp).getTime();
+    if (isNaN(ts)) return '--:--';
+    return moment(ts).format('HH:mm');
   };
   
   const firstClockIn = todayAttendance?.clockInTimestamp ? formatTime(todayAttendance.clockInTimestamp) : '--:--';
@@ -151,7 +155,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
           <StatusBadge isClockedIn={isClockedIn} isClockedOut={isClockedOut} workStatus={workStatus} />
           <span className={`text-xs sm:text-sm ${tc.textSecondary}`}>
             {isClockedIn && startTime && `Started at: ${startTime.format('hh:mm A')}`}
-            {isClockedOut && `Completed at: ${moment().format('hh:mm A')}`}
+            {isClockedOut && todayAttendance?.clockOutTimestamp && `Completed at: ${moment(todayAttendance.clockOutTimestamp).format('hh:mm A')}`}
             {workStatus === 'on-leave' && 'Currently on leave'}
             {!isClockedIn && !isClockedOut && workStatus === 'not-working' && 'Ready to start working'}
           </span>
