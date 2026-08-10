@@ -11,7 +11,7 @@ import {
 import { 
   formatTime as formatTimeUtil, 
   calculateTotalHours 
-} from '../../../utils/timeCalculations';
+} from '../../../../utils/timeCalculations';
 import { Attendance } from '../../../types';
 import { ThemeClasses, TeamMember } from '../types';
 import StatsCard from '../common/StatsCard';
