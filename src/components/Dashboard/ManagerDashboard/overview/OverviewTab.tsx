@@ -152,7 +152,13 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
 
       <div className={`${tc.bgCard} p-3 sm:p-4 rounded-2xl ${tc.border} ${tc.shadow} mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0`}>
         <div className="flex items-center gap-3 sm:gap-4">
-          <StatusBadge isClockedIn={isClockedIn} isClockedOut={isClockedOut} workStatus={workStatus} />
+          <StatusBadge 
+            isClockedIn={isClockedIn} 
+            isClockedOut={isClockedOut} 
+            workStatus={workStatus}
+            shiftStatus={todayAttendance?.shiftStatus}
+            totalHoursToday={totalHoursToday}
+          />
           <span className={`text-xs sm:text-sm ${tc.textSecondary}`}>
             {isClockedIn && startTime && `Started at: ${startTime.format('hh:mm A')}`}
             {isClockedOut && todayAttendance?.clockOutTimestamp && `Completed at: ${moment(todayAttendance.clockOutTimestamp).format('hh:mm A')}`}
@@ -201,20 +207,33 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
         <div className={`lg:col-span-2 ${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
           <h3 className={`font-semibold ${tc.text} mb-2 sm:mb-4 text-base sm:text-lg`}>Today's Working Progress</h3>
           <p className={`text-sm ${tc.textSecondary} mb-3 sm:mb-4`}>
-            {monthlyStats.totalHours.toFixed(1)}h logged this month - {monthlyStats.presentDays} present days
+            {isClockedIn && `Currently working - ${workHours}h ${workMinutes}m ${workSeconds}s elapsed`}
+            {isClockedOut && `Completed - ${totalHoursToday.toFixed(2)}h total today`}
+            {!isClockedIn && !isClockedOut && workStatus === 'on-leave' && 'On leave today'}
+            {!isClockedIn && !isClockedOut && workStatus === 'not-working' && 'Not started yet'}
           </p>
           <div className="flex items-center gap-4 sm:gap-8">
             <div className="flex-1">
               <div className="w-full bg-gray-200/20 rounded-full h-3 sm:h-4">
                 <div 
-                  className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-3 sm:h-4 rounded-full transition-all duration-1000" 
-                  style={{ width: `${todayProgressPercent}%` }}
+                  className={`h-3 sm:h-4 rounded-full transition-all duration-1000 ${
+                    isClockedIn 
+                      ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' 
+                      : isClockedOut && totalHoursToday >= 8 
+                        ? 'bg-gradient-to-r from-emerald-500 to-emerald-400'
+                        : isClockedOut 
+                          ? 'bg-gradient-to-r from-amber-500 to-amber-400'
+                          : 'bg-gray-400/20'
+                  }`}
+                  style={{ 
+                    width: `${Math.min(todayProgressPercent, 100)}%`
+                  }}
                 ></div>
               </div>
               <div className={`flex flex-wrap justify-between mt-2 text-[10px] sm:text-sm ${tc.textMuted} gap-1`}>
-                <span>{todayProgressPercent.toFixed(0)}% DAY</span>
+                <span>Target: 8 hours ({todayProgressPercent.toFixed(0)}%)</span>
                 <span>LOGIN {firstClockIn}</span>
-                <span>LOGOUT {lastClockOut}</span>
+                <span>LOGOUT {isClockedIn ? 'In progress...' : lastClockOut}</span>
               </div>
             </div>
           </div>

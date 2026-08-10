@@ -30,6 +30,16 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({ tc, attendanceR
   
   // Get color for a specific date
   const getDateColor = (date: number) => {
+    // Check if this date is a weekend (Saturday=6, Sunday=0)
+    const dateObj = new Date(currentYear, currentMonth, date);
+    const dayOfWeek = dateObj.getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6; // Sunday=0, Saturday=6
+    
+    // Weekends are always holidays (purple)
+    if (isWeekend) {
+      return { bg: 'bg-purple-500/20', text: 'text-purple-400' };
+    }
+    
     if (date > currentDate) {
       // Future dates
       return { bg: '', text: 'text-gray-400' };

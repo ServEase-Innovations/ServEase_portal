@@ -264,7 +264,13 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
 
       <div className={`${tc.bgCard} p-3 sm:p-4 rounded-2xl ${tc.border} ${tc.shadow} mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0`}>
         <div className="flex items-center gap-3 sm:gap-4">
-          <StatusBadge isClockedIn={isClockedIn} isClockedOut={isClockedOut} workStatus={workStatus} />
+          <StatusBadge 
+            isClockedIn={isClockedIn} 
+            isClockedOut={isClockedOut} 
+            workStatus={workStatus}
+            shiftStatus={todayAttendance?.shiftStatus}
+            totalHoursToday={totalHoursToday}
+          />
           <span className={`text-xs sm:text-sm ${tc.textSecondary}`}>
             {isClockedIn && startTime && `Started at: ${startTime.format('hh:mm A')}`}
             {isClockedIn && !startTime && todayAttendance?.clockInTimestamp && `Started at: ${moment(todayAttendance.clockInTimestamp).format('hh:mm A')}`}
@@ -376,16 +382,46 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
         <div className={`lg:col-span-2 ${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
           <h3 className={`font-semibold ${tc.text} mb-2 sm:mb-4 text-base sm:text-lg`}>Today's Working Progress</h3>
-          <p className={`text-sm ${tc.textSecondary} mb-3 sm:mb-4`}>111.5h logged this month - 14 present days</p>
+          <p className={`text-sm ${tc.textSecondary} mb-3 sm:mb-4`}>
+            {isClockedIn && `Currently working - ${getTodayHoursDisplay()} elapsed`}
+            {isClockedOut && `Completed - ${totalHoursToday.toFixed(2)}h total today`}
+            {!isClockedIn && !isClockedOut && workStatus === 'on-leave' && 'On leave today'}
+            {!isClockedIn && !isClockedOut && workStatus === 'not-working' && 'Not started yet'}
+          </p>
           <div className="flex items-center gap-4 sm:gap-8">
             <div className="flex-1">
               <div className="w-full bg-gray-200/20 rounded-full h-3 sm:h-4">
-                <div className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-3 sm:h-4 rounded-full transition-all duration-1000" style={{ width: isClockedIn ? `${Math.min((workHours * 3600 + workMinutes * 60 + workSeconds) / 28800 * 100, 100)}%` : isClockedOut ? '100%' : '65%' }}></div>
+                <div 
+                  className={`h-3 sm:h-4 rounded-full transition-all duration-1000 ${
+                    isClockedIn 
+                      ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' 
+                      : isClockedOut && totalHoursToday >= 8 
+                        ? 'bg-gradient-to-r from-emerald-500 to-emerald-400'
+                        : isClockedOut 
+                          ? 'bg-gradient-to-r from-amber-500 to-amber-400'
+                          : 'bg-gray-400/20'
+                  }`}
+                  style={{ 
+                    width: isClockedIn 
+                      ? `${Math.min((workHours * 3600 + workMinutes * 60 + workSeconds) / 28800 * 100, 100)}%` 
+                      : isClockedOut 
+                        ? `${Math.min((totalHoursToday / 8) * 100, 100)}%`
+                        : '0%' 
+                  }}
+                ></div>
               </div>
               <div className={`flex flex-wrap justify-between mt-2 text-[10px] sm:text-sm ${tc.textMuted} gap-1`}>
-                <span>100% DAY</span>
-                <span>LOGIN 09:18</span>
-                <span>LOGOUT 18:32</span>
+                <span>Target: 8 hours</span>
+                <span>
+                  {startTime && `LOGIN ${startTime.format('HH:mm')}`}
+                  {!startTime && todayAttendance?.clockInTimestamp && `LOGIN ${moment(todayAttendance.clockInTimestamp).format('HH:mm')}`}
+                  {!startTime && !todayAttendance?.clockInTimestamp && 'Not started'}
+                </span>
+                <span>
+                  {isClockedOut && todayAttendance?.clockOutTimestamp && `LOGOUT ${moment(todayAttendance.clockOutTimestamp).format('HH:mm')}`}
+                  {isClockedIn && 'In progress...'}
+                  {!isClockedIn && !isClockedOut && '—'}
+                </span>
               </div>
             </div>
           </div>
@@ -413,6 +449,21 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
               <div key={i} className={`text-[8px] sm:text-xs ${tc.textMuted} font-medium py-1`}>{day}</div>
             ))}
             {Array.from({ length: 30 }, (_, i) => i + 1).map((date) => {
+              // Calculate day of week for this date (June 2026)
+              const dateObj = new Date(2026, 5, date); // Month is 0-indexed, June = 5
+              const dayOfWeek = dateObj.getDay();
+              const isWeekend = dayOfWeek === 0 || dayOfWeek === 6; // Sunday=0, Saturday=6
+              
+              // Weekends are always purple (holiday)
+              if (isWeekend) {
+                return (
+                  <div key={date} className="py-0.5 sm:py-1 rounded bg-purple-500/20 text-purple-400 text-[10px] sm:text-sm">
+                    {date}
+                  </div>
+                );
+              }
+              
+              // Weekday logic
               let bgColor = 'text-gray-400';
               let textColor = 'text-gray-400';
               if (date <= 18 && date >= 3) {

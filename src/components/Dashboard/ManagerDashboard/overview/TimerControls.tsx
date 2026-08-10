@@ -70,7 +70,7 @@ const TimerControls: React.FC<TimerControlsProps> = ({
           <div className="hidden sm:block">
             <p className={`text-sm font-medium ${tc.text}`}>Today's Progress</p>
             <p className={`text-xs ${tc.textSecondary}`}>
-              {isClockedIn ? getTodayHoursDisplay() : 
+              {isClockedIn ? `Current session: ${formatTime(workHours, workMinutes, workSeconds)}` : 
                isClockedOut ? `Total: ${totalHoursToday.toFixed(2)} hours` :
                workStatus === 'on-leave' ? 'On leave today' : 'Start tracking your work hours'}
             </p>
@@ -105,10 +105,18 @@ const TimerControls: React.FC<TimerControlsProps> = ({
         </div>
       </div>
       {isClockedIn && (
-        <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 ${tc.border} border-t flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 text-xs ${tc.textMuted}">
+        <div className={`mt-3 sm:mt-4 pt-3 sm:pt-4 ${tc.border} border-t flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 text-xs ${tc.textMuted}`}>
           <span>Started at: {startTime?.format('hh:mm A') || 'N/A'}</span>
           <span className="hidden sm:inline w-px h-4 bg-gray-300/30"></span>
-          <span>Elapsed: {formatTime(workHours, workMinutes, workSeconds)}</span>
+          <span>Current session: {formatTime(workHours, workMinutes, workSeconds)}</span>
+          {previousSessionsHours > 0 && (
+            <>
+              <span className="hidden sm:inline w-px h-4 bg-gray-300/30"></span>
+              <span>Previous sessions: {previousSessionsHours.toFixed(2)}h</span>
+              <span className="hidden sm:inline w-px h-4 bg-gray-300/30"></span>
+              <span className="font-semibold text-emerald-400">Today's total: {(previousSessionsHours + (workHours + workMinutes/60 + workSeconds/3600)).toFixed(2)}h</span>
+            </>
+          )}
           <span className="hidden sm:inline w-px h-4 bg-gray-300/30"></span>
           <span>Status: {isClockedIn ? '🟢 Active' : workStatus === 'on-leave' ? '🔵 On Leave' : '⚪ Not Working'}</span>
         </div>

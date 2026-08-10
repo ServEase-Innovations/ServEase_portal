@@ -45,7 +45,10 @@ export const useAttendance = (): UseAttendanceReturn => {
 
   // Helper function to check if record is from today
   const isTodayRecord = (record: Attendance): boolean => {
-    if (!record.calendarDate) return false;
+    if (!record.calendarDate) {
+      console.log('❌ isTodayRecord: No calendarDate in record');
+      return false;
+    }
     
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -53,9 +56,22 @@ export const useAttendance = (): UseAttendanceReturn => {
     todayEnd.setHours(23, 59, 59, 999);
     
     const recordDate = normalizeTimestamp(record.calendarDate);
-    if (!recordDate) return false;
+    if (!recordDate) {
+      console.log('❌ isTodayRecord: Could not normalize recordDate');
+      return false;
+    }
     
-    return recordDate >= todayStart.getTime() && recordDate <= todayEnd.getTime();
+    const isToday = recordDate >= todayStart.getTime() && recordDate <= todayEnd.getTime();
+    
+    console.log('🔍 isTodayRecord check:', {
+      recordDate: new Date(recordDate).toISOString(),
+      todayStart: todayStart.toISOString(),
+      todayEnd: todayEnd.toISOString(),
+      isToday,
+      recordId: record.attendanceId
+    });
+    
+    return isToday;
   };
 
   // Helper function to update attendance state from record
@@ -129,61 +145,79 @@ export const useAttendance = (): UseAttendanceReturn => {
       // Check if there's already an attendance record for today
       if (todayAttendance) {
         console.log('Found existing attendance:', todayAttendance);
+        console.log('Checking if record is from today...');
         
-        // If currently clocked in, don't allow another clock-in
-        if (todayAttendance.clockInTimestamp && !todayAttendance.clockOutTimestamp) {
-          toast.error('Already clocked in! Please clock out first.');
-          setIsLoading(false);
-          return;
-        }
+        // CRITICAL: Check if this record is actually from TODAY
+        // If it's from a previous day, create a NEW record instead of updating old one
+        const recordIsFromToday = isTodayRecord(todayAttendance);
+        console.log('recordIsFromToday:', recordIsFromToday);
         
-        // If clocked out, start a new session by updating the existing record
-        if (todayAttendance.clockOutTimestamp) {
-          console.log('Previous session completed, starting new session by updating record...');
+        if (recordIsFromToday) {
+          // Record is from TODAY - check if we can resume or if already working
+          console.log('✅ Record IS from today - checking clock status...');
           
-          const updateData: UpdateAttendanceData = {
-            clockInTimestamp: now.toISOString(),
-            clockOutTimestamp: null, // Clear clock-out to start new session
-            shiftStatus: 'Working',
-            // totalHoursComputed NOT sent - backend calculates it
-          };
+          // If currently clocked in, don't allow another clock-in
+          if (todayAttendance.clockInTimestamp && !todayAttendance.clockOutTimestamp) {
+            toast.error('Already clocked in! Please clock out first.');
+            setIsLoading(false);
+            return;
+          }
           
-          // Update instead of create
-          const result = await attendanceService.updateAttendance(
-            Number(todayAttendance.attendanceId),
-            updateData
-          );
-          
-          console.log('✅ Session updated (new clock-in):', result);
-          toast.success('✅ New work session started!');
-          
-          setIsClockedIn(true);
-          setIsClockedOut(false);
-          setStartTime(now);
-          
-          await refreshAttendance();
-          setIsLoading(false);
-          return;
+          // If clocked out, start a new session WITHIN THE SAME DAY by updating record
+          if (todayAttendance.clockOutTimestamp) {
+            console.log('Previous session completed TODAY, starting new session (updating same day record)...');
+            
+            const updateData: UpdateAttendanceData = {
+              clockInTimestamp: now.toISOString(),
+              clockOutTimestamp: null, // Clear clock-out to start new session
+              shiftStatus: 'Working',
+              // totalHoursComputed NOT sent - backend calculates it
+            };
+            
+            // Update instead of create (same day, new session)
+            const result = await attendanceService.updateAttendance(
+              Number(todayAttendance.attendanceId),
+              updateData
+            );
+            
+            console.log('✅ Same-day session updated (new clock-in):', result);
+            toast.success('✅ New work session started!');
+            
+            setIsClockedIn(true);
+            setIsClockedOut(false);
+            setStartTime(now);
+            
+            await refreshAttendance();
+            setIsLoading(false);
+            return;
+          }
+        } else {
+          // Record is NOT from today - create a NEW record
+          console.log('⚠️ Found record is from a PREVIOUS day - creating NEW record for today');
+          console.log('Old record calendarDate:', todayAttendance.calendarDate);
+          console.log('Today timestamp:', now.getTime());
+          // Fall through to create new record below
         }
       }
 
-      // No existing record, create a new one
+      // No existing record for TODAY, create a new one with totalHours = 0
       const data: CreateAttendanceData = {
         employeeId: employeeId,
         calendarDate: now.toISOString(),
         shiftStatus: 'Working',
         clockInTimestamp: now.toISOString(),
-        // totalHoursComputed NOT sent - backend calculates it
+        totalHoursComputed: 0, // EXPLICIT: Start fresh for new day
       };
 
-      console.log('📤 Sending clock in request (new record):', data);
+      console.log('📤 Creating NEW attendance record for today (fresh start):', data);
       const result = await attendanceService.createAttendance(data);
-      console.log('✅ Clock in result:', result);
+      console.log('✅ Clock in result (new record):', result);
       toast.success('✅ Clocked in successfully!');
       
       setIsClockedIn(true);
       setIsClockedOut(false);
       setStartTime(now);
+      setTotalHoursToday(0); // Reset hours display
       
       await refreshAttendance();
     } catch (err: any) {
