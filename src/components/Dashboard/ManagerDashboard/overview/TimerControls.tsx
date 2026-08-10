@@ -56,9 +56,21 @@ const TimerControls: React.FC<TimerControlsProps> = ({
               <ClockIcon className={`w-5 h-5 sm:w-6 sm:h-6 ${isClockedIn ? 'text-emerald-400 animate-pulse' : tc.textMuted}`} />
               <div>
                 <p className={`text-lg sm:text-2xl font-mono font-bold ${isClockedIn ? 'text-emerald-400' : tc.text}`}>
-                  {isClockedIn ? formatTime(workHours, workMinutes, workSeconds) : 
-                   isClockedOut ? `${Math.floor(totalHoursToday)}h ${Math.round((totalHoursToday - Math.floor(totalHoursToday)) * 60)}m` : 
-                   '00:00:00'}
+                  {(() => {
+                    if (isClockedIn) {
+                      // Show TOTAL hours (previous sessions + current session)
+                      const totalHours = previousSessionsHours + (workHours + workMinutes/60 + workSeconds/3600);
+                      const hours = Math.floor(totalHours);
+                      const remainingMinutes = (totalHours - hours) * 60;
+                      const minutes = Math.floor(remainingMinutes);
+                      const seconds = Math.floor((remainingMinutes - minutes) * 60);
+                      return formatTime(hours, minutes, seconds);
+                    } else if (isClockedOut) {
+                      return `${Math.floor(totalHoursToday)}h ${Math.round((totalHoursToday - Math.floor(totalHoursToday)) * 60)}m`;
+                    } else {
+                      return '00:00:00';
+                    }
+                  })()}
                 </p>
                 <p className={`text-[10px] sm:text-xs ${tc.textMuted}`}>
                   {isClockedIn ? '🟢 Timer running' : isClockedOut ? '✅ Session completed' : '⏸️ Timer stopped'}

@@ -305,7 +305,13 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
                   <p className={`text-lg sm:text-2xl font-mono font-bold ${isClockedIn ? 'text-emerald-400' : tc.text}`}>
                     {(() => {
                       if (isClockedIn) {
-                        return formatTime(workHours, workMinutes, workSeconds);
+                        // Show TOTAL hours (previous sessions + current session)
+                        const totalHours = previousSessionsHours + (workHours + workMinutes/60 + workSeconds/3600);
+                        const hours = Math.floor(totalHours);
+                        const remainingMinutes = (totalHours - hours) * 60;
+                        const minutes = Math.floor(remainingMinutes);
+                        const seconds = Math.floor((remainingMinutes - minutes) * 60);
+                        return formatTime(hours, minutes, seconds);
                       } else if (isClockedOut) {
                         return `${Math.floor(totalHoursToday)}h ${Math.round((totalHoursToday - Math.floor(totalHoursToday)) * 60)}m`;
                       } else {
