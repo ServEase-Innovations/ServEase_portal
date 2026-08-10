@@ -33,20 +33,8 @@ const TimerControls: React.FC<TimerControlsProps> = ({
   handleStartWork,
   handleStopWork,
   tc,
-  previousSessionsHours = 0, // NEW: Default to 0 if not provided
+  previousSessionsHours = 0,
 }) => {
-  // Calculate today's hours display
-  const todayHoursDisplay = calculateTodayHours({
-    isClockedIn,
-    isClockedOut,
-    workHours,
-    workMinutes,
-    workSeconds,
-    previousSessionsHours,
-    totalHoursToday,
-    totalWorkedToday: '00:00:00'
-  });
-
   return (
     <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow} mb-6 sm:mb-8 transition-all duration-500 ${isClockedIn ? 'ring-2 ring-emerald-500/50' : ''}`}>
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -65,15 +53,23 @@ const TimerControls: React.FC<TimerControlsProps> = ({
                       const minutes = Math.floor(remainingMinutes);
                       const seconds = Math.floor((remainingMinutes - minutes) * 60);
                       return formatTime(hours, minutes, seconds);
-                    } else if (isClockedOut) {
-                      return `${Math.floor(totalHoursToday)}h ${Math.round((totalHoursToday - Math.floor(totalHoursToday)) * 60)}m`;
-                    } else {
-                      return '00:00:00';
                     }
+                    
+                    if (isClockedOut) {
+                      const hours = Math.floor(totalHoursToday);
+                      const minutes = Math.round((totalHoursToday - hours) * 60);
+                      return `${hours}h ${minutes}m`;
+                    }
+                    
+                    return '00:00:00';
                   })()}
                 </p>
                 <p className={`text-[10px] sm:text-xs ${tc.textMuted}`}>
-                  {isClockedIn ? '🟢 Timer running' : isClockedOut ? '✅ Session completed' : '⏸️ Timer stopped'}
+                  {(() => {
+                    if (isClockedIn) return '🟢 Timer running';
+                    if (isClockedOut) return '✅ Session completed';
+                    return '⏸️ Timer stopped';
+                  })()}
                 </p>
               </div>
             </div>

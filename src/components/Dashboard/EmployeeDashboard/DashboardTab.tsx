@@ -312,22 +312,22 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
                         const minutes = Math.floor(remainingMinutes);
                         const seconds = Math.floor((remainingMinutes - minutes) * 60);
                         return formatTime(hours, minutes, seconds);
-                      } else if (isClockedOut) {
-                        return `${Math.floor(totalHoursToday)}h ${Math.round((totalHoursToday - Math.floor(totalHoursToday)) * 60)}m`;
-                      } else {
-                        return '00:00:00';
                       }
+                      
+                      if (isClockedOut) {
+                        const hours = Math.floor(totalHoursToday);
+                        const minutes = Math.round((totalHoursToday - hours) * 60);
+                        return `${hours}h ${minutes}m`;
+                      }
+                      
+                      return '00:00:00';
                     })()}
                   </p>
                   <p className={`text-[10px] sm:text-xs ${tc.textMuted}`}>
                     {(() => {
-                      if (isClockedIn) {
-                        return '🟢 Timer running';
-                      } else if (isClockedOut) {
-                        return '✅ Session completed';
-                      } else {
-                        return '⏸️ Timer stopped';
-                      }
+                      if (isClockedIn) return '🟢 Timer running';
+                      if (isClockedOut) return '✅ Session completed';
+                      return '⏸️ Timer stopped';
                     })()}
                   </p>
                 </div>
