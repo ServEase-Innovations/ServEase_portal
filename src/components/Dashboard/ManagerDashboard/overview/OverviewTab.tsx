@@ -208,8 +208,12 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
           <h3 className={`font-semibold ${tc.text} mb-2 sm:mb-4 text-base sm:text-lg`}>Today's Working Progress</h3>
           <p className={`text-sm ${tc.textSecondary} mb-3 sm:mb-4`}>
             {(() => {
-              if (isClockedIn) {
-                return `Currently working - ${workHours}h ${workMinutes}m ${workSeconds}s elapsed`;
+              if (isClockedIn && previousSessionsHours > 0) {
+                const currentSession = `${workHours}h ${workMinutes}m ${workSeconds}s`;
+                const totalToday = previousSessionsHours + (workHours + workMinutes/60 + workSeconds/3600);
+                return `Current session: ${currentSession} • Previous sessions: ${previousSessionsHours.toFixed(2)}h • Total: ${totalToday.toFixed(2)}h`;
+              } else if (isClockedIn) {
+                return `Current session: ${workHours}h ${workMinutes}m ${workSeconds}s`;
               } else if (isClockedOut) {
                 return `Completed - ${totalHoursToday.toFixed(2)}h total today`;
               } else if (!isClockedIn && !isClockedOut && workStatus === 'on-leave') {
