@@ -2,22 +2,52 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../hooks/useAuth';
 import { getThemeClasses } from './themeUtils';
+import { useAttendanceHandlers } from '../../../hooks/useAttendanceHandlers';
+import { 
+  formatTime, 
+  getTodayHoursDisplay as calculateTodayHours,
+  getTimerDisplay,
+  getClockedOutDisplay,
+  getTimerStatusText,
+  calculateTotalHours
+} from '../../../utils/timeCalculations';
+import { useLeaveHandlers } from '../../../hooks/useLeaveHandlers';
+import { useAttendanceTimer } from '../../../hooks/useAttendanceTimer';
+import { Attendance } from '../../../types';
 import moment from 'moment';
+import LeaveModal from '../ManagerDashboard/leave/LeaveModal';
+import { InfoCard } from '../shared/InfoCard';
+import { StatusBadge } from '../shared/StatusBadge';
+import { ActionButtons, getActionButtonsForState } from '../shared/ActionButtons';
 import { 
   ClockIcon,
   CheckCircleIcon, 
   CalendarDaysIcon,
   CheckIcon,
   PlayIcon,
-  StopIcon,
-  XCircleIcon,
-  ArrowUpTrayIcon,
-  PaperAirplaneIcon
+  StopIcon
 } from '@heroicons/react/24/outline';
+
+// Attendance hook return type
+interface AttendanceHookReturn {
+  attendanceRecords: Attendance[];
+  todayAttendance: Attendance | null;
+  isLoading: boolean;
+  error: string | null;
+  clockIn: () => Promise<void>;
+  clockOut: () => Promise<void>;
+  resumeWork: () => Promise<void>;
+  refreshAttendance: () => Promise<void>;
+  isClockedIn: boolean;
+  isClockedOut: boolean;
+  totalHoursToday: number;
+  startTime: Date | null;
+  endTime: Date | null;
+}
 
 interface DashboardTabProps {
   theme: 'light' | 'dark';
-  attendance: any;
+  attendance: AttendanceHookReturn;
 }
 
 interface WorkSession {
@@ -44,24 +74,46 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
   const { user } = useAuth();
   const tc = getThemeClasses(theme);
   
+  console.log('🔷 DashboardTab rendered');
+  console.log('Attendance prop:', attendance);
+  console.log('Attendance clockIn function:', typeof attendance.clockIn);
+  console.log('🔍 Button visibility check:');
+  console.log('  - isClockedIn:', attendance.isClockedIn);
+  console.log('  - isClockedOut:', attendance.isClockedOut);
+  console.log('  - todayAttendance:', attendance.todayAttendance);
+  
   const {
     todayAttendance,
     isLoading: attendanceLoading,
     clockIn,
     clockOut,
+    resumeWork,
     isClockedIn,
     isClockedOut,
     totalHoursToday,
   } = attendance;
+  
+  console.log('  - workStatus will be checked after useState');
 
-  const [isWorking, setIsWorking] = useState(false);
-  const [workHours, setWorkHours] = useState(0);
-  const [workMinutes, setWorkMinutes] = useState(0);
-  const [workSeconds, setWorkSeconds] = useState(0);
-  const [timerInterval, setTimerInterval] = useState<ReturnType<typeof setInterval> | null>(null);
-  const [startTime, setStartTime] = useState<moment.Moment | null>(null);
-  const [totalWorkedToday, setTotalWorkedToday] = useState('0h 0m');
-  const [workStatus, setWorkStatus] = useState<'working' | 'on-leave' | 'not-working'>('not-working');
+  // Use shared timer logic
+  const {
+    workHours,
+    workMinutes,
+    workSeconds,
+    startTime,
+    totalWorkedToday,
+    workStatus,
+    setWorkStatus,
+    previousSessionsHours, // Get previous sessions hours
+  } = useAttendanceTimer({
+    isClockedIn,
+    isClockedOut,
+    todayAttendance
+  });
+
+  console.log('  - workStatus:', workStatus);
+  console.log('  - Should show Start Work button:', !isClockedIn && !isClockedOut && workStatus === 'not-working');
+
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [leaveRequest, setLeaveRequest] = useState({
     type: 'Sick' as 'Sick' | 'Casual' | 'Earned' | 'Other',
@@ -71,214 +123,73 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
     imageFile: null as File | null,
     imagePreview: null as string | null,
   });
-  const [workSessions, setWorkSessions] = useState<WorkSession[]>([]);
   const [leaveHistory, setLeaveHistory] = useState<LeaveRequest[]>([]);
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
 
-  // Sync with attendance state
+  // Use shared attendance handlers
+  const {
+    handleStartWork,
+    handleStopWork,
+    handleResumeWork,
+    showSuccessMessage,
+    successMessage,
+    showSuccess
+  } = useAttendanceHandlers({
+    clockIn,
+    clockOut,
+    resumeWork,
+    totalHoursToday
+  });
+
+  // Use shared leave handlers
+  const { handleLeaveImageUpload: handleLeaveImageUploadUtil, validateLeaveRequest } = useLeaveHandlers();
+
+  // Validate and load leave history from localStorage
   useEffect(() => {
-    if (isClockedIn) {
-      setWorkStatus('working');
-      setIsWorking(true);
-      
-      if (todayAttendance?.clockInTimestamp) {
-        const start = moment(todayAttendance.clockInTimestamp);
-        setStartTime(start);
-        
-        // Calculate elapsed time using moment
-        const now = moment();
-        const duration = moment.duration(now.diff(start));
-        const hours = Math.floor(duration.asHours());
-        const minutes = duration.minutes();
-        const seconds = duration.seconds();
-        
-        setWorkHours(hours);
-        setWorkMinutes(minutes);
-        setWorkSeconds(seconds);
-        
-        if (!timerInterval) {
-          const interval = setInterval(() => {
-            setWorkSeconds(prev => {
-              if (prev >= 59) {
-                setWorkMinutes(m => {
-                  if (m >= 59) {
-                    setWorkHours(h => h + 1);
-                    return 0;
-                  }
-                  return m + 1;
-                });
-                return 0;
-              }
-              return prev + 1;
-            });
-          }, 1000);
-          setTimerInterval(interval);
-        }
-      }
-    } else if (isClockedOut && todayAttendance) {
-      setWorkStatus('not-working');
-      setIsWorking(false);
-      
-      const totalHrs = Number(todayAttendance.totalHoursComputed) || 0;
-      const hrs = Math.floor(totalHrs);
-      const mins = Math.round((totalHrs - hrs) * 60);
-      setTotalWorkedToday(`${hrs}h ${mins}m`);
-      setWorkHours(hrs);
-      setWorkMinutes(mins);
-      setWorkSeconds(0);
-      
-      if (timerInterval) {
-        clearInterval(timerInterval);
-        setTimerInterval(null);
-      }
-    }
-  }, [isClockedIn, isClockedOut, todayAttendance]);
-
-  useEffect(() => {
-    if (isClockedIn && !timerInterval) {
-      const interval = setInterval(() => {
-        setWorkSeconds(prev => {
-          if (prev >= 59) {
-            setWorkMinutes(m => {
-              if (m >= 59) {
-                setWorkHours(h => h + 1);
-                return 0;
-              }
-              return m + 1;
-            });
-            return 0;
-          }
-          return prev + 1;
-        });
-      }, 1000);
-      setTimerInterval(interval);
-    }
-    
-    return () => {
-      if (timerInterval) {
-        clearInterval(timerInterval);
-      }
-    };
-  }, [isClockedIn]);
-
-  useEffect(() => {
-    const savedSessions = localStorage.getItem('workSessions');
-    if (savedSessions) {
-      try {
-        setWorkSessions(JSON.parse(savedSessions));
-      } catch (e) {
-        console.error('Error loading work sessions:', e);
-      }
-    }
-
     const savedLeaves = localStorage.getItem('leaveHistory');
     if (savedLeaves) {
       try {
-        setLeaveHistory(JSON.parse(savedLeaves));
+        const parsed = JSON.parse(savedLeaves);
+        // Validate that it's an array with expected structure
+        if (Array.isArray(parsed)) {
+          const validLeaves = parsed.filter((leave: any) => 
+            leave && 
+            typeof leave.id === 'string' &&
+            typeof leave.type === 'string' &&
+            typeof leave.fromDate === 'string' &&
+            typeof leave.toDate === 'string' &&
+            typeof leave.reason === 'string' &&
+            typeof leave.status === 'string'
+          );
+          setLeaveHistory(validLeaves);
+        } else {
+          console.warn('Invalid leave history format in localStorage');
+          setLeaveHistory([]);
+        }
       } catch (e) {
         console.error('Error loading leave history:', e);
+        // Clear corrupted data
+        localStorage.removeItem('leaveHistory');
+        setLeaveHistory([]);
       }
     }
   }, []);
 
-  // Handle Start Work - uses API with moment
-  const handleStartWork = async () => {
-    try {
-      // Set start time using moment
-      const now = moment();
-      setStartTime(now);
-      
-      await clockIn();
-      setSuccessMessage(`Work started at ${now.format('hh:mm A')}`);
-      setShowSuccessMessage(true);
-      setTimeout(() => setShowSuccessMessage(false), 3000);
-    } catch (error) {
-      console.error('Failed to start work:', error);
-    }
-  };
-
-  // Handle Stop Work - uses API with moment
-  const handleStopWork = async () => {
-    try {
-      const now = moment();
-      const start = startTime || moment(todayAttendance?.clockInTimestamp);
-      
-      // Calculate duration using moment
-      const duration = moment.duration(now.diff(start));
-      const hours = Math.floor(duration.asHours());
-      const minutes = duration.minutes();
-      const seconds = duration.seconds();
-      
-      await clockOut();
-      
-      const totalHrs = totalHoursToday || 0;
-      const hrs = Math.floor(totalHrs);
-      const mins = Math.round((totalHrs - hrs) * 60);
-      
-      setSuccessMessage(
-        `Work session completed! Duration: ${hrs}h ${mins}m | ` +
-        `Started: ${start.format('hh:mm A')} | Ended: ${now.format('hh:mm A')}`
-      );
-      setShowSuccessMessage(true);
-      setTimeout(() => setShowSuccessMessage(false), 3000);
-      
-      // Save work session with moment timestamps
-      const session: WorkSession = {
-        id: `WS-${Date.now()}`,
-        date: now.format('YYYY-MM-DD'),
-        startTime: start.toISOString(),
-        endTime: now.toISOString(),
-        duration: duration.asSeconds(),
-        status: 'working'
-      };
-      
-      const updatedSessions = [session, ...workSessions];
-      setWorkSessions(updatedSessions);
-      localStorage.setItem('workSessions', JSON.stringify(updatedSessions));
-      
-      if (timerInterval) {
-        clearInterval(timerInterval);
-        setTimerInterval(null);
-      }
-    } catch (error) {
-      console.error('Failed to stop work:', error);
-    }
-  };
-
-  const formatTime = (hours: number, minutes: number, seconds: number) => {
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  };
-
   const handleLeaveImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setLeaveRequest({ ...leaveRequest, imageFile: file });
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setLeaveRequest({ ...leaveRequest, imageFile: file, imagePreview: reader.result as string });
-      };
-      reader.readAsDataURL(file);
-    }
+    handleLeaveImageUploadUtil(e, leaveRequest, setLeaveRequest);
   };
 
   const handleSubmitLeave = () => {
-    if (!leaveRequest.fromDate || !leaveRequest.toDate || !leaveRequest.reason) {
-      alert('Please fill in all required fields');
+    const validation = validateLeaveRequest(leaveRequest);
+    if (!validation.valid) {
+      alert(validation.error);
       return;
     }
 
-    // Validate dates with moment
     const fromDate = moment(leaveRequest.fromDate);
     const toDate = moment(leaveRequest.toDate);
-    
-    if (toDate.isBefore(fromDate)) {
-      alert('End date cannot be before start date');
-      return;
-    }
 
     const newLeave: LeaveRequest = {
-      id: `L-${String(leaveHistory.length + 1).padStart(3, '0')}`,
+      id: crypto.randomUUID(), // Use UUID instead of length-based ID
       type: leaveRequest.type,
       fromDate: fromDate.format('YYYY-MM-DD'),
       toDate: toDate.format('YYYY-MM-DD'),
@@ -303,32 +214,34 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
       imagePreview: null,
     });
     
-    setSuccessMessage(`Leave request submitted for ${fromDate.format('MMM D')} - ${toDate.format('MMM D, YYYY')}`);
-    setShowSuccessMessage(true);
-    setTimeout(() => setShowSuccessMessage(false), 3000);
+    showSuccess(`Leave request submitted for ${fromDate.format('MMM D')} - ${toDate.format('MMM D, YYYY')}`);
   };
-
-  const getStatusBadge = () => {
-    if (isClockedIn) {
-      return { label: '🟢 Working', class: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' };
-    } else if (isClockedOut) {
-      return { label: '✅ Clocked Out', class: 'bg-blue-500/20 text-blue-400 border border-blue-500/30' };
-    } else if (workStatus === 'on-leave') {
-      return { label: '🔵 On Leave', class: 'bg-blue-500/20 text-blue-400 border border-blue-500/30' };
-    }
-    return { label: '⚪ Not Working', class: 'bg-gray-500/20 text-gray-400 border border-gray-500/30' };
-  };
-
-  const statusBadge = getStatusBadge();
 
   const getTodayHoursDisplay = () => {
-    if (isClockedIn) {
-      return formatTime(workHours, workMinutes, workSeconds);
-    } else if (isClockedOut) {
-      return `${Math.floor(totalHoursToday)}h ${Math.round((totalHoursToday - Math.floor(totalHoursToday)) * 60)}m`;
-    }
-    return totalWorkedToday || '0h 0m';
+    return calculateTodayHours({
+      isClockedIn,
+      isClockedOut,
+      workHours,
+      workMinutes,
+      workSeconds,
+      previousSessionsHours,
+      totalHoursToday,
+      totalWorkedToday
+    });
   };
+
+  const actionButtons = getActionButtonsForState(
+    isClockedIn,
+    isClockedOut,
+    workStatus,
+    attendanceLoading,
+    {
+      handleStartWork,
+      handleStopWork,
+      handleResumeWork,
+      setShowLeaveModal
+    }
+  );
 
   const stats = [
     { 
@@ -358,9 +271,13 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
 
       <div className={`${tc.bgCard} p-3 sm:p-4 rounded-2xl ${tc.border} ${tc.shadow} mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0`}>
         <div className="flex items-center gap-3 sm:gap-4">
-          <span className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium ${statusBadge.class}`}>
-            {statusBadge.label}
-          </span>
+          <StatusBadge 
+            isClockedIn={isClockedIn} 
+            isClockedOut={isClockedOut} 
+            workStatus={workStatus}
+            shiftStatus={todayAttendance?.shiftStatus}
+            totalHoursToday={totalHoursToday}
+          />
           <span className={`text-xs sm:text-sm ${tc.textSecondary}`}>
             {isClockedIn && startTime && `Started at: ${startTime.format('hh:mm A')}`}
             {isClockedIn && !startTime && todayAttendance?.clockInTimestamp && `Started at: ${moment(todayAttendance.clockInTimestamp).format('hh:mm A')}`}
@@ -370,179 +287,19 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
-          {!isClockedIn && !isClockedOut && workStatus === 'not-working' && (
-            <>
-              <button
-                type="button"
-                onClick={handleStartWork}
-                disabled={attendanceLoading}
-                className="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs sm:text-sm font-medium hover:bg-emerald-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {attendanceLoading ? '⏳ Processing...' : '✅ Working Today'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowLeaveModal(true)}
-                className="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-xl text-xs sm:text-sm font-medium hover:bg-blue-500/30 transition-all"
-              >
-                📋 On Leave
-              </button>
-            </>
-          )}
-          {isClockedIn && (
-            <button
-              type="button"
-              onClick={handleStopWork}
-              disabled={attendanceLoading}
-              className="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl text-xs sm:text-sm font-medium hover:bg-rose-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {attendanceLoading ? '⏳ Processing...' : '⏹️ Stop Working'}
-            </button>
-          )}
-          {isClockedOut && (
-            <button
-              type="button"
-              onClick={() => {
-                setWorkStatus('not-working');
-              }}
-              className="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl text-xs sm:text-sm font-medium hover:bg-amber-500/30 transition-all"
-            >
-              🔄 Start New Session
-            </button>
-          )}
-          {workStatus === 'on-leave' && (
-            <button
-              type="button"
-              onClick={() => {
-                setWorkStatus('not-working');
-                setShowLeaveModal(true);
-              }}
-              className="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl text-xs sm:text-sm font-medium hover:bg-amber-500/30 transition-all"
-            >
-              ✏️ Modify Leave
-            </button>
-          )}
+          <ActionButtons buttons={actionButtons} />
         </div>
       </div>
 
-      {/* Leave Request Modal */}
-      {showLeaveModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
-          <div className={`${tc.bgCard} rounded-2xl ${tc.border} ${tc.shadow} max-w-lg w-full max-h-[90vh] overflow-y-auto p-4 sm:p-6`}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className={`text-lg sm:text-xl font-bold ${tc.text}`}>Apply for Leave</h3>
-              <button
-                type="button"
-                onClick={() => setShowLeaveModal(false)}
-                className={`p-1.5 rounded-lg ${tc.textMuted} hover:${tc.text} transition-colors`}
-              >
-                <XCircleIcon className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className={`block text-sm font-medium ${tc.text} mb-1.5`}>Leave Type</label>
-                <select
-                  value={leaveRequest.type}
-                  onChange={(e) => setLeaveRequest({ ...leaveRequest, type: e.target.value as any })}
-                  className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 ${tc.input} rounded-xl focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent outline-none transition-all text-sm`}
-                >
-                  <option value="Sick">Sick Leave</option>
-                  <option value="Casual">Casual Leave</option>
-                  <option value="Earned">Earned Leave</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div>
-                  <label className={`block text-sm font-medium ${tc.text} mb-1.5`}>From Date</label>
-                  <input
-                    type="date"
-                    value={leaveRequest.fromDate}
-                    onChange={(e) => setLeaveRequest({ ...leaveRequest, fromDate: e.target.value })}
-                    className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 ${tc.input} rounded-xl focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent outline-none transition-all text-sm`}
-                  />
-                </div>
-                <div>
-                  <label className={`block text-sm font-medium ${tc.text} mb-1.5`}>To Date</label>
-                  <input
-                    type="date"
-                    value={leaveRequest.toDate}
-                    onChange={(e) => setLeaveRequest({ ...leaveRequest, toDate: e.target.value })}
-                    className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 ${tc.input} rounded-xl focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent outline-none transition-all text-sm`}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className={`block text-sm font-medium ${tc.text} mb-1.5`}>Reason</label>
-                <textarea
-                  value={leaveRequest.reason}
-                  onChange={(e) => setLeaveRequest({ ...leaveRequest, reason: e.target.value })}
-                  placeholder="Please provide a reason for your leave..."
-                  rows={3}
-                  className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 ${tc.input} rounded-xl focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent outline-none resize-none transition-all text-sm`}
-                />
-              </div>
-
-              <div>
-                <label className={`block text-sm font-medium ${tc.text} mb-1.5`}>Supporting Document (Optional)</label>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                  <label className={`px-3 sm:px-4 py-2 sm:py-2.5 ${tc.btnBg} rounded-xl text-xs sm:text-sm font-medium cursor-pointer transition-all hover:scale-105 flex items-center gap-2`}>
-                    <ArrowUpTrayIcon className="w-4 h-4" />
-                    Upload Document
-                    <input
-                      type="file"
-                      accept="image/*,.pdf,.doc,.docx"
-                      onChange={handleLeaveImageUpload}
-                      className="hidden"
-                    />
-                  </label>
-                  {leaveRequest.imagePreview && (
-                    <div className="flex items-center gap-2">
-                      <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden border ${tc.border}">
-                        <img src={leaveRequest.imagePreview} alt="Leave document" className="w-full h-full object-cover" />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setLeaveRequest({ ...leaveRequest, imageFile: null, imagePreview: null });
-                        }}
-                        className={`p-1 rounded-lg ${tc.textMuted} hover:text-rose-400 transition-colors`}
-                      >
-                        <XCircleIcon className="w-5 h-5" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <p className={`text-[10px] sm:text-xs ${tc.textMuted} mt-1`}>
-                  Upload medical certificate, or any supporting document (optional)
-                </p>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowLeaveModal(false)}
-                  className={`w-full sm:w-auto px-4 py-2 ${tc.border} ${tc.textSecondary} rounded-xl text-sm font-medium ${tc.bgTableHover} transition-colors`}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSubmitLeave}
-                  className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2"
-                >
-                  <PaperAirplaneIcon className="w-4 h-4" />
-                  Submit Leave Request
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <LeaveModal
+        showLeaveModal={showLeaveModal}
+        setShowLeaveModal={setShowLeaveModal}
+        leaveRequest={leaveRequest}
+        setLeaveRequest={setLeaveRequest}
+        handleSubmitLeave={handleSubmitLeave}
+        handleLeaveImageUpload={handleLeaveImageUpload}
+        tc={tc}
+      />
 
       {/* Timer Controls */}
       <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow} mb-6 sm:mb-8 transition-all duration-500 ${isClockedIn ? 'ring-2 ring-emerald-500/50' : ''}`}>
@@ -553,12 +310,18 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
                 <ClockIcon className={`w-5 h-5 sm:w-6 sm:h-6 ${isClockedIn ? 'text-emerald-400 animate-pulse' : tc.textMuted}`} />
                 <div>
                   <p className={`text-lg sm:text-2xl font-mono font-bold ${isClockedIn ? 'text-emerald-400' : tc.text}`}>
-                    {isClockedIn ? formatTime(workHours, workMinutes, workSeconds) : 
-                     isClockedOut ? `${Math.floor(totalHoursToday)}h ${Math.round((totalHoursToday - Math.floor(totalHoursToday)) * 60)}m` : 
-                     '00:00:00'}
+                    {(() => {
+                      if (isClockedIn) {
+                        return getTimerDisplay(previousSessionsHours, workHours, workMinutes, workSeconds);
+                      }
+                      if (isClockedOut) {
+                        return getClockedOutDisplay(totalHoursToday);
+                      }
+                      return '00:00:00';
+                    })()}
                   </p>
                   <p className={`text-[10px] sm:text-xs ${tc.textMuted}`}>
-                    {isClockedIn ? '🟢 Timer running' : isClockedOut ? '✅ Session completed' : '⏸️ Timer stopped'}
+                    {getTimerStatusText(isClockedIn, isClockedOut)}
                   </p>
                 </div>
               </div>
@@ -566,9 +329,17 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
             <div className="hidden sm:block">
               <p className={`text-sm font-medium ${tc.text}`}>Today's Progress</p>
               <p className={`text-xs ${tc.textSecondary}`}>
-                {isClockedIn ? 'Click stop when you finish' : 
-                 isClockedOut ? `Total: ${totalHoursToday.toFixed(2)} hours` :
-                 workStatus === 'on-leave' ? 'On leave today' : 'Start tracking your work hours'}
+                {(() => {
+                  if (isClockedIn) {
+                    return 'Click stop when you finish';
+                  } else if (isClockedOut) {
+                    return `Total: ${totalHoursToday.toFixed(2)} hours`;
+                  } else if (workStatus === 'on-leave') {
+                    return 'On leave today';
+                  } else {
+                    return 'Start tracking your work hours';
+                  }
+                })()}
               </p>
             </div>
           </div>
@@ -601,7 +372,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
           </div>
         </div>
         {isClockedIn && (
-          <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 ${tc.border} border-t flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 text-xs ${tc.textMuted}">
+          <div className={`mt-3 sm:mt-4 pt-3 sm:pt-4 ${tc.border} border-t flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 text-xs ${tc.textMuted}`}>
             <span>Started at: {startTime?.format('hh:mm A') || (todayAttendance?.clockInTimestamp ? moment(todayAttendance.clockInTimestamp).format('hh:mm A') : 'N/A')}</span>
             <span className="hidden sm:inline w-px h-4 bg-gray-300/30"></span>
             <span>Elapsed: {formatTime(workHours, workMinutes, workSeconds)}</span>
@@ -632,43 +403,67 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
         <div className={`lg:col-span-2 ${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
           <h3 className={`font-semibold ${tc.text} mb-2 sm:mb-4 text-base sm:text-lg`}>Today's Working Progress</h3>
-          <p className={`text-sm ${tc.textSecondary} mb-3 sm:mb-4`}>111.5h logged this month - 14 present days</p>
+          <p className={`text-sm ${tc.textSecondary} mb-3 sm:mb-4`}>
+            {isClockedIn && previousSessionsHours > 0 && (
+              <>Current session: {formatTime(workHours, workMinutes, workSeconds)} • Previous sessions: {previousSessionsHours.toFixed(2)}h • Total: {calculateTotalHours(previousSessionsHours, workHours, workMinutes, workSeconds).totalHours.toFixed(2)}h</>
+            )}
+            {isClockedIn && previousSessionsHours === 0 && (
+              <>Current session: {formatTime(workHours, workMinutes, workSeconds)}</>
+            )}
+            {isClockedOut && `Completed - ${totalHoursToday.toFixed(2)}h total today`}
+            {!isClockedIn && !isClockedOut && workStatus === 'on-leave' && 'On leave today'}
+            {!isClockedIn && !isClockedOut && workStatus === 'not-working' && 'Not started yet'}
+          </p>
           <div className="flex items-center gap-4 sm:gap-8">
             <div className="flex-1">
               <div className="w-full bg-gray-200/20 rounded-full h-3 sm:h-4">
-                <div className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-3 sm:h-4 rounded-full transition-all duration-1000" style={{ width: isClockedIn ? `${Math.min((workHours * 3600 + workMinutes * 60 + workSeconds) / 28800 * 100, 100)}%` : isClockedOut ? '100%' : '65%' }}></div>
+                <div 
+                  className={`h-3 sm:h-4 rounded-full transition-all duration-1000 ${
+                    isClockedIn 
+                      ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' 
+                      : isClockedOut && totalHoursToday >= 8 
+                        ? 'bg-gradient-to-r from-emerald-500 to-emerald-400'
+                        : isClockedOut 
+                          ? 'bg-gradient-to-r from-amber-500 to-amber-400'
+                          : 'bg-gray-400/20'
+                  }`}
+                  style={{ 
+                    width: isClockedIn 
+                      ? `${Math.min(((previousSessionsHours * 3600) + (workHours * 3600 + workMinutes * 60 + workSeconds)) / 28800 * 100, 100)}%` 
+                      : isClockedOut 
+                        ? `${Math.min((totalHoursToday / 8) * 100, 100)}%`
+                        : '0%' 
+                  }}
+                ></div>
               </div>
               <div className={`flex flex-wrap justify-between mt-2 text-[10px] sm:text-sm ${tc.textMuted} gap-1`}>
-                <span>100% DAY</span>
-                <span>LOGIN 09:18</span>
-                <span>LOGOUT 18:32</span>
+                <span>Target: 8 hours</span>
+                <span>
+                  {startTime && `LOGIN ${startTime.format('HH:mm')}`}
+                  {!startTime && todayAttendance?.clockInTimestamp && `LOGIN ${moment(todayAttendance.clockInTimestamp).format('HH:mm')}`}
+                  {!startTime && !todayAttendance?.clockInTimestamp && 'Not started'}
+                </span>
+                <span>
+                  {isClockedOut && todayAttendance?.clockOutTimestamp && `LOGOUT ${moment(todayAttendance.clockOutTimestamp).format('HH:mm')}`}
+                  {isClockedIn && 'In progress...'}
+                  {!isClockedIn && !isClockedOut && '—'}
+                </span>
               </div>
             </div>
           </div>
         </div>
 
-        <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
-          <h3 className={`font-semibold ${tc.text} mb-2 sm:mb-4 text-base sm:text-lg`}>Team & Project</h3>
-          <p className={`text-sm ${tc.textSecondary} mb-3 sm:mb-4`}>Your current assignment</p>
-          <div className="space-y-2 sm:space-y-3 text-sm">
-            <div className={`flex justify-between items-center pb-2 ${tc.border} border-b`}>
-              <span className={tc.textSecondary}>Team</span>
-              <span className={`font-medium ${tc.text}`}>Platform</span>
-            </div>
-            <div className={`flex justify-between items-center pb-2 ${tc.border} border-b`}>
-              <span className={tc.textSecondary}>Manager</span>
-              <span className={`font-medium ${tc.text}`}>Priya Nair</span>
-            </div>
-            <div className={`flex justify-between items-center pb-2 ${tc.border} border-b`}>
-              <span className={tc.textSecondary}>Project</span>
-              <span className={`font-medium ${tc.text}`}>Atlas Core</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className={tc.textSecondary}>Squad size</span>
-              <span className={`font-medium ${tc.text}`}>14 people</span>
-            </div>
-          </div>
-        </div>
+        <InfoCard
+          title="Team & Project"
+          subtitle="Your current assignment"
+          rows={[
+            { label: 'Team', value: 'Platform' },
+            { label: 'Manager', value: 'Priya Nair' },
+            { label: 'Project', value: 'Atlas Core' },
+            { label: 'Squad size', value: '14 people', noBorder: true }
+          ]}
+          tc={tc}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
@@ -680,6 +475,21 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
               <div key={i} className={`text-[8px] sm:text-xs ${tc.textMuted} font-medium py-1`}>{day}</div>
             ))}
             {Array.from({ length: 30 }, (_, i) => i + 1).map((date) => {
+              // Calculate day of week for this date (June 2026)
+              const dateObj = new Date(2026, 5, date); // Month is 0-indexed, June = 5
+              const dayOfWeek = dateObj.getDay();
+              const isWeekend = dayOfWeek === 0 || dayOfWeek === 6; // Sunday=0, Saturday=6
+              
+              // Weekends are always purple (holiday)
+              if (isWeekend) {
+                return (
+                  <div key={date} className="py-0.5 sm:py-1 rounded bg-purple-500/20 text-purple-400 text-[10px] sm:text-sm">
+                    {date}
+                  </div>
+                );
+              }
+              
+              // Weekday logic
               let bgColor = 'text-gray-400';
               let textColor = 'text-gray-400';
               if (date <= 18 && date >= 3) {
@@ -711,31 +521,25 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
           </div>
         </div>
 
-        <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
-          <h3 className={`font-semibold ${tc.text} mb-2 sm:mb-4 text-base sm:text-lg`}>Monthly Summary</h3>
-          <div className="space-y-2 sm:space-y-3">
-            <div className={`flex justify-between items-center pb-2 ${tc.border} border-b`}>
-              <span className={tc.textSecondary}>Present</span>
-              <span className={`font-bold ${tc.text}`}>14 days</span>
-            </div>
-            <div className={`flex justify-between items-center pb-2 ${tc.border} border-b`}>
-              <span className={tc.textSecondary}>WFH</span>
-              <span className={`font-bold ${tc.text}`}>0 days</span>
-            </div>
-            <div className={`flex justify-between items-center pb-2 ${tc.border} border-b`}>
-              <span className={tc.textSecondary}>Half-Day</span>
-              <span className={`font-bold ${tc.text}`}>0 days</span>
-            </div>
-            <div className={`flex justify-between items-center pb-2 ${tc.border} border-b`}>
-              <span className={tc.textSecondary}>Leave</span>
-              <span className={`font-bold ${tc.text}`}>2 days</span>
-            </div>
-            <div className="flex justify-between items-center pt-2">
-              <span className={`${tc.textSecondary} font-medium`}>Total Hours</span>
-              <span className="font-bold text-indigo-400">111.5 hours</span>
-            </div>
-          </div>
-        </div>
+        <InfoCard
+          title="Monthly Summary"
+          rows={[
+            { label: 'Present', value: '14 days', bold: true },
+            { label: 'WFH', value: '0 days', bold: true },
+            { label: 'Half-Day', value: '0 days', bold: true },
+            { label: 'Leave', value: '2 days', bold: true },
+            { 
+              label: 'Total Hours', 
+              value: '111.5 hours', 
+              bold: true, 
+              noBorder: true, 
+              topPadding: true,
+              valueClass: 'text-indigo-400',
+              labelClass: 'font-medium'
+            }
+          ]}
+          tc={tc}
+        />
       </div>
     </>
   );

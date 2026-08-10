@@ -2,6 +2,14 @@
 import React from 'react';
 import { ClockIcon, PlayIcon, StopIcon } from '@heroicons/react/24/outline';
 import { ThemeClasses } from '../types';
+import { 
+  formatTime, 
+  getTodayHoursDisplay as calculateTodayHours,
+  getTimerDisplay,
+  getClockedOutDisplay,
+  getTimerStatusText,
+  calculateTotalHours
+} from '../../../../utils/timeCalculations';
 
 interface TimerControlsProps {
   isClockedIn: boolean;
@@ -16,6 +24,7 @@ interface TimerControlsProps {
   handleStartWork: () => void;
   handleStopWork: () => void;
   tc: ThemeClasses;
+  previousSessionsHours?: number; // NEW: Add accumulated hours from previous sessions
 }
 
 const TimerControls: React.FC<TimerControlsProps> = ({
@@ -30,12 +39,9 @@ const TimerControls: React.FC<TimerControlsProps> = ({
   startTime,
   handleStartWork,
   handleStopWork,
-  tc
+  tc,
+  previousSessionsHours = 0,
 }) => {
-  const formatTime = (hours: number, minutes: number, seconds: number) => {
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  };
-
   return (
     <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow} mb-6 sm:mb-8 transition-all duration-500 ${isClockedIn ? 'ring-2 ring-emerald-500/50' : ''}`}>
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -45,12 +51,18 @@ const TimerControls: React.FC<TimerControlsProps> = ({
               <ClockIcon className={`w-5 h-5 sm:w-6 sm:h-6 ${isClockedIn ? 'text-emerald-400 animate-pulse' : tc.textMuted}`} />
               <div>
                 <p className={`text-lg sm:text-2xl font-mono font-bold ${isClockedIn ? 'text-emerald-400' : tc.text}`}>
-                  {isClockedIn ? formatTime(workHours, workMinutes, workSeconds) : 
-                   isClockedOut ? `${Math.floor(totalHoursToday)}h ${Math.round((totalHoursToday - Math.floor(totalHoursToday)) * 60)}m` : 
-                   '00:00:00'}
+                  {(() => {
+                    if (isClockedIn) {
+                      return getTimerDisplay(previousSessionsHours, workHours, workMinutes, workSeconds);
+                    }
+                    if (isClockedOut) {
+                      return getClockedOutDisplay(totalHoursToday);
+                    }
+                    return '00:00:00';
+                  })()}
                 </p>
                 <p className={`text-[10px] sm:text-xs ${tc.textMuted}`}>
-                  {isClockedIn ? '🟢 Timer running' : isClockedOut ? '✅ Session completed' : '⏸️ Timer stopped'}
+                  {getTimerStatusText(isClockedIn, isClockedOut)}
                 </p>
               </div>
             </div>
@@ -58,7 +70,7 @@ const TimerControls: React.FC<TimerControlsProps> = ({
           <div className="hidden sm:block">
             <p className={`text-sm font-medium ${tc.text}`}>Today's Progress</p>
             <p className={`text-xs ${tc.textSecondary}`}>
-              {isClockedIn ? 'Click stop when you finish' : 
+              {isClockedIn ? `Current session: ${formatTime(workHours, workMinutes, workSeconds)}` : 
                isClockedOut ? `Total: ${totalHoursToday.toFixed(2)} hours` :
                workStatus === 'on-leave' ? 'On leave today' : 'Start tracking your work hours'}
             </p>
@@ -93,10 +105,18 @@ const TimerControls: React.FC<TimerControlsProps> = ({
         </div>
       </div>
       {isClockedIn && (
-        <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 ${tc.border} border-t flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 text-xs ${tc.textMuted}">
+        <div className={`mt-3 sm:mt-4 pt-3 sm:pt-4 ${tc.border} border-t flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 text-xs ${tc.textMuted}`}>
           <span>Started at: {startTime?.format('hh:mm A') || 'N/A'}</span>
           <span className="hidden sm:inline w-px h-4 bg-gray-300/30"></span>
-          <span>Elapsed: {formatTime(workHours, workMinutes, workSeconds)}</span>
+          <span>Current session: {formatTime(workHours, workMinutes, workSeconds)}</span>
+          {previousSessionsHours > 0 && (
+            <>
+              <span className="hidden sm:inline w-px h-4 bg-gray-300/30"></span>
+              <span>Previous sessions: {previousSessionsHours.toFixed(2)}h</span>
+              <span className="hidden sm:inline w-px h-4 bg-gray-300/30"></span>
+              <span className="font-semibold text-emerald-400">Today's total: {calculateTotalHours(previousSessionsHours, workHours, workMinutes, workSeconds).totalHours.toFixed(2)}h</span>
+            </>
+          )}
           <span className="hidden sm:inline w-px h-4 bg-gray-300/30"></span>
           <span>Status: {isClockedIn ? '🟢 Active' : workStatus === 'on-leave' ? '🔵 On Leave' : '⚪ Not Working'}</span>
         </div>
