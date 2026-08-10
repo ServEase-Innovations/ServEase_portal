@@ -303,12 +303,26 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
                 <ClockIcon className={`w-5 h-5 sm:w-6 sm:h-6 ${isClockedIn ? 'text-emerald-400 animate-pulse' : tc.textMuted}`} />
                 <div>
                   <p className={`text-lg sm:text-2xl font-mono font-bold ${isClockedIn ? 'text-emerald-400' : tc.text}`}>
-                    {isClockedIn ? formatTime(workHours, workMinutes, workSeconds) : 
-                     isClockedOut ? `${Math.floor(totalHoursToday)}h ${Math.round((totalHoursToday - Math.floor(totalHoursToday)) * 60)}m` : 
-                     '00:00:00'}
+                    {(() => {
+                      if (isClockedIn) {
+                        return formatTime(workHours, workMinutes, workSeconds);
+                      } else if (isClockedOut) {
+                        return `${Math.floor(totalHoursToday)}h ${Math.round((totalHoursToday - Math.floor(totalHoursToday)) * 60)}m`;
+                      } else {
+                        return '00:00:00';
+                      }
+                    })()}
                   </p>
                   <p className={`text-[10px] sm:text-xs ${tc.textMuted}`}>
-                    {isClockedIn ? '🟢 Timer running' : isClockedOut ? '✅ Session completed' : '⏸️ Timer stopped'}
+                    {(() => {
+                      if (isClockedIn) {
+                        return '🟢 Timer running';
+                      } else if (isClockedOut) {
+                        return '✅ Session completed';
+                      } else {
+                        return '⏸️ Timer stopped';
+                      }
+                    })()}
                   </p>
                 </div>
               </div>
@@ -316,9 +330,17 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
             <div className="hidden sm:block">
               <p className={`text-sm font-medium ${tc.text}`}>Today's Progress</p>
               <p className={`text-xs ${tc.textSecondary}`}>
-                {isClockedIn ? 'Click stop when you finish' : 
-                 isClockedOut ? `Total: ${totalHoursToday.toFixed(2)} hours` :
-                 workStatus === 'on-leave' ? 'On leave today' : 'Start tracking your work hours'}
+                {(() => {
+                  if (isClockedIn) {
+                    return 'Click stop when you finish';
+                  } else if (isClockedOut) {
+                    return `Total: ${totalHoursToday.toFixed(2)} hours`;
+                  } else if (workStatus === 'on-leave') {
+                    return 'On leave today';
+                  } else {
+                    return 'Start tracking your work hours';
+                  }
+                })()}
               </p>
             </div>
           </div>

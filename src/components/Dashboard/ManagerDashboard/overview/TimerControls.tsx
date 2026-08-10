@@ -35,18 +35,17 @@ const TimerControls: React.FC<TimerControlsProps> = ({
   tc,
   previousSessionsHours = 0, // NEW: Default to 0 if not provided
 }) => {
-  const getTodayHoursDisplay = () => {
-    return calculateTodayHours({
-      isClockedIn,
-      isClockedOut,
-      workHours,
-      workMinutes,
-      workSeconds,
-      previousSessionsHours,
-      totalHoursToday,
-      totalWorkedToday: '00:00:00'
-    });
-  };
+  // Calculate today's hours display
+  const todayHoursDisplay = calculateTodayHours({
+    isClockedIn,
+    isClockedOut,
+    workHours,
+    workMinutes,
+    workSeconds,
+    previousSessionsHours,
+    totalHoursToday,
+    totalWorkedToday: '00:00:00'
+  });
 
   return (
     <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow} mb-6 sm:mb-8 transition-all duration-500 ${isClockedIn ? 'ring-2 ring-emerald-500/50' : ''}`}>

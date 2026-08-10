@@ -114,7 +114,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
   const formatTime = (timestamp: number | string | null | undefined): string => {
     if (!timestamp) return '--:--';
     const ts = typeof timestamp === 'number' ? timestamp : new Date(timestamp).getTime();
-    if (isNaN(ts)) return '--:--';
+    if (Number.isNaN(ts)) return '--:--';
     return moment(ts).format('HH:mm');
   };
   
@@ -207,10 +207,17 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
         <div className={`lg:col-span-2 ${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
           <h3 className={`font-semibold ${tc.text} mb-2 sm:mb-4 text-base sm:text-lg`}>Today's Working Progress</h3>
           <p className={`text-sm ${tc.textSecondary} mb-3 sm:mb-4`}>
-            {isClockedIn && `Currently working - ${workHours}h ${workMinutes}m ${workSeconds}s elapsed`}
-            {isClockedOut && `Completed - ${totalHoursToday.toFixed(2)}h total today`}
-            {!isClockedIn && !isClockedOut && workStatus === 'on-leave' && 'On leave today'}
-            {!isClockedIn && !isClockedOut && workStatus === 'not-working' && 'Not started yet'}
+            {(() => {
+              if (isClockedIn) {
+                return `Currently working - ${workHours}h ${workMinutes}m ${workSeconds}s elapsed`;
+              } else if (isClockedOut) {
+                return `Completed - ${totalHoursToday.toFixed(2)}h total today`;
+              } else if (!isClockedIn && !isClockedOut && workStatus === 'on-leave') {
+                return 'On leave today';
+              } else {
+                return 'Not started yet';
+              }
+            })()}
           </p>
           <div className="flex items-center gap-4 sm:gap-8">
             <div className="flex-1">
@@ -233,7 +240,9 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
               <div className={`flex flex-wrap justify-between mt-2 text-[10px] sm:text-sm ${tc.textMuted} gap-1`}>
                 <span>Target: 8 hours ({todayProgressPercent.toFixed(0)}%)</span>
                 <span>LOGIN {firstClockIn}</span>
-                <span>LOGOUT {isClockedIn ? 'In progress...' : lastClockOut}</span>
+                <span>
+                  {isClockedIn ? 'LOGOUT In progress...' : `LOGOUT ${lastClockOut}`}
+                </span>
               </div>
             </div>
           </div>
