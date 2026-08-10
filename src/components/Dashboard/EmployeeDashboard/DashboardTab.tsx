@@ -3,7 +3,14 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../hooks/useAuth';
 import { getThemeClasses } from './themeUtils';
 import { useAttendanceHandlers } from '../../../hooks/useAttendanceHandlers';
-import { formatTime, getTodayHoursDisplay as calculateTodayHours } from '../../../utils/timeCalculations';
+import { 
+  formatTime, 
+  getTodayHoursDisplay as calculateTodayHours,
+  getTimerDisplay,
+  getClockedOutDisplay,
+  getTimerStatusText,
+  calculateTotalHours
+} from '../../../utils/timeCalculations';
 import { useLeaveHandlers } from '../../../hooks/useLeaveHandlers';
 import { useAttendanceTimer } from '../../../hooks/useAttendanceTimer';
 import { Attendance } from '../../../types';
@@ -305,30 +312,16 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
                   <p className={`text-lg sm:text-2xl font-mono font-bold ${isClockedIn ? 'text-emerald-400' : tc.text}`}>
                     {(() => {
                       if (isClockedIn) {
-                        // Show TOTAL hours (previous sessions + current session)
-                        const totalHours = previousSessionsHours + (workHours + workMinutes/60 + workSeconds/3600);
-                        const hours = Math.floor(totalHours);
-                        const remainingMinutes = (totalHours - hours) * 60;
-                        const minutes = Math.floor(remainingMinutes);
-                        const seconds = Math.floor((remainingMinutes - minutes) * 60);
-                        return formatTime(hours, minutes, seconds);
+                        return getTimerDisplay(previousSessionsHours, workHours, workMinutes, workSeconds);
                       }
-                      
                       if (isClockedOut) {
-                        const hours = Math.floor(totalHoursToday);
-                        const minutes = Math.round((totalHoursToday - hours) * 60);
-                        return `${hours}h ${minutes}m`;
+                        return getClockedOutDisplay(totalHoursToday);
                       }
-                      
                       return '00:00:00';
                     })()}
                   </p>
                   <p className={`text-[10px] sm:text-xs ${tc.textMuted}`}>
-                    {(() => {
-                      if (isClockedIn) return '🟢 Timer running';
-                      if (isClockedOut) return '✅ Session completed';
-                      return '⏸️ Timer stopped';
-                    })()}
+                    {getTimerStatusText(isClockedIn, isClockedOut)}
                   </p>
                 </div>
               </div>
@@ -412,7 +405,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
           <h3 className={`font-semibold ${tc.text} mb-2 sm:mb-4 text-base sm:text-lg`}>Today's Working Progress</h3>
           <p className={`text-sm ${tc.textSecondary} mb-3 sm:mb-4`}>
             {isClockedIn && previousSessionsHours > 0 && (
-              <>Current session: {formatTime(workHours, workMinutes, workSeconds)} • Previous sessions: {previousSessionsHours.toFixed(2)}h • Total: {(previousSessionsHours + (workHours + workMinutes/60 + workSeconds/3600)).toFixed(2)}h</>
+              <>Current session: {formatTime(workHours, workMinutes, workSeconds)} • Previous sessions: {previousSessionsHours.toFixed(2)}h • Total: {calculateTotalHours(previousSessionsHours, workHours, workMinutes, workSeconds).totalHours.toFixed(2)}h</>
             )}
             {isClockedIn && previousSessionsHours === 0 && (
               <>Current session: {formatTime(workHours, workMinutes, workSeconds)}</>

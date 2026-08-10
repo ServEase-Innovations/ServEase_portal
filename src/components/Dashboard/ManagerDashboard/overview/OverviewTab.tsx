@@ -8,6 +8,10 @@ import {
   UserGroupIcon, 
   ChartBarIcon 
 } from '@heroicons/react/24/outline';
+import { 
+  formatTime as formatTimeUtil, 
+  calculateTotalHours 
+} from '../../../utils/timeCalculations';
 import { Attendance } from '../../../types';
 import { ThemeClasses, TeamMember } from '../types';
 import StatsCard from '../common/StatsCard';
@@ -209,11 +213,11 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
           <p className={`text-sm ${tc.textSecondary} mb-3 sm:mb-4`}>
             {(() => {
               if (isClockedIn && previousSessionsHours > 0) {
-                const currentSession = `${workHours}h ${workMinutes}m ${workSeconds}s`;
-                const totalToday = previousSessionsHours + (workHours + workMinutes/60 + workSeconds/3600);
-                return `Current session: ${currentSession} • Previous sessions: ${previousSessionsHours.toFixed(2)}h • Total: ${totalToday.toFixed(2)}h`;
+                const currentSession = formatTimeUtil(workHours, workMinutes, workSeconds);
+                const { totalHours } = calculateTotalHours(previousSessionsHours, workHours, workMinutes, workSeconds);
+                return `Current session: ${currentSession} • Previous sessions: ${previousSessionsHours.toFixed(2)}h • Total: ${totalHours.toFixed(2)}h`;
               } else if (isClockedIn) {
-                return `Current session: ${workHours}h ${workMinutes}m ${workSeconds}s`;
+                return `Current session: ${formatTimeUtil(workHours, workMinutes, workSeconds)}`;
               } else if (isClockedOut) {
                 return `Completed - ${totalHoursToday.toFixed(2)}h total today`;
               } else if (!isClockedIn && !isClockedOut && workStatus === 'on-leave') {
