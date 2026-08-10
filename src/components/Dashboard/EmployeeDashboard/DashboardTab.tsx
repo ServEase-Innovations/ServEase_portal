@@ -429,7 +429,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ theme, attendance }) => {
                   }`}
                   style={{ 
                     width: isClockedIn 
-                      ? `${Math.min((workHours * 3600 + workMinutes * 60 + workSeconds) / 28800 * 100, 100)}%` 
+                      ? `${Math.min(((previousSessionsHours * 3600) + (workHours * 3600 + workMinutes * 60 + workSeconds)) / 28800 * 100, 100)}%` 
                       : isClockedOut 
                         ? `${Math.min((totalHoursToday / 8) * 100, 100)}%`
                         : '0%' 

@@ -112,7 +112,9 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
   const monthlyStats = calculateMonthlyStats();
   
   // Calculate today's progress percentage (assuming 8 hour workday)
-  const todayProgressPercent = Math.min((workHours * 3600 + workMinutes * 60 + workSeconds) / (8 * 3600) * 100, 100);
+  // Include both previous sessions AND current session
+  const totalSecondsToday = (previousSessionsHours * 3600) + (workHours * 3600 + workMinutes * 60 + workSeconds);
+  const todayProgressPercent = Math.min(totalSecondsToday / (8 * 3600) * 100, 100);
   
   // Format time for display with timezone safety
   const formatTime = (timestamp: number | string | null | undefined): string => {
