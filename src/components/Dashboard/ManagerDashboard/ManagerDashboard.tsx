@@ -26,11 +26,13 @@ import {
   TaskHistory, PerformanceData 
 } from './types';
 import moment from 'moment';
+import { useAuth } from '../../../context/AuthContext';
 
 const ManagerDashboard = () => {
   const location = useLocation();
   const { theme, toggleTheme, getThemeClasses } = useTheme();
   const tc = getThemeClasses();
+  const {  token } = useAuth();
   
   // Get attendance hook for API integration
   const attendance = useAttendance();
@@ -361,24 +363,24 @@ const ManagerDashboard = () => {
   };
 
   // Task Functions
-  const addJiraLink = () => {
-    if (jiraLinks.length < 10) {
-      setJiraLinks([...jiraLinks, '']);
-    }
-  };
+  // const addJiraLink = () => {
+  //   if (jiraLinks.length < 10) {
+  //     setJiraLinks([...jiraLinks, '']);
+  //   }
+  // };
 
-  const removeJiraLink = (index: number) => {
-    if (jiraLinks.length > 1) {
-      const newLinks = jiraLinks.filter((_, i) => i !== index);
-      setJiraLinks(newLinks);
-    }
-  };
+  // const removeJiraLink = (index: number) => {
+  //   if (jiraLinks.length > 1) {
+  //     const newLinks = jiraLinks.filter((_, i) => i !== index);
+  //     setJiraLinks(newLinks);
+  //   }
+  // };
 
-  const updateJiraLink = (index: number, value: string) => {
-    const newLinks = [...jiraLinks];
-    newLinks[index] = value;
-    setJiraLinks(newLinks);
-  };
+  // const updateJiraLink = (index: number, value: string) => {
+  //   const newLinks = [...jiraLinks];
+  //   newLinks[index] = value;
+  //   setJiraLinks(newLinks);
+  // };
 
   const handleTaskImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -838,13 +840,16 @@ const ManagerDashboard = () => {
       case 'tasks-board':
         return <TasksBoardTab tc={tc} tasks={tasks} />;
       case 'daily-tasks':
+        // Use the updated DailyTasksTab with token for API integration
         return (
           <DailyTasksTab
             tc={tc}
-            taskStatus={taskStatus}
-            setTaskStatus={setTaskStatus}
-            jiraLinks={jiraLinks}
-            setJiraLinks={setJiraLinks}
+            token={token}
+            // Pass the existing state as props for backward compatibility
+            taskStatus={taskStatus as 'Pending' | 'Completed'}
+            setTaskStatus={(status: 'Pending' | 'Completed') => setTaskStatus(status)}
+            jiraLinks={jiraLinks.map(url => ({ url }))}
+            setJiraLinks={(links) => setJiraLinks(links.map(l => l.url))}
             taskDescription={taskDescription}
             setTaskDescription={setTaskDescription}
             newIdea={newIdea}
@@ -856,10 +861,39 @@ const ManagerDashboard = () => {
             taskImagePreview={taskImagePreview}
             setTaskImagePreview={setTaskImagePreview}
             setTaskImageFile={setTaskImageFile}
-            taskHistory={taskHistory}
-            addJiraLink={addJiraLink}
-            removeJiraLink={removeJiraLink}
-            updateJiraLink={updateJiraLink}
+            taskHistory={taskHistory.map(task => ({
+              dailyTaskSubmissionId: task.id,
+              employeeId: 'SE-187',
+              workDescription: task.taskDescription,
+              status: task.status as 'Pending' | 'Completed',
+              newIdeas: task.newIdea || null,
+              submissionDate: task.date,
+              submissionDateEpoch: Date.now().toString(),
+              submittedAt: task.submittedAt,
+              submittedAtEpoch: Date.now().toString(),
+              updatedAt: task.submittedAt,
+              updatedAtEpoch: Date.now().toString(),
+              jiraLinks: task.jiraLinks.map(url => ({ url })),
+              attachments: [],
+            }))}
+            addJiraLink={() => {
+              if (jiraLinks.length < 10) {
+                setJiraLinks([...jiraLinks, '']);
+              }
+            }}
+            removeJiraLink={(index: number) => {
+              if (jiraLinks.length > 1) {
+                const newLinks = jiraLinks.filter((_, i) => i !== index);
+                setJiraLinks(newLinks);
+              }
+            }}
+            updateJiraLink={(index: number, field: 'label' | 'url', value: string) => {
+              if (field === 'url') {
+                const newLinks = [...jiraLinks];
+                newLinks[index] = value;
+                setJiraLinks(newLinks);
+              }
+            }}
             handleTaskImageUpload={handleTaskImageUpload}
             handleSubmitTask={handleSubmitTask}
           />
