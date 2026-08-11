@@ -96,8 +96,8 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
   handleTaskImageUpload: externalHandleTaskImageUpload,
   handleSubmitTask: externalHandleSubmitTask,
 }) => {
-  // Use external props if provided (for ManagerDashboard), otherwise use internal state
-  const isUsingExternalProps = !!externalTaskStatus !== undefined;
+  // Determine if using external props
+  const isUsingExternalProps = externalTaskStatus !== undefined;
   
   // Internal state (used when not using external props)
   const [internalTaskStatus, setInternalTaskStatus] = useState<'Pending' | 'Completed'>('Pending');
@@ -129,7 +129,8 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
   const setNewIdeas = isUsingExternalProps ? externalSetNewIdea! : setInternalNewIdeas;
   const additionalInfo = isUsingExternalProps ? externalAdditionalInfo! : internalAdditionalInfo;
   const setAdditionalInfo = isUsingExternalProps ? externalSetAdditionalInfo! : setInternalAdditionalInfo;
-  const taskImagePreview = isUsingExternalProps ? externalTaskImagePreview! : internalTaskImagePreview;
+  // Commented out due to duplication - using the one below
+  // const taskImagePreview = isUsingExternalProps ? externalTaskImagePreview! : internalTaskImagePreview;
   const setTaskImagePreview = isUsingExternalProps ? externalSetTaskImagePreview! : setInternalTaskImagePreview;
   const taskHistory = isUsingExternalProps ? externalTaskHistory! : internalTaskHistory;
 
@@ -150,14 +151,14 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
         params.date = date;
       }
       
-      const response = await dailyTaskService.getMyTasks(params);
+      const response = await dailyTaskService.getMyTasks(params) as any;
       console.log('Fetched tasks:', response);
-      
-      if (response && response.dailyTasks) {
-        setInternalTaskHistory(response.dailyTasks);
-      } else {
-        setInternalTaskHistory([]);
-      }
+
+      const fetchedTasks = Array.isArray(response)
+        ? response
+        : response?.dailyTasks ?? [];
+
+      setInternalTaskHistory(fetchedTasks);
     } catch (error: any) {
       console.error('Failed to fetch tasks:', error);
       toast.error(error.message || 'Failed to fetch task history');
@@ -276,11 +277,11 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
       const createResponse = await dailyTaskService.create(taskData);
       console.log('Task created:', createResponse);
 
-      if (!createResponse || !createResponse.dailyTask) {
+      if (!createResponse || !createResponse.dailyTaskSubmissionId) {
         throw new Error('Failed to create task');
       }
 
-      const taskId = createResponse.dailyTask.dailyTaskSubmissionId;
+      const taskId = createResponse.dailyTaskSubmissionId;
 
       // Step 2: Upload attachments if any
       if (internalFiles.length > 0) {
@@ -352,9 +353,164 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
     }
   };
 
+  // Get file icon for internal file uploads
+  const getInternalFileIcon = (file: File) => {
+    if (file.type?.includes('pdf')) return '📄';
+    if (file.type?.includes('video')) return '🎬';
+    if (file.type?.startsWith('image/')) return '🖼️';
+    return '📎';
+  };
+
   // Determine if we should show loading based on context
   const isLoading = isUsingExternalProps ? false : fetchingHistory;
   const currentTaskHistory = isUsingExternalProps ? taskHistory : internalTaskHistory;
+
+  // Render task history content
+  const renderTaskHistoryContent = () => {
+    if (isLoading) {
+      return (
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mx-auto"></div>
+          <p className={`mt-2 text-sm ${tc.textSecondary}`}>Loading tasks...</p>
+        </div>
+      );
+    }
+
+    if (currentTaskHistory.length === 0) {
+      return (
+        <div className={`text-center py-8 ${tc.textSecondary}`}>
+          <p>No tasks submitted for this date</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-3 sm:space-y-4">
+        {currentTaskHistory.map((task) => (
+          <div key={task.dailyTaskSubmissionId} className={`p-3 sm:p-4 rounded-xl ${tc.taskCard} ${tc.border} border ${tc.taskCardHover} transition-all duration-300`}>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`text-xs font-medium text-indigo-400`}>
+                  #{task.dailyTaskSubmissionId.slice(0, 8)}
+                </span>
+                <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-xs font-medium ${getStatusColor(task.status)}`}>
+                  {task.status}
+                </span>
+                {task.jiraLinks && task.jiraLinks.length > 0 && (
+                  <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-xs font-medium ${tc.textMuted} bg-gray-500/10`}>
+                    {task.jiraLinks.length} link{task.jiraLinks.length > 1 ? 's' : ''}
+                  </span>
+                )}
+                {task.attachments && task.attachments.length > 0 && (
+                  <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-xs font-medium bg-blue-500/20 text-blue-400`}>
+                    {task.attachments.length} file{task.attachments.length > 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+              <span className={`text-[10px] sm:text-xs ${tc.textMuted}`}>
+                {formatDate(task.submittedAt)}
+              </span>
+            </div>
+            
+            <div className="mt-2 space-y-1.5">
+              {/* Jira Links */}
+              {task.jiraLinks && task.jiraLinks.length > 0 && (
+                <div className="space-y-0.5">
+                  {task.jiraLinks.map((link, idx) => (
+                    <div key={idx} className="flex items-center gap-2 text-xs">
+                      <LinkIcon className={`w-3.5 h-3.5 ${tc.textMuted} flex-shrink-0`} />
+                      {link.label && (
+                        <span className={`${tc.textSecondary} font-medium`}>[{link.label}]</span>
+                      )}
+                      <a 
+                        href={link.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-indigo-400 hover:text-indigo-300 truncate"
+                      >
+                        {link.url}
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* Work Description */}
+              <p className={`text-xs sm:text-sm ${tc.text}`}>{task.workDescription}</p>
+              
+              {/* New Ideas */}
+              {task.newIdeas && (
+                <div className="flex items-start gap-2 text-xs">
+                  <LightBulbIcon className={`w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5`} />
+                  <span className={`${tc.textSecondary}`}>{task.newIdeas}</span>
+                </div>
+              )}
+              
+              {/* Attachments */}
+              {task.attachments && task.attachments.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {task.attachments.map((attachment) => (
+                    <div key={attachment.dailyTaskAttachmentId} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-700/20 border ${tc.border}">
+                      <span className="text-sm">{getFileIcon(attachment.fileType)}</span>
+                      <a 
+                        href={attachment.fileUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-xs text-indigo-400 hover:text-indigo-300 truncate max-w-[100px]"
+                      >
+                        {attachment.fileName}
+                      </a>
+                      <span className={`text-[9px] ${tc.textMuted}`}>
+                        ({(attachment.fileSize / 1024).toFixed(1)} KB)
+                      </span>
+                      <button
+                        onClick={() => handleDeleteAttachment(task.dailyTaskSubmissionId, attachment.dailyTaskAttachmentId)}
+                        className="p-0.5 hover:text-rose-400 transition-colors"
+                        title="Delete attachment"
+                      >
+                        <TrashIcon className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  // Render file preview item
+  const renderFilePreview = (preview: string, index: number) => {
+    const file = internalFiles[index];
+    const fileIcon = file ? getInternalFileIcon(file) : '📎';
+    const isImage = file?.type?.startsWith('image/');
+
+    return (
+      <div key={index} className="relative">
+        <div className="w-20 h-20 rounded-lg overflow-hidden border ${tc.border} bg-gray-800/30">
+          {isImage ? (
+            <img src={preview} alt={`File ${index + 1}`} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-2xl">
+              {fileIcon}
+            </div>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => removeFile(index)}
+          className="absolute -top-1 -right-1 p-0.5 bg-rose-500 rounded-full hover:bg-rose-600 transition-colors"
+        >
+          <XCircleIcon className="w-5 h-5 text-white" />
+        </button>
+        <div className="text-[10px] ${tc.textMuted} mt-1 truncate max-w-[80px]">
+          {file?.name}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -532,30 +688,7 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
               {/* File previews */}
               {internalFilePreviews.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-3">
-                  {internalFilePreviews.map((preview, index) => (
-                    <div key={index} className="relative">
-                      <div className="w-20 h-20 rounded-lg overflow-hidden border ${tc.border} bg-gray-800/30">
-                        {internalFiles[index]?.type?.startsWith('image/') ? (
-                          <img src={preview} alt={`File ${index + 1}`} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-2xl">
-                            {internalFiles[index]?.type?.includes('pdf') ? '📄' : 
-                             internalFiles[index]?.type?.includes('video') ? '🎬' : '📎'}
-                          </div>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeFile(index)}
-                        className="absolute -top-1 -right-1 p-0.5 bg-rose-500 rounded-full hover:bg-rose-600 transition-colors"
-                      >
-                        <XCircleIcon className="w-5 h-5 text-white" />
-                      </button>
-                      <div className="text-[10px] ${tc.textMuted} mt-1 truncate max-w-[80px]">
-                        {internalFiles[index]?.name}
-                      </div>
-                    </div>
-                  ))}
+                  {internalFilePreviews.map((preview, index) => renderFilePreview(preview, index))}
                 </div>
               )}
             </div>
@@ -601,110 +734,7 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
           </div>
         </div>
         
-        {isLoading ? (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mx-auto"></div>
-            <p className={`mt-2 text-sm ${tc.textSecondary}`}>Loading tasks...</p>
-          </div>
-        ) : currentTaskHistory.length === 0 ? (
-          <div className={`text-center py-8 ${tc.textSecondary}`}>
-            <p>No tasks submitted for this date</p>
-          </div>
-        ) : (
-          <div className="space-y-3 sm:space-y-4">
-            {currentTaskHistory.map((task) => (
-              <div key={task.dailyTaskSubmissionId} className={`p-3 sm:p-4 rounded-xl ${tc.taskCard} ${tc.border} border ${tc.taskCardHover} transition-all duration-300`}>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`text-xs font-medium text-indigo-400`}>
-                      #{task.dailyTaskSubmissionId.slice(0, 8)}
-                    </span>
-                    <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-xs font-medium ${getStatusColor(task.status)}`}>
-                      {task.status}
-                    </span>
-                    {task.jiraLinks && task.jiraLinks.length > 0 && (
-                      <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-xs font-medium ${tc.textMuted} bg-gray-500/10`}>
-                        {task.jiraLinks.length} link{task.jiraLinks.length > 1 ? 's' : ''}
-                      </span>
-                    )}
-                    {task.attachments && task.attachments.length > 0 && (
-                      <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-xs font-medium bg-blue-500/20 text-blue-400`}>
-                        {task.attachments.length} file{task.attachments.length > 1 ? 's' : ''}
-                      </span>
-                    )}
-                  </div>
-                  <span className={`text-[10px] sm:text-xs ${tc.textMuted}`}>
-                    {formatDate(task.submittedAt)}
-                  </span>
-                </div>
-                
-                <div className="mt-2 space-y-1.5">
-                  {/* Jira Links */}
-                  {task.jiraLinks && task.jiraLinks.length > 0 && (
-                    <div className="space-y-0.5">
-                      {task.jiraLinks.map((link, idx) => (
-                        <div key={idx} className="flex items-center gap-2 text-xs">
-                          <LinkIcon className={`w-3.5 h-3.5 ${tc.textMuted} flex-shrink-0`} />
-                          {link.label && (
-                            <span className={`${tc.textSecondary} font-medium`}>[{link.label}]</span>
-                          )}
-                          <a 
-                            href={link.url} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className="text-indigo-400 hover:text-indigo-300 truncate"
-                          >
-                            {link.url}
-                          </a>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  
-                  {/* Work Description */}
-                  <p className={`text-xs sm:text-sm ${tc.text}`}>{task.workDescription}</p>
-                  
-                  {/* New Ideas */}
-                  {task.newIdeas && (
-                    <div className="flex items-start gap-2 text-xs">
-                      <LightBulbIcon className={`w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5`} />
-                      <span className={`${tc.textSecondary}`}>{task.newIdeas}</span>
-                    </div>
-                  )}
-                  
-                  {/* Attachments */}
-                  {task.attachments && task.attachments.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {task.attachments.map((attachment) => (
-                        <div key={attachment.dailyTaskAttachmentId} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-700/20 border ${tc.border}">
-                          <span className="text-sm">{getFileIcon(attachment.fileType)}</span>
-                          <a 
-                            href={attachment.fileUrl} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-xs text-indigo-400 hover:text-indigo-300 truncate max-w-[100px]"
-                          >
-                            {attachment.fileName}
-                          </a>
-                          <span className={`text-[9px] ${tc.textMuted}`}>
-                            ({(attachment.fileSize / 1024).toFixed(1)} KB)
-                          </span>
-                          <button
-                            onClick={() => handleDeleteAttachment(task.dailyTaskSubmissionId, attachment.dailyTaskAttachmentId)}
-                            className="p-0.5 hover:text-rose-400 transition-colors"
-                            title="Delete attachment"
-                          >
-                            <TrashIcon className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {renderTaskHistoryContent()}
       </div>
     </div>
   );

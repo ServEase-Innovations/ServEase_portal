@@ -32,7 +32,7 @@ const ManagerDashboard = () => {
   const location = useLocation();
   const { theme, toggleTheme, getThemeClasses } = useTheme();
   const tc = getThemeClasses();
-  const { user, token } = useAuth();
+  const {  token } = useAuth();
   
   // Get attendance hook for API integration
   const attendance = useAttendance();
@@ -363,24 +363,24 @@ const ManagerDashboard = () => {
   };
 
   // Task Functions
-  const addJiraLink = () => {
-    if (jiraLinks.length < 10) {
-      setJiraLinks([...jiraLinks, '']);
-    }
-  };
+  // const addJiraLink = () => {
+  //   if (jiraLinks.length < 10) {
+  //     setJiraLinks([...jiraLinks, '']);
+  //   }
+  // };
 
-  const removeJiraLink = (index: number) => {
-    if (jiraLinks.length > 1) {
-      const newLinks = jiraLinks.filter((_, i) => i !== index);
-      setJiraLinks(newLinks);
-    }
-  };
+  // const removeJiraLink = (index: number) => {
+  //   if (jiraLinks.length > 1) {
+  //     const newLinks = jiraLinks.filter((_, i) => i !== index);
+  //     setJiraLinks(newLinks);
+  //   }
+  // };
 
-  const updateJiraLink = (index: number, value: string) => {
-    const newLinks = [...jiraLinks];
-    newLinks[index] = value;
-    setJiraLinks(newLinks);
-  };
+  // const updateJiraLink = (index: number, value: string) => {
+  //   const newLinks = [...jiraLinks];
+  //   newLinks[index] = value;
+  //   setJiraLinks(newLinks);
+  // };
 
   const handleTaskImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
