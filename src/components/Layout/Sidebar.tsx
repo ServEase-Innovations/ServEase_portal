@@ -1,4 +1,4 @@
-// Sidebar.tsx - Updated with complete navigation for all roles including Daily Tasks
+// Sidebar.tsx - Updated with complete navigation for all roles including Generate Payslip
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
@@ -178,6 +178,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             { icon: ClipboardDocumentCheckIcon, label: 'Leave Approvals', path: '/dashboard/leave-approvals', description: 'Approve leaves' },
             { icon: CalendarDaysIcon, label: 'My Leave', path: '/dashboard/leave', description: 'Apply for leave' },
             { icon: CreditCardIcon, label: 'Payslips', path: '/dashboard/payslips', description: 'Salary payslips' },
+            { icon: UserPlusIcon, label: 'Generate Payslip', path: '/dashboard/generate-payslip', description: 'Generate payslip for employee' },
             { icon: TrophyIcon, label: 'Performance', path: '/dashboard/performance', description: 'Team performance' },
             { icon: DocumentTextIcon, label: 'Reports', path: '/dashboard/reports', description: 'Team reports' }
           ]
@@ -200,7 +201,8 @@ const Sidebar: React.FC<SidebarProps> = ({
             { icon: ViewColumnsIcon, label: 'Project Teams', path: '/dashboard/project-teams', description: 'Project teams' },
             { icon: QueueListIcon, label: 'Tasks', path: '/dashboard/tasks', description: 'All tasks' },
             { icon: CalendarDaysIcon, label: 'My Leave', path: '/dashboard/leave', description: 'Apply for leave' },
-            { icon: CreditCardIcon, label: 'Payslips', path: '/dashboard/payslips', description: 'Salary payslips' }
+            { icon: CreditCardIcon, label: 'Payslips', path: '/dashboard/payslips', description: 'Salary payslips' },
+            { icon: UserPlusIcon, label: 'Generate Payslip', path: '/dashboard/generate-payslip', description: 'Generate payslip for employee' }
           ]
         },
         {
@@ -298,7 +300,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                           key={itemIndex}
                           onClick={() => handleNavigation(item.path)}
                           className={`
-                            w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group text-left
+                            w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group text-left relative
                             ${isActive 
                               ? 'bg-white/15 text-white shadow-lg shadow-black/10' 
                               : 'text-blue-200/80 hover:bg-white/8 hover:text-white'
@@ -510,6 +512,12 @@ const Sidebar: React.FC<SidebarProps> = ({
                     >
                       Payslips
                     </button>
+                    <button 
+                      onClick={() => navigate('/dashboard/generate-payslip')}
+                      className="text-xs bg-indigo-500/20 hover:bg-indigo-500/30 px-3 py-1.5 rounded-lg transition-all duration-200 text-indigo-300 font-medium"
+                    >
+                      Generate Payslip
+                    </button>
                   </>
                 ) : role === 'hr-partner' ? (
                   <>
@@ -564,6 +572,12 @@ const Sidebar: React.FC<SidebarProps> = ({
                     >
                       Payslips
                     </button>
+                    <button 
+                      onClick={() => navigate('/dashboard/generate-payslip')}
+                      className="text-xs bg-indigo-500/20 hover:bg-indigo-500/30 px-3 py-1.5 rounded-lg transition-all duration-200 text-indigo-300 font-medium"
+                    >
+                      Generate Payslip
+                    </button>
                   </>
                 )}
               </div>
@@ -594,6 +608,15 @@ const Sidebar: React.FC<SidebarProps> = ({
             >
               <CreditCardIcon className="w-5 h-5 mx-auto group-hover:scale-110 transition-transform" />
             </button>
+            {(role === 'manager' || role === 'super-admin') && (
+              <button 
+                onClick={() => navigate('/dashboard/generate-payslip')}
+                className="w-full p-2.5 text-indigo-300/70 rounded-xl hover:bg-indigo-500/20 transition-all duration-200 group"
+                title="Generate Payslip"
+              >
+                <UserPlusIcon className="w-5 h-5 mx-auto group-hover:scale-110 transition-transform" />
+              </button>
+            )}
             {role === 'manager' && (
               <button 
                 onClick={() => navigate('/dashboard/daily-tasks')}

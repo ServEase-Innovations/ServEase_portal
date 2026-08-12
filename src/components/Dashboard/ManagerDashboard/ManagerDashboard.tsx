@@ -1,4 +1,4 @@
-// ManagerDashboard.tsx
+// ManagerDashboard.tsx - Fully updated with Generate Payslip integration
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import Sidebar from '../../Layout/Sidebar';
@@ -21,6 +21,7 @@ import ReportsTab from './reports/ReportsTab';
 import QueriesTab from './messages/QueriesTab';
 import LeaveTab from './leave/LeaveTab';
 import PayslipsTab from './payslips/PayslipsTab';
+import GeneratePayslip from './payslips/GeneratePayslipModal';
 import { 
   TeamMember, Task, LeaveRequest, ProjectTeam, Message, 
   TaskHistory, PerformanceData 
@@ -32,7 +33,7 @@ const ManagerDashboard = () => {
   const location = useLocation();
   const { theme, toggleTheme, getThemeClasses } = useTheme();
   const tc = getThemeClasses();
-  const {  token } = useAuth();
+  const { token, user } = useAuth();
   
   // Get attendance hook for API integration
   const attendance = useAttendance();
@@ -282,6 +283,7 @@ const ManagerDashboard = () => {
     if (path === '/dashboard/queries') return 'queries';
     if (path === '/dashboard/leave') return 'leave';
     if (path === '/dashboard/payslips') return 'payslips';
+    if (path === '/dashboard/generate-payslip') return 'generate-payslip';
     return 'overview';
   };
 
@@ -363,25 +365,6 @@ const ManagerDashboard = () => {
   };
 
   // Task Functions
-  // const addJiraLink = () => {
-  //   if (jiraLinks.length < 10) {
-  //     setJiraLinks([...jiraLinks, '']);
-  //   }
-  // };
-
-  // const removeJiraLink = (index: number) => {
-  //   if (jiraLinks.length > 1) {
-  //     const newLinks = jiraLinks.filter((_, i) => i !== index);
-  //     setJiraLinks(newLinks);
-  //   }
-  // };
-
-  // const updateJiraLink = (index: number, value: string) => {
-  //   const newLinks = [...jiraLinks];
-  //   newLinks[index] = value;
-  //   setJiraLinks(newLinks);
-  // };
-
   const handleTaskImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -483,22 +466,17 @@ const ManagerDashboard = () => {
     const tds = Math.round(baseSalary * 0.08);
     const pt = 200;
 
-    // Determine pay period
     let payPeriod = 'May 2026';
     let paymentDate = '2026-05-31';
     
     if (month && year) {
-      // Use provided month and year
       const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
                          'July', 'August', 'September', 'October', 'November', 'December'];
       const monthIndex = parseInt(month) - 1;
       payPeriod = `${monthNames[monthIndex]} ${year}`;
-      
-      // Generate payment date (last day of month)
       const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
       paymentDate = `${year}-${month}-${lastDay}`;
     } else {
-      // Use current month
       const now = moment();
       payPeriod = now.format('MMMM YYYY');
       paymentDate = now.format('YYYY-MM-DD');
@@ -526,12 +504,10 @@ const ManagerDashboard = () => {
   };
 
   const downloadPayslip = (month?: string, year?: string) => {
-    // If month and year are provided, use them
     let targetMonth = month;
     let targetYear = year;
     
     if (!targetMonth || !targetYear) {
-      // Generate current month's payslip
       const now = moment();
       targetMonth = now.format('MM');
       targetYear = now.format('YYYY');
@@ -543,7 +519,6 @@ const ManagerDashboard = () => {
     const totalDeductions = Object.values(data.deductions).reduce((a, b) => a + b, 0);
     const netPayable = totalEarnings - totalDeductions;
 
-    // Generate month name for display
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
                        'July', 'August', 'September', 'October', 'November', 'December'];
     const monthName = monthNames[parseInt(targetMonth) - 1];
@@ -840,12 +815,10 @@ const ManagerDashboard = () => {
       case 'tasks-board':
         return <TasksBoardTab tc={tc} tasks={tasks} />;
       case 'daily-tasks':
-        // Use the updated DailyTasksTab with token for API integration
         return (
           <DailyTasksTab
             tc={tc}
             token={token}
-            // Pass the existing state as props for backward compatibility
             taskStatus={taskStatus as 'Pending' | 'Completed'}
             setTaskStatus={(status: 'Pending' | 'Completed') => setTaskStatus(status)}
             jiraLinks={jiraLinks.map(url => ({ url }))}
@@ -887,12 +860,10 @@ const ManagerDashboard = () => {
                 setJiraLinks(newLinks);
               }
             }}
-            updateJiraLink={(index: number, field: 'label' | 'url', value: string) => {
-              if (field === 'url') {
-                const newLinks = [...jiraLinks];
-                newLinks[index] = value;
-                setJiraLinks(newLinks);
-              }
+            updateJiraLink={(index: number, value: string) => {
+              const newLinks = [...jiraLinks];
+              newLinks[index] = value;
+              setJiraLinks(newLinks);
             }}
             handleTaskImageUpload={handleTaskImageUpload}
             handleSubmitTask={handleSubmitTask}
@@ -939,8 +910,15 @@ const ManagerDashboard = () => {
         return (
           <PayslipsTab
             tc={tc}
-            downloadPayslip={downloadPayslip}
-            payslips={payslips}
+            userRole="manager"
+            employeeId={user?.id}
+          />
+        );
+      case 'generate-payslip':
+        return (
+          <GeneratePayslip
+            tc={tc}
+            userRole="manager"
           />
         );
       default:
@@ -1004,8 +982,20 @@ const ManagerDashboard = () => {
 
       <div className="flex-1 flex flex-col overflow-hidden w-full">
         <Header 
-          title="Platform Team Overview"
-          subtitle="Led by Priya Nair - 14 engineers - 6 active projects"
+          title={
+            activeTab === 'generate-payslip' 
+              ? 'Generate Payslip' 
+              : activeTab === 'payslips'
+              ? 'Payslips'
+              : 'Platform Team Overview'
+          }
+          subtitle={
+            activeTab === 'generate-payslip'
+              ? 'Generate payslip for an employee for a specific period'
+              : activeTab === 'payslips'
+              ? 'View and download your payslips'
+              : 'Led by Priya Nair - 14 engineers - 6 active projects'
+          }
           theme={theme}
           onThemeToggle={toggleTheme}
           onMobileMenuToggle={toggleMobileSidebar}
