@@ -5,18 +5,21 @@ import { User, CreateAccountData, ApiResponse } from '../types';
 // Get API base URL from environment variable
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000/';
 
-// Create axios instance with base URL
+// Create axios instance with base URL and credentials support
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
   timeout: 10000,
+  withCredentials: true, // Enable sending cookies with requests
 });
 
-// Request interceptor to add token
+// Request interceptor - No longer need to add token manually (cookies are sent automatically)
 api.interceptors.request.use(
   (config) => {
+    // Cookies are automatically included with withCredentials: true
+    // Keep fallback for Authorization header during migration
     const token = localStorage.getItem('servease_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -38,15 +41,14 @@ api.interceptors.response.use(
     }
     
     if (error.response?.status === 401) {
+      // Clear any remaining localStorage tokens (migration cleanup)
+      localStorage.removeItem('servease_token');
+      localStorage.removeItem('servease_user');
+      
       // Only redirect to login if it's an auth-related endpoint
-      // Don't redirect on attendance errors - let the component handle it
       const url = error.config?.url || '';
-      if (url.includes('/auth/') || url.includes('/employees/profile')) {
-        localStorage.removeItem('servease_token');
-        localStorage.removeItem('servease_user');
-        
+      if (url.includes('/auth/') || url.includes('/employees/profile') || url.includes('/me')) {
         // Notify the app to redirect via event instead of direct navigation
-        // This keeps navigation concerns in the UI layer
         window.dispatchEvent(new CustomEvent('auth:logout'));
       }
     }
@@ -72,10 +74,8 @@ export const authService = {
   login: async (username: string, password: string): Promise<LoginResponse> => {
     const response = await api.post<LoginResponse>('auth/login', { username, password });
     
-    // Store token from response
-    if (response.data.token) {
-      localStorage.setItem('servease_token', response.data.token);
-    }
+    // Token is now in HTTP-only cookie, no need to store in localStorage
+    // But keep user data in localStorage for now (will be removed in next step)
     
     return response.data;
   },
@@ -86,23 +86,23 @@ export const authService = {
   },
 
   logout: async (): Promise<void> => {
-    const token = localStorage.getItem('servease_token');
-    if (token) {
-      try {
-        await api.post('auth/logout');
-      } catch (error) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Logout API error:', error);
-        }
+    try {
+      // Call backend to clear cookies
+      await api.post('auth/logout');
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Logout API error:', error);
       }
     }
+    // Clear localStorage (migration cleanup)
     localStorage.removeItem('servease_token');
     localStorage.removeItem('servease_user');
   },
 
   getCurrentUser: async (): Promise<User> => {
-    const response = await api.get<User>('employees/profile');
-    return response.data;
+    // New endpoint that uses cookie authentication
+    const response = await api.get<{ employee: User }>('auth/me');
+    return response.data.employee;
   },
 };
 

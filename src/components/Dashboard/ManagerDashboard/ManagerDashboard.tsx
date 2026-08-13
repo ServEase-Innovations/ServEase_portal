@@ -8,6 +8,7 @@ import { useAttendance } from '../../../hooks/useAttendance';
 import { useAttendanceHandlers } from '../../../hooks/useAttendanceHandlers';
 import { useLeaveHandlers } from '../../../hooks/useLeaveHandlers';
 import { useAttendanceTimer } from '../../../hooks/useAttendanceTimer';
+import { useLeave } from '../../../hooks/useLeave';
 import OverviewTab from './overview/OverviewTab';
 import MyTeamTab from './team/MyTeamTab';
 import ProjectTeamsTab from './team/ProjectTeamsTab';
@@ -20,6 +21,7 @@ import PerformanceTab from './performance/PerformanceTab';
 import ReportsTab from './reports/ReportsTab';
 import QueriesTab from './messages/QueriesTab';
 import LeaveTab from './leave/LeaveTab';
+import LeaveModal from './leave/LeaveModal';
 import PayslipsTab from './payslips/PayslipsTab';
 import { 
   TeamMember, Task, LeaveRequest, ProjectTeam, Message, 
@@ -74,6 +76,9 @@ const ManagerDashboard = () => {
     isClockedOut,
     todayAttendance
   });
+  
+  // Get leave hook for API integration
+  const { submitLeaveRequest, isLoading: isSubmittingLeave } = useLeave();
   
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [leaveRequest, setLeaveRequest] = useState({
@@ -319,45 +324,67 @@ const ManagerDashboard = () => {
     handleLeaveImageUploadUtil(e, leaveRequest, setLeaveRequest);
   };
 
-  const handleSubmitLeave = () => {
+  const handleSubmitLeave = async () => {
     const validation = validateLeaveRequest(leaveRequest);
     if (!validation.valid) {
       alert(validation.error);
       return;
     }
 
-    const fromDate = moment(leaveRequest.fromDate);
-    const toDate = moment(leaveRequest.toDate);
+    // Additional validation for reason length (backend requires min 5 chars)
+    if (leaveRequest.reason.trim().length < 5) {
+      alert('Reason must be at least 5 characters long');
+      return;
+    }
 
-    const newLeave: LeaveRequest = {
-      id: `L-${String(leaveHistory.length + 1).padStart(3, '0')}`,
-      employee: 'Priya Nair',
-      type: leaveRequest.type as any,
-      period: `${fromDate.format('YYYY-MM-DD')} - ${toDate.format('YYYY-MM-DD')}`,
-      fromDate: fromDate.format('YYYY-MM-DD'),
-      toDate: toDate.format('YYYY-MM-DD'),
-      reason: leaveRequest.reason,
-      status: 'Pending',
-      imageUrl: leaveRequest.imagePreview,
-      submittedAt: moment().toISOString()
-    };
+    try {
+      // Map old leave type format to new LeaveType enum
+      let leaveType: 'Privilege' | 'Casual' | 'Sick' | 'Paternity';
+      switch (leaveRequest.type) {
+        case 'Earned':
+          leaveType = 'Privilege'; // Map 'Earned' to 'Privilege'
+          break;
+        case 'Sick':
+          leaveType = 'Sick';
+          break;
+        case 'Casual':
+          leaveType = 'Casual';
+          break;
+        case 'Other':
+          leaveType = 'Casual'; // Map 'Other' to 'Casual' as default
+          break;
+        default:
+          leaveType = 'Casual';
+      }
 
-    const updatedLeaves = [newLeave, ...leaveHistory];
-    setLeaveHistory(updatedLeaves);
-    localStorage.setItem('managerLeaveHistory', JSON.stringify(updatedLeaves));
-    
-    setWorkStatus('on-leave');
-    setShowLeaveModal(false);
-    setLeaveRequest({
-      type: 'Sick',
-      fromDate: '',
-      toDate: '',
-      reason: '',
-      imageFile: null,
-      imagePreview: null,
-    });
-    
-    showSuccess(`Leave request submitted for ${fromDate.format('MMM D')} - ${toDate.format('MMM D, YYYY')}`);
+      // Submit leave request to API
+      await submitLeaveRequest({
+        leaveType,
+        fromDate: leaveRequest.fromDate,
+        toDate: leaveRequest.toDate,
+        reason: leaveRequest.reason.trim(),
+        attachmentUrl: leaveRequest.imagePreview || undefined,
+      });
+
+      // Success - update UI state
+      const fromDate = moment(leaveRequest.fromDate);
+      const toDate = moment(leaveRequest.toDate);
+      
+      setWorkStatus('on-leave');
+      setShowLeaveModal(false);
+      setLeaveRequest({
+        type: 'Sick',
+        fromDate: '',
+        toDate: '',
+        reason: '',
+        imageFile: null,
+        imagePreview: null,
+      });
+      
+      showSuccess(`Leave request submitted for ${fromDate.format('MMM D')} - ${toDate.format('MMM D, YYYY')}`);
+    } catch (error: any) {
+      alert(error.message || 'Failed to submit leave request. Please try again.');
+    }
   };
 
   // Task Functions
@@ -867,7 +894,7 @@ const ManagerDashboard = () => {
       case 'attendance':
         return <AttendanceTab tc={tc} teamMembers={teamMembers} />;
       case 'leave-approvals':
-        return <LeaveApprovalsTab tc={tc} leaveRequests={leaveRequests} />;
+        return <LeaveApprovalsTab tc={tc} />;
       case 'performance':
         return <PerformanceTab tc={tc} performanceData={performanceData} />;
       case 'reports':
@@ -981,6 +1008,18 @@ const ManagerDashboard = () => {
           {renderContent()}
         </div>
       </div>
+
+      {/* Global Leave Modal - Available on all tabs */}
+      <LeaveModal
+        showLeaveModal={showLeaveModal}
+        setShowLeaveModal={setShowLeaveModal}
+        leaveRequest={leaveRequest}
+        setLeaveRequest={setLeaveRequest}
+        handleSubmitLeave={handleSubmitLeave}
+        handleLeaveImageUpload={handleLeaveImageUpload}
+        tc={tc}
+        isSubmitting={isSubmittingLeave}
+      />
     </div>
   );
 };

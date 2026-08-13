@@ -71,24 +71,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [error, setError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Load user from localStorage on mount
+  // Load user from API on mount (cookie auth)
   useEffect(() => {
-    const storedToken = localStorage.getItem('servease_token');
-    const storedUser = localStorage.getItem('servease_user');
-    
-    if (storedToken && storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        setToken(storedToken);
-        setUser(parsedUser);
-        setIsAuthenticated(true);
-        console.log('User loaded from localStorage:', parsedUser);
-      } catch (e) {
-        console.error('Error loading user from localStorage:', e);
-        localStorage.removeItem('servease_token');
-        localStorage.removeItem('servease_user');
+    const loadUser = async () => {
+      const storedUser = localStorage.getItem('servease_user');
+      
+      if (storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          setUser(parsedUser);
+          setIsAuthenticated(true);
+          console.log('User loaded from localStorage:', parsedUser);
+          
+          // Try to refresh user data from API (validates cookie)
+          try {
+            await refreshUser();
+          } catch (error) {
+            console.log('Cookie validation failed, keeping localStorage user');
+          }
+        } catch (e) {
+          console.error('Error loading user from localStorage:', e);
+          localStorage.removeItem('servease_user');
+        }
+      } else {
+        // No localStorage user, try to load from API (cookie auth)
+        try {
+          await refreshUser();
+        } catch (error) {
+          console.log('No valid session found');
+        }
       }
-    }
+    };
+    
+    loadUser();
   }, []);
 
   const clearError = useCallback(() => {
@@ -107,13 +122,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Handle the API response structure
       const employeeData = response.data?.employee || response.employee;
-      const token = response.data?.token || response.token;
       
-      // Store token
-      if (token) {
-        localStorage.setItem('servease_token', token);
-        setToken(token);
-      }
+      // Token is now stored in HTTP-only cookie by the server
+      // No need to store it in localStorage
       
       // Map the employee data to your User type
       const userData: User = {
@@ -137,9 +148,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       console.log('Mapped user data:', userData);
       
-      // Store user
+      // Store user (but NOT token - it's in HTTP-only cookie)
       localStorage.setItem('servease_user', JSON.stringify(userData));
       setUser(userData);
+      setToken(null); // No token in state
       setIsAuthenticated(true);
       
       toast.success(`Welcome back, ${userData.name || 'User'}!`);
@@ -213,6 +225,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = useCallback(async () => {
     try {
+      // Call backend to clear HTTP-only cookies
       await authService.logout();
     } catch (err) {
       console.error('Logout error:', err);
@@ -220,7 +233,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setToken(null);
       setIsAuthenticated(false);
-      localStorage.removeItem('servease_token');
+      localStorage.removeItem('servease_token'); // Migration cleanup
       localStorage.removeItem('servease_user');
       toast.success('Logged out successfully');
     }
