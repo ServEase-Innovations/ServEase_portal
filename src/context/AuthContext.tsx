@@ -101,16 +101,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         // Fetch user from API using HTTP-only cookie
         const response = await authService.getCurrentUser();
-        console.log('[AuthContext] User loaded successfully:', response);
         if (response) {
           const userData = mapUserData(response);
           setUser(userData);
           setIsAuthenticated(true);
-          console.log('[AuthContext] User authenticated:', userData.name);
+          console.log('[AuthContext] User authenticated successfully');
         }
       } catch (error) {
-        // No valid session, user needs to login
-        console.log('[AuthContext] No valid session found, error:', error);
+        // No valid session - this is expected for logged-out users
+        // Don't log error details to avoid exposing user-controlled data
         setIsAuthenticated(false);
       } finally {
         setLoading(false);
@@ -152,7 +151,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       toast.success(`Welcome back, ${userData.name || 'User'}!`);
       setLoading(false);
     } catch (err: any) {
-      console.error('Login error:', err);
       const errorMessage = err.response?.data?.message || err.message || 'Login failed';
       setError(errorMessage);
       toast.error(errorMessage);
