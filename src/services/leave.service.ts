@@ -262,7 +262,7 @@ export const getLeaveRequestsByDateRange = async (
  * Format epoch timestamp to readable date
  */
 export const formatLeaveDate = (epoch: string): string => {
-  const date = new Date(parseInt(epoch));
+  const date = new Date(Number.parseInt(epoch, 10));
   return date.toLocaleDateString('en-IN', {
     year: 'numeric',
     month: 'short',

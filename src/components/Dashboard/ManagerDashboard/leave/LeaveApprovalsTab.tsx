@@ -151,13 +151,19 @@ const LeaveApprovalsTab: React.FC<LeaveApprovalsTabProps> = ({ tc }) => {
                       </div>
                     </td>
                     <td className="px-3 sm:px-6 py-3 sm:py-4">
-                      <span className={`px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium ${
-                        request.leaveType === 'Sick' ? 'bg-red-500/20 text-red-400' : 
-                        request.leaveType === 'Casual' ? 'bg-blue-500/20 text-blue-400' :
-                        'bg-purple-500/20 text-purple-400'
-                      }`}>
-                        {getLeaveTypeLabel(request.leaveType)}
-                      </span>
+                      {(() => {
+                        const getLeaveTypeStyles = (type: string) => {
+                          if (type === 'Sick') return 'bg-red-500/20 text-red-400';
+                          if (type === 'Casual') return 'bg-blue-500/20 text-blue-400';
+                          return 'bg-purple-500/20 text-purple-400';
+                        };
+                        
+                        return (
+                          <span className={`px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium ${getLeaveTypeStyles(request.leaveType)}`}>
+                            {getLeaveTypeLabel(request.leaveType)}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className={`px-3 sm:px-6 py-3 sm:py-4 text-[10px] sm:text-sm ${tc.textSecondary}`}>
                       {formatLeaveDateRange(request.fromDate, request.toDate)}
@@ -171,30 +177,41 @@ const LeaveApprovalsTab: React.FC<LeaveApprovalsTabProps> = ({ tc }) => {
                       </div>
                     </td>
                     <td className="px-3 sm:px-6 py-3 sm:py-4">
-                      {request.status === LeaveRequestStatus.Pending ? (
-                        <div className="flex items-center gap-1 sm:gap-2">
-                          <button 
-                            onClick={() => handleApprove(request)}
-                            disabled={processingId === request.leaveRequestId}
-                            className="px-2 sm:px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-medium hover:bg-emerald-500/30 transition-colors flex items-center gap-1 disabled:opacity-50"
-                          >
-                            <CheckCircleIcon className="w-3 h-3" />
-                            <span className="hidden sm:inline">Approve</span>
-                          </button>
-                          <button 
-                            onClick={() => handleRejectClick(request)}
-                            disabled={processingId === request.leaveRequestId}
-                            className="px-2 sm:px-3 py-1 bg-rose-500/20 text-rose-400 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-medium hover:bg-rose-500/30 transition-colors flex items-center gap-1 disabled:opacity-50"
-                          >
-                            <XCircleIcon className="w-3 h-3" />
-                            <span className="hidden sm:inline">Reject</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <span className={`px-2 py-1 rounded-full text-[10px] sm:text-xs font-medium ${getLeaveStatusColor(request.status)}`}>
-                          {request.status}
-                        </span>
-                      )}
+                      {(() => {
+                        const isPending = request.status === LeaveRequestStatus.Pending;
+                        const isProcessing = processingId === request.leaveRequestId;
+                        
+                        if (!isPending) {
+                          return (
+                            <span className={`px-2 py-1 rounded-full text-[10px] sm:text-xs font-medium ${getLeaveStatusColor(request.status)}`}>
+                              {request.status}
+                            </span>
+                          );
+                        }
+                        
+                        return (
+                          <div className="flex items-center gap-1 sm:gap-2">
+                            <button 
+                              type="button"
+                              onClick={() => handleApprove(request)}
+                              disabled={isProcessing}
+                              className="px-2 sm:px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-medium hover:bg-emerald-500/30 transition-colors flex items-center gap-1 disabled:opacity-50"
+                            >
+                              <CheckCircleIcon className="w-3 h-3" />
+                              <span className="hidden sm:inline">Approve</span>
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={() => handleRejectClick(request)}
+                              disabled={isProcessing}
+                              className="px-2 sm:px-3 py-1 bg-rose-500/20 text-rose-400 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-medium hover:bg-rose-500/30 transition-colors flex items-center gap-1 disabled:opacity-50"
+                            >
+                              <XCircleIcon className="w-3 h-3" />
+                              <span className="hidden sm:inline">Reject</span>
+                            </button>
+                          </div>
+                        );
+                      })()}
                     </td>
                   </tr>
                 ))}
@@ -222,10 +239,11 @@ const LeaveApprovalsTab: React.FC<LeaveApprovalsTabProps> = ({ tc }) => {
             </div>
 
             <div className="mb-4">
-              <label className={`block text-sm font-medium ${tc.text} mb-2`}>
+              <label htmlFor="reject-reason-input" className={`block text-sm font-medium ${tc.text} mb-2`}>
                 Rejection Reason <span className="text-rose-400">*</span>
               </label>
               <textarea
+                id="reject-reason-input"
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
                 placeholder="Please provide a reason for rejection (min. 10 characters)..."
@@ -239,6 +257,7 @@ const LeaveApprovalsTab: React.FC<LeaveApprovalsTabProps> = ({ tc }) => {
 
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <button
+                type="button"
                 onClick={() => {
                   setShowRejectModal(false);
                   setSelectedRequest(null);
@@ -250,6 +269,7 @@ const LeaveApprovalsTab: React.FC<LeaveApprovalsTabProps> = ({ tc }) => {
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleRejectSubmit}
                 disabled={processingId === selectedRequest.leaveRequestId || rejectReason.trim().length < 10}
                 className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-rose-500 to-rose-600 text-white rounded-xl text-sm font-medium hover:from-rose-600 hover:to-rose-700 transition-all duration-300 shadow-lg shadow-rose-500/25 disabled:opacity-50 disabled:cursor-not-allowed"

@@ -1,5 +1,5 @@
 // components/leave/LeaveTab.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { PlusIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import { ThemeClasses, LeaveRequest } from '../types';
 import StatusBadge from '../common/StatusBadge';
@@ -15,8 +15,6 @@ import toast from 'react-hot-toast';
 
 interface LeaveTabProps {
   tc: ThemeClasses;
-  leaveHistory: LeaveRequest[];
-  leaveRequests: LeaveRequest[];
   setShowLeaveModal: (show: boolean) => void;
 }
 
@@ -77,6 +75,7 @@ const LeaveTab: React.FC<LeaveTabProps> = ({
         <div className="text-center">
           <p className="text-rose-400 mb-4">{error}</p>
           <button
+            type="button"
             onClick={() => window.location.reload()}
             className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600"
           >
@@ -138,6 +137,7 @@ const LeaveTab: React.FC<LeaveTabProps> = ({
           <div className="text-center py-8">
             <p className={`${tc.textMuted} mb-4`}>No leave requests yet</p>
             <button
+              type="button"
               onClick={() => setShowLeaveModal(true)}
               className="text-indigo-400 hover:text-indigo-300 text-sm"
             >
@@ -190,7 +190,7 @@ const LeaveTab: React.FC<LeaveTabProps> = ({
                       </span>
                     </td>
                     <td className={`py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-sm ${tc.textMuted} hidden sm:table-cell`}>
-                      {new Date(parseInt(leave.submittedAt)).toLocaleDateString('en-IN', {
+                      {new Date(Number.parseInt(leave.submittedAt, 10)).toLocaleDateString('en-IN', {
                         month: 'short',
                         day: 'numeric'
                       })}
@@ -198,6 +198,7 @@ const LeaveTab: React.FC<LeaveTabProps> = ({
                     <td className="py-2 sm:py-3 px-2 sm:px-3">
                       {leave.status === LeaveRequestStatus.Pending ? (
                         <button
+                          type="button"
                           onClick={() => handleCancelClick(leave)}
                           className="px-2 sm:px-3 py-1 bg-rose-500/20 text-rose-400 rounded-lg text-[10px] sm:text-xs font-medium hover:bg-rose-500/30 transition-colors flex items-center gap-1"
                         >
@@ -233,10 +234,11 @@ const LeaveTab: React.FC<LeaveTabProps> = ({
               </div>
 
               <div className="mb-4">
-                <label className={`block text-sm font-medium ${tc.text} mb-2`}>
+                <label htmlFor="cancel-reason-input" className={`block text-sm font-medium ${tc.text} mb-2`}>
                   Cancellation Reason <span className="text-rose-400">*</span>
                 </label>
                 <textarea
+                  id="cancel-reason-input"
                   value={cancelReason}
                   onChange={(e) => setCancelReason(e.target.value)}
                   placeholder="Please provide a reason for cancellation (min. 10 characters)..."
@@ -250,6 +252,7 @@ const LeaveTab: React.FC<LeaveTabProps> = ({
 
               <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                 <button
+                  type="button"
                   onClick={() => {
                     setShowCancelModal(false);
                     setSelectedRequest(null);
@@ -261,6 +264,7 @@ const LeaveTab: React.FC<LeaveTabProps> = ({
                   Close
                 </button>
                 <button
+                  type="button"
                   onClick={handleCancelSubmit}
                   disabled={isCancelling || cancelReason.trim().length < 10}
                   className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-rose-500 to-rose-600 text-white rounded-xl text-sm font-medium hover:from-rose-600 hover:to-rose-700 transition-all duration-300 shadow-lg shadow-rose-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
