@@ -58,10 +58,34 @@ const mapRole = (apiRole: string): 'super-admin' | 'hr-partner' | 'manager' | 'e
   
   const mappedRole = roleMap[apiRole];
   if (!mappedRole) {
-    console.warn(`Unknown role "${apiRole}" from API, defaulting to employee`);
+    // Security: Don't log user-controlled data
+    console.warn('Unknown role from API, defaulting to employee');
     return 'employee';
   }
   return mappedRole;
+};
+
+// Helper to sanitize user data before storing in localStorage
+const sanitizeUserData = (data: any): User => {
+  // Only store known, safe fields - prevent XSS/injection
+  return {
+    id: String(data.employeeId || data.id || '').slice(0, 100),
+    name: String(data.fullName || data.name || '').slice(0, 200),
+    username: String(data.username || '').slice(0, 100),
+    email: String(data.emailAddress || data.email || '').slice(0, 200),
+    role: mapRole(data.assignedRole || data.role),
+    mobileNumber: String(data.mobileNumber || '').slice(0, 20),
+    isActive: Boolean(data.isActive !== undefined ? data.isActive : true),
+    assignedRole: String(data.assignedRole || '').slice(0, 100),
+    assignedDepartment: String(data.assignedDepartment || '').slice(0, 100),
+    baseSalary: Number(data.baseSalary) || 0,
+    allowances: Number(data.allowances) || 0,
+    deductions: Number(data.deductions) || 0,
+    joinedAt: String(data.joinedAt || '').slice(0, 50),
+    lastLogin: String(data.lastLogin || '').slice(0, 50),
+    managerId: data.managerId ? String(data.managerId).slice(0, 100) : undefined,
+    teamId: data.teamId ? String(data.teamId).slice(0, 100) : undefined,
+  };
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -81,7 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const parsedUser = JSON.parse(storedUser);
           setUser(parsedUser);
           setIsAuthenticated(true);
-          console.log('User loaded from localStorage:', parsedUser);
+          // User loaded successfully
           
           // Try to refresh user data from API (validates cookie)
           try {
@@ -116,9 +140,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
     
     try {
-      console.log('Attempting login with username:', username);
+      // Attempting login
       const response = await authService.login(username, password);
-      console.log('Login response:', response);
+      console.log('Login successful');
       
       // Handle the API response structure
       const employeeData = response.data?.employee || response.employee;
@@ -126,29 +150,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Token is now stored in HTTP-only cookie by the server
       // No need to store it in localStorage
       
-      // Map the employee data to your User type
-      const userData: User = {
-        id: employeeData.employeeId || employeeData.id,
-        name: employeeData.fullName || employeeData.name,
-        username: employeeData.username || username,
-        email: employeeData.emailAddress || employeeData.email || '',
-        role: mapRole(employeeData.assignedRole || employeeData.role),
-        mobileNumber: employeeData.mobileNumber || '',
-        isActive: employeeData.isActive !== undefined ? employeeData.isActive : true,
-        assignedRole: employeeData.assignedRole,
-        assignedDepartment: employeeData.assignedDepartment,
-        baseSalary: employeeData.baseSalary,
-        allowances: employeeData.allowances,
-        deductions: employeeData.deductions,
-        joinedAt: employeeData.joinedAt,
-        lastLogin: employeeData.lastLogin,
-        managerId: employeeData.managerId,
-        teamId: employeeData.teamId,
-      };
+      // Sanitize and map the employee data to User type
+      const userData = sanitizeUserData(employeeData);
       
-      console.log('Mapped user data:', userData);
-      
-      // Store user (but NOT token - it's in HTTP-only cookie)
+      // Store sanitized user data (but NOT token - it's in HTTP-only cookie)
       localStorage.setItem('servease_user', JSON.stringify(userData));
       setUser(userData);
       setToken(null); // No token in state
@@ -202,9 +207,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         confirmPassword: userData.confirmPassword || userData.password,
       };
 
-      console.log('Creating account with payload:', payload);
+      // Creating account
       const response = await authService.register(payload);
-      console.log('Registration response:', response);
       
       if (response.error) {
         throw new Error(response.message || 'Registration failed');
@@ -243,24 +247,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const response = await authService.getCurrentUser();
       if (response) {
-        const userData: User = {
-          id: response.employeeId || response.id,
-          name: response.fullName || response.name,
-          username: response.username || '',
-          email: response.emailAddress || response.email || '',
-          role: mapRole(response.assignedRole || response.role),
-          mobileNumber: response.mobileNumber || '',
-          isActive: response.isActive !== undefined ? response.isActive : true,
-          assignedRole: response.assignedRole,
-          assignedDepartment: response.assignedDepartment,
-          baseSalary: response.baseSalary,
-          allowances: response.allowances,
-          deductions: response.deductions,
-          joinedAt: response.joinedAt,
-          lastLogin: response.lastLogin,
-          managerId: response.managerId,
-          teamId: response.teamId,
-        };
+        // Sanitize data before storing in localStorage
+        const userData = sanitizeUserData(response);
         setUser(userData);
         localStorage.setItem('servease_user', JSON.stringify(userData));
       }
