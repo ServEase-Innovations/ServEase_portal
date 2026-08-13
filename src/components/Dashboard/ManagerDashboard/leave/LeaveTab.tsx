@@ -1,7 +1,7 @@
 // components/leave/LeaveTab.tsx
 import React, { useState } from 'react';
 import { PlusIcon, XCircleIcon } from '@heroicons/react/24/outline';
-import { ThemeClasses, LeaveRequest } from '../types';
+import { ThemeClasses } from '../types';
 import StatusBadge from '../common/StatusBadge';
 import { useLeave } from '../../../../hooks/useLeave';
 import { 

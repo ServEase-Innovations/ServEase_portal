@@ -103,7 +103,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (storedUser) {
         try {
           const parsedUser = JSON.parse(storedUser);
-          setUser(parsedUser);
+          // Re-sanitize data from localStorage (defense in depth)
+          const sanitizedUser = sanitizeUserData(parsedUser);
+          setUser(sanitizedUser);
           setIsAuthenticated(true);
           // User loaded successfully
           

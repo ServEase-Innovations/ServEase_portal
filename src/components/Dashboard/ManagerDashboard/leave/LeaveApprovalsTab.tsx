@@ -112,18 +112,27 @@ const LeaveApprovalsTab: React.FC<LeaveApprovalsTabProps> = ({ tc }) => {
         </span>
       </div>
 
-      {isLoading ? (
-        <div className={`${tc.bgCard} rounded-2xl ${tc.border} ${tc.shadow} p-12 text-center`}>
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto"></div>
-          <p className={`mt-4 ${tc.textMuted}`}>Loading leave requests...</p>
-        </div>
-      ) : requests.length === 0 ? (
-        <div className={`${tc.bgCard} rounded-2xl ${tc.border} ${tc.shadow} p-8 sm:p-12 text-center`}>
-          <ClockIcon className={`w-12 h-12 sm:w-16 sm:h-16 ${tc.textMuted} mx-auto mb-4`} />
-          <p className={`${tc.text} font-medium mb-2`}>No pending leave requests</p>
-          <p className={`text-xs sm:text-sm ${tc.textMuted}`}>All leave requests have been processed</p>
-        </div>
-      ) : (
+      {(() => {
+        if (isLoading) {
+          return (
+            <div className={`${tc.bgCard} rounded-2xl ${tc.border} ${tc.shadow} p-12 text-center`}>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto"></div>
+              <p className={`mt-4 ${tc.textMuted}`}>Loading leave requests...</p>
+            </div>
+          );
+        }
+        
+        if (requests.length === 0) {
+          return (
+            <div className={`${tc.bgCard} rounded-2xl ${tc.border} ${tc.shadow} p-8 sm:p-12 text-center`}>
+              <ClockIcon className={`w-12 h-12 sm:w-16 sm:h-16 ${tc.textMuted} mx-auto mb-4`} />
+              <p className={`${tc.text} font-medium mb-2`}>No pending leave requests</p>
+              <p className={`text-xs sm:text-sm ${tc.textMuted}`}>All leave requests have been processed</p>
+            </div>
+          );
+        }
+        
+        return (
         <div className={`${tc.bgCard} rounded-2xl ${tc.border} ${tc.shadow} overflow-hidden`}>
           <div className="overflow-x-auto -mx-4 sm:mx-0">
             <table className="w-full min-w-[640px]">
@@ -219,7 +228,8 @@ const LeaveApprovalsTab: React.FC<LeaveApprovalsTabProps> = ({ tc }) => {
             </table>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Reject Modal */}
       {showRejectModal && selectedRequest && (
