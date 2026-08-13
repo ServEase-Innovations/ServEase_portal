@@ -1,4 +1,5 @@
-// types/index.ts
+// types/index.ts - Complete types file with all definitions
+
 export interface TeamMember {
   id: string;
   name: string;
@@ -145,3 +146,196 @@ export interface ThemeClasses {
   taskCard: string;
   taskCardHover: string;
 }
+
+// ============= PAYSLIP TYPES =============
+
+export interface Payslip {
+  payslipId: string;
+  payrollRunId: string;
+  employeeId: string;
+  payslipNumber: string;
+  employeeNameSnapshot: string;
+  employeeEmailSnapshot: string;
+  employeeRoleSnapshot: string;
+  employeeDepartmentSnapshot: string;
+  bankAccountMasked: string | null;
+  currency: string;
+  workingDays: number;
+  payableDays: number;
+  unpaidLeaveDays: number;
+  baseSalarySnapshot: number;
+  allowanceSnapshot: number;
+  deductionSnapshot: number;
+  totalEarnings: number;
+  totalDeductions: number;
+  netSalary: number;
+  status: 'Draft' | 'Approved' | 'Paid' | 'Cancelled';
+  generatedAt: string;
+  generatedAtEpoch: string;
+  updatedAt: string;
+  updatedAtEpoch: string;
+  approvedAt: string | null;
+  approvedAtEpoch: string | null;
+  paidAt: string | null;
+  paidAtEpoch: string | null;
+  paymentReference: string | null;
+  pdfUrl: string | null;
+  employee?: {
+    employeeId: string;
+    fullName: string;
+    emailAddress: string;
+    assignedRole: string;
+    assignedDepartment: string;
+    teamId: string | null;
+    managerId: string | null;
+  };
+  payrollRun?: {
+    payrollRunId: string;
+    payrollMonth: number;
+    payrollYear: number;
+    periodStart: string;
+    periodEnd: string;
+    currency: string;
+    status: string;
+  };
+  earnings: PayslipEarning[];
+  deductions: PayslipDeduction[];
+  auditLogs: PayslipAuditLog[];
+}
+
+export interface PayslipEarning {
+  payslipEarningId: string;
+  earningType: string;
+  description: string | null;
+  amount: string;
+  isTaxable: boolean;
+  createdAt: string;
+  createdAtEpoch: string;
+}
+
+export interface PayslipDeduction {
+  payslipDeductionId: string;
+  deductionType: string;
+  description: string | null;
+  amount: string;
+  createdAt: string;
+  createdAtEpoch: string;
+}
+
+export interface PayslipAuditLog {
+  payslipAuditLogId: string;
+  action: string;
+  performedById: string;
+  previousData: any;
+  updatedData: any;
+  createdAt: string;
+  createdAtEpoch: string;
+  performedBy?: {
+    employeeId: string;
+    fullName: string;
+    assignedRole: string;
+  };
+}
+
+export interface GeneratePayslipPayload {
+  employeeId: string;
+  date: string;
+  month: number;
+  year: number;
+}
+
+export interface PayslipListResponse {
+  count: number;
+  payslips: Payslip[];
+}
+
+export interface PayslipGenerateResponse {
+  message: string;
+  payslip?: Payslip;
+}
+
+export interface Employee {
+  employeeId: string;
+  fullName: string;
+  emailAddress: string;
+  assignedRole: string;
+  assignedDepartment: string;
+  isActive: boolean;
+  baseSalary: number;
+  allowances: number;
+  deductions: number;
+  managerId?: string;
+  teamId?: string;
+}
+
+// ============= AUTH TYPES =============
+
+export interface User {
+  id: string;
+  name: string;
+  username: string;
+  email: string;
+  role: 'super-admin' | 'hr-partner' | 'manager' | 'employee';
+  mobileNumber?: string;
+  isActive?: boolean;
+  assignedRole?: string;
+  assignedDepartment?: string;
+  baseSalary?: number;
+  allowances?: number;
+  deductions?: number;
+  joinedAt?: string;
+  lastLogin?: string;
+  managerId?: string;
+  teamId?: string;
+}
+
+export type Role = 'super-admin' | 'hr-partner' | 'manager' | 'employee';
+export type BackendRole = 'SuperAdmin' | 'HR' | 'Manager' | 'Developer' | 'Marketing' | 'CustomStaff';
+
+export interface CreateAccountData {
+  name: string;
+  email: string;
+  password: string;
+  confirmPassword?: string;
+  role: Role; // Changed from 'Role | string' to just 'Role'
+  department?: string;
+  baseSalary?: number;
+  allowances?: number;
+  deductions?: number;
+}
+
+export interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  message?: string;
+  error?: string;
+}
+
+export const mapBackendRoleToFrontend = (backendRole: string): Role => {
+  const roleMap: Record<string, Role> = {
+    'SuperAdmin': 'super-admin',
+    'Super Admin': 'super-admin',
+    'super-admin': 'super-admin',
+    'superadmin': 'super-admin',
+    'HR': 'hr-partner',
+    'hr-partner': 'hr-partner',
+    'hr': 'hr-partner',
+    'Manager': 'manager',
+    'manager': 'manager',
+    'Developer': 'employee',
+    'Marketing': 'employee',
+    'CustomStaff': 'employee',
+    'employee': 'employee',
+  };
+  return roleMap[backendRole] || 'employee';
+};
+
+export const mapFrontendRoleToBackend = (frontendRole: Role): BackendRole => {
+  const roleMap: Record<Role, BackendRole> = {
+    'super-admin': 'SuperAdmin',
+    'hr-partner': 'HR',
+    'manager': 'Manager',
+    'employee': 'Developer',
+  };
+  return roleMap[frontendRole] || 'Developer';
+};

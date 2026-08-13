@@ -1,4 +1,4 @@
-// ManagerDashboard.tsx
+// ManagerDashboard.tsx - Fully updated with Generate Payslip integration
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import Sidebar from '../../Layout/Sidebar';
@@ -21,6 +21,7 @@ import ReportsTab from './reports/ReportsTab';
 import QueriesTab from './messages/QueriesTab';
 import LeaveTab from './leave/LeaveTab';
 import PayslipsTab from './payslips/PayslipsTab';
+import GeneratePayslip from './payslips/GeneratePayslipModal';
 import { 
   TeamMember, Task, LeaveRequest, ProjectTeam, Message, 
   TaskHistory, PerformanceData 
@@ -32,7 +33,7 @@ const ManagerDashboard = () => {
   const location = useLocation();
   const { theme, toggleTheme, getThemeClasses } = useTheme();
   const tc = getThemeClasses();
-  const {  token } = useAuth();
+  const { token, user } = useAuth();
   
   // Get attendance hook for API integration
   const attendance = useAttendance();
@@ -246,12 +247,6 @@ const ManagerDashboard = () => {
     { name: 'Rohan Verma', role: 'Senior Software Engineer', kpi: 88, sla: 87, prs: 4, rating: 4.6, done: '6/6' }
   ];
 
-  const payslips = [
-    { month: 'May 2026', paidOn: '2026-05-31', gross: '₹1,45,390', net: '₹1,18,849' },
-    { month: 'April 2026', paidOn: '2026-04-30', gross: '₹1,42,500', net: '₹1,16,535' },
-    { month: 'March 2026', paidOn: '2026-03-31', gross: '₹1,42,500', net: '₹1,16,535' },
-  ];
-
   // Check for mobile screen
   useEffect(() => {
     const handleResize = () => {
@@ -282,6 +277,7 @@ const ManagerDashboard = () => {
     if (path === '/dashboard/queries') return 'queries';
     if (path === '/dashboard/leave') return 'leave';
     if (path === '/dashboard/payslips') return 'payslips';
+    if (path === '/dashboard/generate-payslip') return 'generate-payslip';
     return 'overview';
   };
 
@@ -363,25 +359,6 @@ const ManagerDashboard = () => {
   };
 
   // Task Functions
-  // const addJiraLink = () => {
-  //   if (jiraLinks.length < 10) {
-  //     setJiraLinks([...jiraLinks, '']);
-  //   }
-  // };
-
-  // const removeJiraLink = (index: number) => {
-  //   if (jiraLinks.length > 1) {
-  //     const newLinks = jiraLinks.filter((_, i) => i !== index);
-  //     setJiraLinks(newLinks);
-  //   }
-  // };
-
-  // const updateJiraLink = (index: number, value: string) => {
-  //   const newLinks = [...jiraLinks];
-  //   newLinks[index] = value;
-  //   setJiraLinks(newLinks);
-  // };
-
   const handleTaskImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -473,7 +450,7 @@ const ManagerDashboard = () => {
     setShowCompose(true);
   };
 
-  // Enhanced Payslip Functions
+  // Enhanced Payslip Functions - keep generatePayslipData but remove downloadPayslip
   const generatePayslipData = (employeeName?: string, month?: string, year?: string) => {
     const baseSalary = 145390;
     const hra = Math.round(baseSalary * 0.4);
@@ -483,22 +460,17 @@ const ManagerDashboard = () => {
     const tds = Math.round(baseSalary * 0.08);
     const pt = 200;
 
-    // Determine pay period
     let payPeriod = 'May 2026';
     let paymentDate = '2026-05-31';
     
     if (month && year) {
-      // Use provided month and year
       const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
                          'July', 'August', 'September', 'October', 'November', 'December'];
       const monthIndex = parseInt(month) - 1;
       payPeriod = `${monthNames[monthIndex]} ${year}`;
-      
-      // Generate payment date (last day of month)
       const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
       paymentDate = `${year}-${month}-${lastDay}`;
     } else {
-      // Use current month
       const now = moment();
       payPeriod = now.format('MMMM YYYY');
       paymentDate = now.format('YYYY-MM-DD');
@@ -525,279 +497,34 @@ const ManagerDashboard = () => {
     };
   };
 
-  const downloadPayslip = (month?: string, year?: string) => {
-    // If month and year are provided, use them
-    let targetMonth = month;
-    let targetYear = year;
-    
-    if (!targetMonth || !targetYear) {
-      // Generate current month's payslip
-      const now = moment();
-      targetMonth = now.format('MM');
-      targetYear = now.format('YYYY');
-    }
-
-    const data = generatePayslipData('Karan Singh', targetMonth, targetYear);
-    
-    const totalEarnings = Object.values(data.earnings).reduce((a, b) => a + b, 0);
-    const totalDeductions = Object.values(data.deductions).reduce((a, b) => a + b, 0);
-    const netPayable = totalEarnings - totalDeductions;
-
-    // Generate month name for display
-    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
-                       'July', 'August', 'September', 'October', 'November', 'December'];
-    const monthName = monthNames[parseInt(targetMonth) - 1];
-    const displayPeriod = `${monthName} ${targetYear}`;
-
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { 
-            font-family: 'Segoe UI', Arial, sans-serif; 
-            background: #f0f2f5; 
-            padding: 20px;
-          }
-          .payslip { 
-            max-width: 900px; 
-            margin: 0 auto; 
-            background: white; 
-            border-radius: 16px; 
-            box-shadow: 0 8px 32px rgba(0,0,0,0.12); 
-            overflow: hidden;
-          }
-          .header { 
-            background: linear-gradient(135deg, #1a2744 0%, #2a3f6a 100%); 
-            color: white; 
-            padding: 25px 30px;
-            position: relative;
-          }
-          .header::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, #6366f1, #8b5cf6, #a855f7);
-          }
-          .header h1 { 
-            font-size: 24px; 
-            font-weight: 700;
-            letter-spacing: 1px;
-          }
-          .header .sub { 
-            opacity: 0.8; 
-            font-size: 13px; 
-            font-weight: 300;
-            margin-top: 4px;
-          }
-          .header .company { 
-            font-size: 11px; 
-            opacity: 0.6; 
-            margin-top: 6px;
-          }
-          .header .badge {
-            float: right;
-            background: rgba(255,255,255,0.15);
-            padding: 6px 14px;
-            border-radius: 8px;
-            font-size: 11px;
-            border: 1px solid rgba(255,255,255,0.1);
-          }
-          .employee-details { 
-            padding: 20px 30px; 
-            background: #f8fafc; 
-            display: grid; 
-            grid-template-columns: 1fr 1fr; 
-            gap: 6px 20px; 
-            border-bottom: 2px solid #e2e8f0;
-          }
-          .employee-details .label { 
-            color: #64748b; 
-            font-size: 10px; 
-            font-weight: 600; 
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-          }
-          .employee-details .value { 
-            color: #0f172a; 
-            font-size: 13px; 
-            font-weight: 500;
-          }
-          .table-section { 
-            padding: 25px 30px; 
-          }
-          .table-section h2 { 
-            font-size: 15px; 
-            color: #1a2744; 
-            margin-bottom: 16px;
-            font-weight: 600;
-          }
-          table { 
-            width: 100%; 
-            border-collapse: collapse;
-          }
-          th { 
-            background: #f1f5f9; 
-            color: #475569; 
-            font-weight: 600; 
-            font-size: 11px; 
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            padding: 10px 14px; 
-            text-align: left; 
-            border-bottom: 2px solid #e2e8f0;
-          }
-          td { 
-            padding: 10px 14px; 
-            border-bottom: 1px solid #f1f5f9; 
-            font-size: 13px;
-          }
-          .total-row { 
-            background: #f8fafc; 
-            font-weight: 600;
-          }
-          .total-row td {
-            border-bottom: 2px solid #e2e8f0;
-          }
-          .net-row {
-            background: #ecfdf5;
-          }
-          .net-row td {
-            border-bottom: none;
-            padding: 14px;
-          }
-          .amount { 
-            font-family: 'Courier New', monospace;
-            font-weight: 500;
-          }
-          .footer { 
-            padding: 16px 30px; 
-            background: #f8fafc; 
-            border-top: 2px solid #e2e8f0; 
-            font-size: 11px; 
-            color: #94a3b8; 
-            text-align: center;
-          }
-          .footer strong {
-            color: #64748b;
-          }
-          @media print {
-            body { padding: 0; background: white; }
-            .payslip { box-shadow: none; border-radius: 0; }
-          }
-          @media (max-width: 600px) {
-            .header { padding: 20px; }
-            .header .badge { float: none; display: inline-block; margin-top: 10px; }
-            .employee-details { grid-template-columns: 1fr; padding: 15px 20px; }
-            .table-section { padding: 15px 20px; }
-            td, th { padding: 8px 10px; font-size: 12px; }
-            .footer { padding: 12px 20px; font-size: 10px; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="payslip">
-          <div class="header">
-            <h1>ServEase</h1>
-            <div class="sub">INNOVATION PVT LTD</div>
-            <div class="company">TOWER B, Cyber Hub, Gurugram, Haryana 122002, India</div>
-            <div class="badge">📄 PAYSLIP</div>
-          </div>
-          
-          <div class="employee-details">
-            <div><span class="label">Employee ID</span><div class="value">${data.employeeId}</div></div>
-            <div><span class="label">Name</span><div class="value">${data.name}</div></div>
-            <div><span class="label">Designation</span><div class="value">${data.designation}</div></div>
-            <div><span class="label">Email</span><div class="value">${data.email}</div></div>
-            <div><span class="label">Pay Period</span><div class="value">${displayPeriod}</div></div>
-            <div><span class="label">Payment Date</span><div class="value">${data.paymentDate}</div></div>
-          </div>
-
-          <div class="table-section">
-            <h2>📊 Salary Breakdown</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th style="width:40%">Earnings</th>
-                  <th style="width:10%;text-align:right">Amount</th>
-                  <th style="width:40%">Deductions</th>
-                  <th style="width:10%;text-align:right">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>💰 Basic</td>
-                  <td style="text-align:right" class="amount">₹${data.earnings.basic.toLocaleString()}</td>
-                  <td>🏦 Provident Fund</td>
-                  <td style="text-align:right" class="amount">₹${data.deductions.providentFund.toLocaleString()}</td>
-                </tr>
-                <tr>
-                  <td>🏠 House Rent Allowance</td>
-                  <td style="text-align:right" class="amount">₹${data.earnings.hra.toLocaleString()}</td>
-                  <td>📊 TDS</td>
-                  <td style="text-align:right" class="amount">₹${data.deductions.tds.toLocaleString()}</td>
-                </tr>
-                <tr>
-                  <td>⭐ Special Allowance</td>
-                  <td style="text-align:right" class="amount">₹${data.earnings.special.toLocaleString()}</td>
-                  <td>📋 Professional Tax</td>
-                  <td style="text-align:right" class="amount">₹${data.deductions.professionalTax.toLocaleString()}</td>
-                </tr>
-                <tr>
-                  <td>🎯 Performance Bonus</td>
-                  <td style="text-align:right" class="amount">₹${data.earnings.performanceBonus.toLocaleString()}</td>
-                  <td></td>
-                  <td></td>
-                </tr>
-                <tr class="total-row">
-                  <td><strong>📈 Total Earnings</strong></td>
-                  <td style="text-align:right" class="amount"><strong>₹${totalEarnings.toLocaleString()}</strong></td>
-                  <td><strong>📉 Total Deductions</strong></td>
-                  <td style="text-align:right" class="amount"><strong>₹${totalDeductions.toLocaleString()}</strong></td>
-                </tr>
-                <tr class="net-row">
-                  <td colspan="3" style="text-align:right; font-size:16px; font-weight:700; color:#065f46;">
-                    💰 Net Payable
-                  </td>
-                  <td style="text-align:right; font-size:18px; font-weight:700; color:#065f46;" class="amount">
-                    ₹${netPayable.toLocaleString()}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div class="footer">
-            This is a system-generated payslip and does not require a signature.<br>
-            <strong>© ${targetYear} ServEase Innovation Private Limited</strong> • All rights reserved
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-
-    const blob = new Blob([html], { type: 'application/pdf' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Payslip_${data.employeeId}_${displayPeriod.replace(' ', '_')}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
   const filteredMessages = messages.filter(msg => {
     const readFilter = selectedFilter === 'all' ? true : selectedFilter === 'unread' ? !msg.read : msg.read;
     const categoryFilter = selectedCategory === 'all' || msg.category === selectedCategory;
     return readFilter && categoryFilter;
   });
+
+  // Determine header title and subtitle based on active tab
+  const getHeaderTitle = () => {
+    switch (activeTab) {
+      case 'generate-payslip':
+        return 'Generate Payslip';
+      case 'payslips':
+        return 'Payslips';
+      default:
+        return 'Platform Team Overview';
+    }
+  };
+
+  const getHeaderSubtitle = () => {
+    switch (activeTab) {
+      case 'generate-payslip':
+        return 'Generate payslip for an employee for a specific period';
+      case 'payslips':
+        return 'View and download your payslips';
+      default:
+        return 'Led by Priya Nair - 14 engineers - 6 active projects';
+    }
+  };
 
   // Render content based on active tab
   const renderContent = () => {
@@ -840,12 +567,10 @@ const ManagerDashboard = () => {
       case 'tasks-board':
         return <TasksBoardTab tc={tc} tasks={tasks} />;
       case 'daily-tasks':
-        // Use the updated DailyTasksTab with token for API integration
         return (
           <DailyTasksTab
             tc={tc}
             token={token}
-            // Pass the existing state as props for backward compatibility
             taskStatus={taskStatus as 'Pending' | 'Completed'}
             setTaskStatus={(status: 'Pending' | 'Completed') => setTaskStatus(status)}
             jiraLinks={jiraLinks.map(url => ({ url }))}
@@ -887,12 +612,10 @@ const ManagerDashboard = () => {
                 setJiraLinks(newLinks);
               }
             }}
-            updateJiraLink={(index: number, field: 'label' | 'url', value: string) => {
-              if (field === 'url') {
-                const newLinks = [...jiraLinks];
-                newLinks[index] = value;
-                setJiraLinks(newLinks);
-              }
+            updateJiraLink={(index: number, value: string) => {
+              const newLinks = [...jiraLinks];
+              newLinks[index] = value;
+              setJiraLinks(newLinks);
             }}
             handleTaskImageUpload={handleTaskImageUpload}
             handleSubmitTask={handleSubmitTask}
@@ -939,8 +662,15 @@ const ManagerDashboard = () => {
         return (
           <PayslipsTab
             tc={tc}
-            downloadPayslip={downloadPayslip}
-            payslips={payslips}
+            userRole="manager"
+            employeeId={user?.id}
+          />
+        );
+      case 'generate-payslip':
+        return (
+          <GeneratePayslip
+            tc={tc}
+            userRole="manager"
           />
         );
       default:
@@ -1004,8 +734,8 @@ const ManagerDashboard = () => {
 
       <div className="flex-1 flex flex-col overflow-hidden w-full">
         <Header 
-          title="Platform Team Overview"
-          subtitle="Led by Priya Nair - 14 engineers - 6 active projects"
+          title={getHeaderTitle()}
+          subtitle={getHeaderSubtitle()}
           theme={theme}
           onThemeToggle={toggleTheme}
           onMobileMenuToggle={toggleMobileSidebar}

@@ -1,8 +1,11 @@
-// tabs/PayslipsTab.tsx
-import React, { useState, useMemo } from 'react';
+// tabs/PayslipsTab.tsx - Fully updated with API integration and userRole prop
+import React, { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../../../hooks/useAuth';
 import { getThemeClasses } from './themeUtils';
+import { payslipService } from '../../../services/api';
+import { Payslip } from '../../../types';
 import moment from 'moment';
+import toast from 'react-hot-toast';
 import {
   DocumentTextIcon,
   ArrowUpTrayIcon,
@@ -11,80 +14,93 @@ import {
   CalendarIcon,
   ChevronDownIcon,
   EyeIcon,
-  PrinterIcon,
   CloudArrowDownIcon,
   CheckCircleIcon,
   ClockIcon,
   SparklesIcon,
   FireIcon,
   GiftIcon,
-  ArrowUpIcon
+  ArrowUpIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 
 interface PayslipsTabProps {
   theme: 'light' | 'dark';
   attendance: any;
+  userRole?: string;
 }
 
-interface PayslipData {
-  employeeId: string;
-  name: string;
-  designation: string;
-  email: string;
-  payPeriod: string;
-  paymentDate: string;
-  earnings: {
-    basic: number;
-    hra: number;
-    special: number;
-    performanceBonus: number;
-  };
-  deductions: {
-    providentFund: number;
-    tds: number;
-    professionalTax: number;
-  };
-}
-
-interface PayslipDisplay {
-  id: string;
-  month: string;
-  year: string;
-  paidOn: string;
-  gross: string;
-  net: string;
-  status: 'Generated' | 'Processing' | 'Pending';
-  employeeName: string;
-  employeeId: string;
-  department: string;
-}
-
-const PayslipsTab: React.FC<PayslipsTabProps> = ({ theme, attendance }) => {
+const PayslipsTab: React.FC<PayslipsTabProps> = ({ theme, attendance, userRole = 'employee' }) => {
   const { user } = useAuth();
   const tc = getThemeClasses(theme);
 
   // State for filters and UI
   const currentDate = moment();
   const currentYear = currentDate.year();
-  const currentMonth = currentDate.month() + 1; // 1-12
+  const currentMonth = currentDate.month() + 1;
   const currentDay = currentDate.date();
 
-  const [selectedYear, setSelectedYear] = useState<string>(currentYear.toString());
+  const [payslips, setPayslips] = useState<Payslip[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [expandedPayslip, setExpandedPayslip] = useState<string | null>(null);
-  const [isAnimating, setIsAnimating] = useState(false);
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
-  // Generate years from 2020 to current year (past years only)
+  // Determine if user is admin based on role prop or user object
+  const isAdmin = userRole === 'super-admin' || userRole === 'manager' || user?.role === 'super-admin' || user?.role === 'manager';
+  const isSelf = !isAdmin;
+
+  // Fetch payslips from API
+  useEffect(() => {
+    fetchPayslips();
+  }, [selectedYear, selectedMonth]);
+
+  const fetchPayslips = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      let data;
+      const year = selectedYear !== 'all' ? Number(selectedYear) : undefined;
+      const month = selectedMonth !== 'all' ? Number(selectedMonth) : undefined;
+
+      const params: { month?: number; year?: number } = {};
+      if (month) params.month = month;
+      if (year) params.year = year;
+
+      if (isSelf) {
+        // Employee view - only approved/paid payslips
+        data = await payslipService.getMyPayslips(params);
+        setPayslips(data.payslips || []);
+      } else if (user?.id) {
+        // Admin viewing specific employee
+        const result = await payslipService.getEmployeePayslips(user.id, params);
+        setPayslips(result.payslips || []);
+      } else {
+        // Admin viewing all payslips
+        data = await payslipService.getAllPayslips(params);
+        setPayslips(data.payslips || []);
+      }
+    } catch (err: any) {
+      console.error('Failed to fetch payslips:', err);
+      const errorMsg = err.response?.data?.message || 'Failed to load payslips';
+      setError(errorMsg);
+      toast.error(errorMsg);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Generate years from 2020 to current year
   const years = useMemo(() => {
     const yearList = [];
     for (let year = 2020; year <= currentYear; year++) {
       yearList.push(year.toString());
     }
-    return yearList.reverse(); // Show latest first
+    return yearList.reverse();
   }, [currentYear]);
 
   // Generate months based on selected year
@@ -104,489 +120,216 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ theme, attendance }) => {
       { value: '12', label: 'December' }
     ];
 
-    // If selected year is current year, only show months up to current month
     if (selectedYear === currentYear.toString()) {
       return months.slice(0, currentMonth);
     }
-    
-    // For past years, show all months
     return months;
   }, [selectedYear, currentYear, currentMonth]);
 
-  const generatePayslipData = (employeeName?: string, month?: string, year?: string): PayslipData => {
-    const baseSalary = 145390;
-    const hra = Math.round(baseSalary * 0.4);
-    const special = Math.round(baseSalary * 0.3);
-    const bonus = Math.round(baseSalary * 0.1);
-    const pf = Math.round(baseSalary * 0.12);
-    const tds = Math.round(baseSalary * 0.08);
-    const pt = 200;
-
-    // Determine pay period
-    let payPeriod = 'May 2026';
-    let paymentDate = '2026-05-31';
-    
-    if (month && year) {
-      // Use provided month and year
-      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
-                         'July', 'August', 'September', 'October', 'November', 'December'];
-      const monthIndex = parseInt(month) - 1;
-      payPeriod = `${monthNames[monthIndex]} ${year}`;
-      
-      // Generate payment date (last day of month)
-      const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
-      paymentDate = `${year}-${month}-${lastDay}`;
-    } else {
-      // Use current month
-      const now = moment();
-      payPeriod = now.format('MMMM YYYY');
-      paymentDate = now.format('YYYY-MM-DD');
-    }
-
-    return {
-      employeeId: user?.id || 'SE-118',
-      name: employeeName || user?.name || 'Karan Singh',
-      designation: ((user as any)?.designation) || 'Backend Engineer',
-      email: user?.email || 'karan.singh@serveasein.com',
-      payPeriod: payPeriod,
-      paymentDate: paymentDate,
-      earnings: {
-        basic: baseSalary,
-        hra: hra,
-        special: special,
-        performanceBonus: bonus,
-      },
-      deductions: {
-        providentFund: pf,
-        tds: tds,
-        professionalTax: pt,
-      }
-    };
-  };
-
-  const downloadPayslip = (month?: string, year?: string) => {
-    // If month and year are provided, use them
-    let targetMonth = month;
-    let targetYear = year;
-    
-    if (!targetMonth || !targetYear) {
-      // Generate current month's payslip
-      const now = moment();
-      targetMonth = now.format('MM');
-      targetYear = now.format('YYYY');
-    }
-
-    const data = generatePayslipData(user?.name, targetMonth, targetYear);
-    
-    const totalEarnings = Object.values(data.earnings).reduce((a, b) => a + b, 0);
-    const totalDeductions = Object.values(data.deductions).reduce((a, b) => a + b, 0);
-    const netPayable = totalEarnings - totalDeductions;
-
-    // Generate month name for display
-    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
-                       'July', 'August', 'September', 'October', 'November', 'December'];
-    const monthName = monthNames[parseInt(targetMonth) - 1];
-    const displayPeriod = `${monthName} ${targetYear}`;
-
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { 
-            font-family: 'Segoe UI', Arial, sans-serif; 
-            background: #f0f2f5; 
-            padding: 20px;
-          }
-          .payslip { 
-            max-width: 900px; 
-            margin: 0 auto; 
-            background: white; 
-            border-radius: 16px; 
-            box-shadow: 0 8px 32px rgba(0,0,0,0.12); 
-            overflow: hidden;
-          }
-          .header { 
-            background: linear-gradient(135deg, #1a2744 0%, #2a3f6a 100%); 
-            color: white; 
-            padding: 25px 30px;
-            position: relative;
-          }
-          .header::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, #6366f1, #8b5cf6, #a855f7);
-          }
-          .header h1 { 
-            font-size: 24px; 
-            font-weight: 700;
-            letter-spacing: 1px;
-          }
-          .header .sub { 
-            opacity: 0.8; 
-            font-size: 13px; 
-            font-weight: 300;
-            margin-top: 4px;
-          }
-          .header .company { 
-            font-size: 11px; 
-            opacity: 0.6; 
-            margin-top: 6px;
-          }
-          .header .badge {
-            float: right;
-            background: rgba(255,255,255,0.15);
-            padding: 6px 14px;
-            border-radius: 8px;
-            font-size: 11px;
-            border: 1px solid rgba(255,255,255,0.1);
-          }
-          .employee-details { 
-            padding: 20px 30px; 
-            background: #f8fafc; 
-            display: grid; 
-            grid-template-columns: 1fr 1fr; 
-            gap: 6px 20px; 
-            border-bottom: 2px solid #e2e8f0;
-          }
-          .employee-details .label { 
-            color: #64748b; 
-            font-size: 10px; 
-            font-weight: 600; 
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-          }
-          .employee-details .value { 
-            color: #0f172a; 
-            font-size: 13px; 
-            font-weight: 500;
-          }
-          .table-section { 
-            padding: 25px 30px; 
-          }
-          .table-section h2 { 
-            font-size: 15px; 
-            color: #1a2744; 
-            margin-bottom: 16px;
-            font-weight: 600;
-          }
-          table { 
-            width: 100%; 
-            border-collapse: collapse;
-          }
-          th { 
-            background: #f1f5f9; 
-            color: #475569; 
-            font-weight: 600; 
-            font-size: 11px; 
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            padding: 10px 14px; 
-            text-align: left; 
-            border-bottom: 2px solid #e2e8f0;
-          }
-          td { 
-            padding: 10px 14px; 
-            border-bottom: 1px solid #f1f5f9; 
-            font-size: 13px;
-          }
-          .total-row { 
-            background: #f8fafc; 
-            font-weight: 600;
-          }
-          .total-row td {
-            border-bottom: 2px solid #e2e8f0;
-          }
-          .net-row {
-            background: #ecfdf5;
-          }
-          .net-row td {
-            border-bottom: none;
-            padding: 14px;
-          }
-          .amount { 
-            font-family: 'Courier New', monospace;
-            font-weight: 500;
-          }
-          .footer { 
-            padding: 16px 30px; 
-            background: #f8fafc; 
-            border-top: 2px solid #e2e8f0; 
-            font-size: 11px; 
-            color: #94a3b8; 
-            text-align: center;
-          }
-          .footer strong {
-            color: #64748b;
-          }
-          @media print {
-            body { padding: 0; background: white; }
-            .payslip { box-shadow: none; border-radius: 0; }
-          }
-          @media (max-width: 600px) {
-            .header { padding: 20px; }
-            .header .badge { float: none; display: inline-block; margin-top: 10px; }
-            .employee-details { grid-template-columns: 1fr; padding: 15px 20px; }
-            .table-section { padding: 15px 20px; }
-            td, th { padding: 8px 10px; font-size: 12px; }
-            .footer { padding: 12px 20px; font-size: 10px; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="payslip">
-          <div class="header">
-            <h1>ServEase</h1>
-            <div class="sub">INNOVATION PVT LTD</div>
-            <div class="company">TOWER B, Cyber Hub, Gurugram, Haryana 122002, India</div>
-            <div class="badge">📄 PAYSLIP</div>
-          </div>
-          
-          <div class="employee-details">
-            <div><span class="label">Employee ID</span><div class="value">${data.employeeId}</div></div>
-            <div><span class="label">Name</span><div class="value">${data.name}</div></div>
-            <div><span class="label">Designation</span><div class="value">${data.designation}</div></div>
-            <div><span class="label">Email</span><div class="value">${data.email}</div></div>
-            <div><span class="label">Pay Period</span><div class="value">${displayPeriod}</div></div>
-            <div><span class="label">Payment Date</span><div class="value">${data.paymentDate}</div></div>
-          </div>
-
-          <div class="table-section">
-            <h2>📊 Salary Breakdown</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th style="width:40%">Earnings</th>
-                  <th style="width:10%;text-align:right">Amount</th>
-                  <th style="width:40%">Deductions</th>
-                  <th style="width:10%;text-align:right">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>💰 Basic</td>
-                  <td style="text-align:right" class="amount">₹${data.earnings.basic.toLocaleString()}</td>
-                  <td>🏦 Provident Fund</td>
-                  <td style="text-align:right" class="amount">₹${data.deductions.providentFund.toLocaleString()}</td>
-                </tr>
-                <tr>
-                  <td>🏠 House Rent Allowance</td>
-                  <td style="text-align:right" class="amount">₹${data.earnings.hra.toLocaleString()}</td>
-                  <td>📊 TDS</td>
-                  <td style="text-align:right" class="amount">₹${data.deductions.tds.toLocaleString()}</td>
-                </tr>
-                <tr>
-                  <td>⭐ Special Allowance</td>
-                  <td style="text-align:right" class="amount">₹${data.earnings.special.toLocaleString()}</td>
-                  <td>📋 Professional Tax</td>
-                  <td style="text-align:right" class="amount">₹${data.deductions.professionalTax.toLocaleString()}</td>
-                </tr>
-                <tr>
-                  <td>🎯 Performance Bonus</td>
-                  <td style="text-align:right" class="amount">₹${data.earnings.performanceBonus.toLocaleString()}</td>
-                  <td></td>
-                  <td></td>
-                </tr>
-                <tr class="total-row">
-                  <td><strong>📈 Total Earnings</strong></td>
-                  <td style="text-align:right" class="amount"><strong>₹${totalEarnings.toLocaleString()}</strong></td>
-                  <td><strong>📉 Total Deductions</strong></td>
-                  <td style="text-align:right" class="amount"><strong>₹${totalDeductions.toLocaleString()}</strong></td>
-                </tr>
-                <tr class="net-row">
-                  <td colspan="3" style="text-align:right; font-size:16px; font-weight:700; color:#065f46;">
-                    💰 Net Payable
-                  </td>
-                  <td style="text-align:right; font-size:18px; font-weight:700; color:#065f46;" class="amount">
-                    ₹${netPayable.toLocaleString()}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div class="footer">
-            This is a system-generated payslip and does not require a signature.<br>
-            <strong>© ${targetYear} ServEase Innovation Private Limited</strong> • All rights reserved
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-
-    const blob = new Blob([html], { type: 'application/pdf' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Payslip_${data.employeeId}_${displayPeriod.replace(' ', '_')}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  // Generate payslip display data with historical records
-  const allPayslips: PayslipDisplay[] = useMemo(() => {
-    const payslipData: PayslipDisplay[] = [];
-
-    // Generate historical data from 2020 to current year
-    for (let year = 2020; year <= currentYear; year++) {
-      const maxMonth = (year === currentYear) ? currentMonth : 12;
-      
-      for (let month = 1; month <= maxMonth; month++) {
-        const monthStr = month.toString().padStart(2, '0');
-        const monthName = new Date(year, month - 1).toLocaleString('default', { month: 'long' });
-        
-        // Random status for demo
-        const statuses: ('Generated' | 'Processing' | 'Pending')[] = ['Generated', 'Generated', 'Generated', 'Generated', 'Processing'];
-        const status = statuses[(year + month) % statuses.length];
-        const isEven = (year + month) % 2 === 0;
-        
-        // Random salary data
-        const baseGross = 120000 + Math.floor(Math.random() * 50000);
-        const baseNet = baseGross - Math.floor(baseGross * 0.18);
-        
-        // Last day of month for payment date
-        const lastDay = new Date(year, month, 0).getDate();
-        const paymentDay = Math.min(28, lastDay);
-        
-        payslipData.push({
-          id: `PS-${year}-${monthStr}`,
-          month: `${monthName} ${year}`,
-          year: year.toString(),
-          paidOn: `${year}-${monthStr}-${paymentDay}`,
-          gross: `₹${baseGross.toLocaleString()}`,
-          net: `₹${baseNet.toLocaleString()}`,
-          status: status,
-          employeeName: isEven ? user?.name || 'Karan Singh' : 'Priya Nair',
-          employeeId: isEven ? user?.id || 'SE-118' : 'SE-042',
-          department: isEven ? ((user as any)?.designation) || 'Engineering' : 'Management'
-        });
-      }
-    }
-
-    // Sort by year descending, then month descending
-    return payslipData.sort((a, b) => {
-      if (a.year !== b.year) return parseInt(b.year) - parseInt(a.year);
-      const monthA = new Date(a.month).getMonth() || 0;
-      const monthB = new Date(b.month).getMonth() || 0;
-      return monthB - monthA;
-    });
-  }, [currentYear, currentMonth, user]);
-
-  // Filter payslips based on year, month, and search
+  // Filter payslips by search query
   const filteredPayslips = useMemo(() => {
-    let filtered = allPayslips;
-
-    // Filter by year
-    if (selectedYear !== 'all') {
-      filtered = filtered.filter(p => p.year === selectedYear);
-    }
-
-    // Filter by month
-    if (selectedMonth !== 'all') {
-      filtered = filtered.filter(p => {
-        const monthNum = new Date(p.month).getMonth() + 1;
-        return monthNum.toString().padStart(2, '0') === selectedMonth;
-      });
-    }
+    let filtered = payslips;
 
     // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(p => 
-        p.month.toLowerCase().includes(query) ||
-        p.employeeName.toLowerCase().includes(query) ||
-        p.employeeId.toLowerCase().includes(query) ||
-        p.department.toLowerCase().includes(query) ||
-        p.id.toLowerCase().includes(query)
+      filtered = filtered.filter(p =>
+        p.employeeNameSnapshot?.toLowerCase().includes(query) ||
+        p.employeeId?.toLowerCase().includes(query) ||
+        p.employeeDepartmentSnapshot?.toLowerCase().includes(query) ||
+        p.payslipNumber?.toLowerCase().includes(query)
       );
     }
 
     return filtered;
-  }, [allPayslips, selectedYear, selectedMonth, searchQuery]);
-
-  // Check if current month payslip is available
-  const isCurrentMonthAvailable = useMemo(() => {
-    const currentMonthStr = currentMonth.toString().padStart(2, '0');
-    return allPayslips.some(p => 
-      p.year === currentYear.toString() && 
-      new Date(p.month).getMonth() + 1 === currentMonth
-    );
-  }, [allPayslips, currentYear, currentMonth]);
-
-  // Check if user can generate current month payslip (after 25th of month)
-  const canGenerateCurrentMonth = useMemo(() => {
-    return currentDay >= 25 && !isCurrentMonthAvailable;
-  }, [currentDay, isCurrentMonthAvailable]);
+  }, [payslips, searchQuery]);
 
   // Statistics
   const stats = useMemo(() => {
     const total = filteredPayslips.length;
-    const generated = filteredPayslips.filter(p => p.status === 'Generated').length;
-    const pending = filteredPayslips.filter(p => p.status === 'Pending').length;
-    const processing = filteredPayslips.filter(p => p.status === 'Processing').length;
-    
+    const draft = filteredPayslips.filter(p => p.status === 'Draft').length;
+    const approved = filteredPayslips.filter(p => p.status === 'Approved').length;
+    const paid = filteredPayslips.filter(p => p.status === 'Paid').length;
+
     const totalNet = filteredPayslips.reduce((sum, p) => {
-      const netValue = parseInt(p.net.replace(/[₹,]/g, ''));
-      return sum + (isNaN(netValue) ? 0 : netValue);
+      return sum + (typeof p.netSalary === 'number' ? p.netSalary : 0);
     }, 0);
 
-    return { total, generated, pending, processing, totalNet };
+    return { total, draft, approved, paid, totalNet };
   }, [filteredPayslips]);
 
+  // Check if current month payslip is available
+  const isCurrentMonthAvailable = useMemo(() => {
+    return payslips.some(p => {
+      const pMonth = new Date(p.generatedAt).getMonth() + 1;
+      const pYear = new Date(p.generatedAt).getFullYear();
+      return pYear === currentYear && pMonth === currentMonth;
+    });
+  }, [payslips, currentYear, currentMonth]);
+
+  // Check if user can generate current month payslip (after 25th of month)
+  const canGenerateCurrentMonth = useMemo(() => {
+    return currentDay >= 25 && !isCurrentMonthAvailable && isSelf;
+  }, [currentDay, isCurrentMonthAvailable, isSelf]);
+
   const getStatusIcon = (status: string) => {
-    switch(status) {
-      case 'Generated': return <CheckCircleIcon className="w-4 h-4 text-emerald-400" />;
-      case 'Processing': return <ClockIcon className="w-4 h-4 text-amber-400 animate-pulse" />;
-      case 'Pending': return <ClockIcon className="w-4 h-4 text-blue-400" />;
-      default: return null;
+    switch (status) {
+      case 'Draft':
+        return <ClockIcon className="w-4 h-4 text-amber-400 animate-pulse" />;
+      case 'Approved':
+        return <CheckCircleIcon className="w-4 h-4 text-emerald-400" />;
+      case 'Paid':
+        return <CheckCircleIcon className="w-4 h-4 text-blue-400" />;
+      case 'Cancelled':
+        return <ExclamationTriangleIcon className="w-4 h-4 text-red-400" />;
+      default:
+        return <ClockIcon className="w-4 h-4 text-gray-400" />;
     }
   };
 
   const getStatusColor = (status: string) => {
-    switch(status) {
-      case 'Generated': return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
-      case 'Processing': return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
-      case 'Pending': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+    switch (status) {
+      case 'Draft':
+        return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
+      case 'Approved':
+        return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+      case 'Paid':
+        return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+      case 'Cancelled':
+        return 'bg-red-500/20 text-red-400 border-red-500/30';
+      default:
+        return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
     }
   };
 
-  const handleDownload = (payslip: PayslipDisplay) => {
-    setIsAnimating(true);
-    setTimeout(() => {
-      const month = new Date(payslip.month).getMonth() + 1;
-      const year = payslip.year;
-      downloadPayslip(month.toString().padStart(2, '0'), year);
-      setIsAnimating(false);
-    }, 300);
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'Draft':
+        return 'Generated';
+      case 'Approved':
+        return 'Approved';
+      case 'Paid':
+        return 'Paid';
+      case 'Cancelled':
+        return 'Cancelled';
+      default:
+        return status;
+    }
   };
 
-  const handleGenerateCurrent = () => {
-    const month = currentMonth.toString().padStart(2, '0');
-    const year = currentYear.toString();
-    downloadPayslip(month, year);
+  const handleDownload = async (payslip: Payslip) => {
+    try {
+      const month = new Date(payslip.generatedAt).getMonth() + 1;
+      const year = new Date(payslip.generatedAt).getFullYear();
+
+      const blob = await payslipService.downloadPayslipPdf(
+        payslip.employeeId,
+        month,
+        year
+      );
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${payslip.payslipNumber}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast.success('Payslip downloaded successfully');
+    } catch (error: any) {
+      console.error('Failed to download payslip:', error);
+      const errorMsg = error.response?.data?.message || 'Failed to download payslip';
+      toast.error(errorMsg);
+    }
+  };
+
+  const handleGenerateCurrent = async () => {
+    if (!user?.id) {
+      toast.error('User information not available');
+      return;
+    }
+
+    try {
+      const date = currentDate.format('YYYY-MM-DD');
+
+      const payload = {
+        employeeId: user.id,
+        date: date,
+        month: currentMonth,
+        year: currentYear,
+      };
+
+      await payslipService.generatePayslip(payload);
+      toast.success('Payslip generated successfully!');
+      await fetchPayslips(); // Refresh the list
+    } catch (error: any) {
+      console.error('Failed to generate payslip:', error);
+      let errorMsg = error.response?.data?.message || 'Failed to generate payslip';
+      
+      if (errorMsg.includes('falls after the payroll period end')) {
+        const lastDay = new Date(currentYear, currentMonth, 0).getDate();
+        errorMsg = `The selected date is after the payroll period end. Please select a date on or before ${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+      }
+      
+      toast.error(errorMsg);
+    }
   };
 
   const toggleExpand = (id: string) => {
     setExpandedPayslip(expandedPayslip === id ? null : id);
   };
 
+  const formatCurrency = (value: number, currency: string = 'INR') => {
+    try {
+      return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: currency,
+        minimumFractionDigits: 2,
+      }).format(value);
+    } catch {
+      return `₹${value.toFixed(2)}`;
+    }
+  };
+
   // Get current month name
   const currentMonthName = new Date(currentYear, currentMonth - 1).toLocaleString('default', { month: 'long' });
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className={`${tc.bgCard} p-12 rounded-2xl ${tc.border} ${tc.shadow} text-center`}>
+        <ArrowPathIcon className="w-12 h-12 text-indigo-400 animate-spin mx-auto mb-4" />
+        <p className={`text-sm ${tc.textSecondary}`}>Loading payslips...</p>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className={`${tc.bgCard} p-12 rounded-2xl ${tc.border} ${tc.shadow} text-center`}>
+        <div className="w-20 h-20 mx-auto bg-red-500/10 rounded-full flex items-center justify-center mb-4">
+          <ExclamationTriangleIcon className="w-10 h-10 text-red-400" />
+        </div>
+        <h3 className={`text-lg font-semibold ${tc.text}`}>Failed to Load Payslips</h3>
+        <p className={`text-sm ${tc.textSecondary} mt-2`}>{error}</p>
+        <button
+          onClick={fetchPayslips}
+          className="mt-4 px-6 py-2 bg-indigo-500/20 text-indigo-400 rounded-xl hover:bg-indigo-500/30 transition-all"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Generate Current Month Payslip Banner */}
-      {canGenerateCurrentMonth && (
+      {/* Generate Current Month Payslip Banner - Only for employees */}
+      {canGenerateCurrentMonth && isSelf && (
         <div className={`bg-gradient-to-r from-emerald-500/20 to-emerald-600/10 border border-emerald-500/30 rounded-2xl p-4 sm:p-6 animate-fadeIn relative overflow-hidden`}>
           <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full -mr-10 -mt-10"></div>
           <div className="absolute bottom-0 left-0 w-24 h-24 bg-emerald-500/5 rounded-full -ml-8 -mb-8"></div>
@@ -622,7 +365,7 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ theme, attendance }) => {
         </div>
       )}
 
-      {/* Stats Cards with Animation */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow} hover:scale-[1.02] transition-all duration-300 group cursor-pointer relative overflow-hidden`}>
           <div className="absolute top-0 right-0 w-20 h-20 bg-indigo-500/5 rounded-full -mr-10 -mt-10 group-hover:scale-150 transition-all duration-500"></div>
@@ -637,26 +380,26 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ theme, attendance }) => {
         </div>
 
         <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow} hover:scale-[1.02] transition-all duration-300 group cursor-pointer relative overflow-hidden`}>
-          <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-500/5 rounded-full -mr-10 -mt-10 group-hover:scale-150 transition-all duration-500"></div>
+          <div className="absolute top-0 right-0 w-20 h-20 bg-amber-500/5 rounded-full -mr-10 -mt-10 group-hover:scale-150 transition-all duration-500"></div>
           <div className="relative z-10">
             <div className="flex items-center justify-between">
-              <h4 className={`text-xs sm:text-sm ${tc.textSecondary}`}>Generated</h4>
-              <CheckCircleIcon className="w-5 h-5 text-emerald-400 group-hover:scale-110 transition-transform" />
+              <h4 className={`text-xs sm:text-sm ${tc.textSecondary}`}>Draft</h4>
+              <ClockIcon className="w-5 h-5 text-amber-400 group-hover:scale-110 transition-transform animate-pulse" />
             </div>
-            <p className={`text-xl sm:text-2xl font-bold text-emerald-400 mt-1`}>{stats.generated}</p>
-            <p className={`text-[10px] sm:text-xs ${tc.textMuted}`}>Ready to download</p>
+            <p className={`text-xl sm:text-2xl font-bold text-amber-400 mt-1`}>{stats.draft}</p>
+            <p className={`text-[10px] sm:text-xs ${tc.textMuted}`}>Awaiting approval</p>
           </div>
         </div>
 
         <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow} hover:scale-[1.02] transition-all duration-300 group cursor-pointer relative overflow-hidden`}>
-          <div className="absolute top-0 right-0 w-20 h-20 bg-amber-500/5 rounded-full -mr-10 -mt-10 group-hover:scale-150 transition-all duration-500"></div>
+          <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-500/5 rounded-full -mr-10 -mt-10 group-hover:scale-150 transition-all duration-500"></div>
           <div className="relative z-10">
             <div className="flex items-center justify-between">
-              <h4 className={`text-xs sm:text-sm ${tc.textSecondary}`}>Processing</h4>
-              <ClockIcon className="w-5 h-5 text-amber-400 group-hover:scale-110 transition-transform animate-pulse" />
+              <h4 className={`text-xs sm:text-sm ${tc.textSecondary}`}>Approved</h4>
+              <CheckCircleIcon className="w-5 h-5 text-emerald-400 group-hover:scale-110 transition-transform" />
             </div>
-            <p className={`text-xl sm:text-2xl font-bold text-amber-400 mt-1`}>{stats.processing}</p>
-            <p className={`text-[10px] sm:text-xs ${tc.textMuted}`}>Generating...</p>
+            <p className={`text-xl sm:text-2xl font-bold text-emerald-400 mt-1`}>{stats.approved}</p>
+            <p className={`text-[10px] sm:text-xs ${tc.textMuted}`}>Ready to download</p>
           </div>
         </div>
 
@@ -664,11 +407,11 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ theme, attendance }) => {
           <div className="absolute top-0 right-0 w-20 h-20 bg-blue-500/5 rounded-full -mr-10 -mt-10 group-hover:scale-150 transition-all duration-500"></div>
           <div className="relative z-10">
             <div className="flex items-center justify-between">
-              <h4 className={`text-xs sm:text-sm ${tc.textSecondary}`}>Pending</h4>
-              <ClockIcon className="w-5 h-5 text-blue-400 group-hover:scale-110 transition-transform" />
+              <h4 className={`text-xs sm:text-sm ${tc.textSecondary}`}>Paid</h4>
+              <CheckCircleIcon className="w-5 h-5 text-blue-400 group-hover:scale-110 transition-transform" />
             </div>
-            <p className={`text-xl sm:text-2xl font-bold text-blue-400 mt-1`}>{stats.pending}</p>
-            <p className={`text-[10px] sm:text-xs ${tc.textMuted}`}>Awaiting generation</p>
+            <p className={`text-xl sm:text-2xl font-bold text-blue-400 mt-1`}>{stats.paid}</p>
+            <p className={`text-[10px] sm:text-xs ${tc.textMuted}`}>Payment completed</p>
           </div>
         </div>
 
@@ -679,20 +422,22 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ theme, attendance }) => {
               <h4 className={`text-xs sm:text-sm ${tc.textSecondary}`}>Total Earnings</h4>
               <ArrowUpIcon className="w-5 h-5 text-purple-400 group-hover:scale-110 transition-transform" />
             </div>
-            <p className={`text-xl sm:text-2xl font-bold text-purple-400 mt-1`}>₹{stats.totalNet.toLocaleString()}</p>
+            <p className={`text-xl sm:text-2xl font-bold text-purple-400 mt-1`}>
+              {formatCurrency(stats.totalNet)}
+            </p>
             <p className={`text-[10px] sm:text-xs ${tc.textMuted}`}>Net amount</p>
           </div>
         </div>
       </div>
 
-      {/* Enhanced Filters Section with Visual Highlights */}
+      {/* Filters Section */}
       <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow} transition-all duration-300 hover:shadow-lg relative overflow-hidden`}>
         <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/5 rounded-full -mr-24 -mt-24 pointer-events-none"></div>
         
         <div className="relative z-10">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-              {/* Year Dropdown - Enhanced */}
+              {/* Year Dropdown */}
               <div className="relative flex-1 sm:flex-none min-w-[140px]">
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-400">
                   <CalendarIcon className="w-4 h-4" />
@@ -718,7 +463,7 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ theme, attendance }) => {
                 )}
               </div>
 
-              {/* Month Dropdown - Enhanced */}
+              {/* Month Dropdown */}
               <div className="relative flex-1 sm:flex-none min-w-[150px]">
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-400">
                   <CalendarIcon className="w-4 h-4" />
@@ -742,7 +487,7 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ theme, attendance }) => {
                 <ChevronDownIcon className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               </div>
 
-              {/* Search Input - Enhanced */}
+              {/* Search Input */}
               <div className="relative flex-1 sm:flex-none min-w-[200px]">
                 <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-indigo-400" />
                 <input
@@ -792,7 +537,7 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ theme, attendance }) => {
             </div>
           </div>
 
-          {/* Active Filters Display - Enhanced */}
+          {/* Active Filters Display */}
           {(selectedYear !== 'all' || selectedMonth !== 'all' || searchQuery) && (
             <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-white/10">
               <span className="text-xs text-indigo-400/60 font-medium flex items-center gap-1">
@@ -834,7 +579,7 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ theme, attendance }) => {
             </div>
           )}
 
-          {/* Results Count - Enhanced */}
+          {/* Results Count */}
           <div className="mt-3 flex items-center justify-between">
             <span className={`text-sm ${tc.textSecondary} flex items-center gap-2`}>
               <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${tc.badge}`}>
@@ -866,27 +611,32 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ theme, attendance }) => {
           </p>
         </div>
       ) : viewMode === 'grid' ? (
-        // Grid View with Enhanced Cards
+        // Grid View
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredPayslips.map((payslip, index) => {
-            const isCurrent = payslip.year === currentYear.toString() && 
-                            new Date(payslip.month).getMonth() + 1 === currentMonth;
+            const pMonth = new Date(payslip.generatedAt).getMonth() + 1;
+            const pYear = new Date(payslip.generatedAt).getFullYear();
+            const isCurrent = pYear === currentYear && pMonth === currentMonth;
+            const canDownload = payslip.status === 'Approved' || payslip.status === 'Paid';
+
             return (
               <div
-                key={payslip.id}
+                key={payslip.payslipId}
                 className={`${tc.bgCard} rounded-2xl ${tc.border} ${tc.shadow} overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:shadow-xl group animate-fadeIn ${isCurrent ? 'ring-2 ring-emerald-500/50' : ''}`}
                 style={{ animationDelay: `${index * 100}ms` }}
               >
                 <div className="p-5">
-                  {/* Header with Current Month Badge */}
+                  {/* Header */}
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
                       <div className={`w-10 h-10 bg-gradient-to-br ${isCurrent ? 'from-emerald-500 to-emerald-600' : 'from-indigo-500 to-purple-600'} rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-lg ${isCurrent ? 'shadow-emerald-500/25' : 'shadow-indigo-500/25'} group-hover:scale-110 transition-transform`}>
-                        {new Date(payslip.month).toLocaleString('default', { month: 'short' })}
+                        {new Date(payslip.generatedAt).toLocaleString('default', { month: 'short' })}
                       </div>
                       <div>
-                        <h4 className={`font-semibold ${tc.text} text-sm`}>{payslip.month}</h4>
-                        <p className={`text-xs ${tc.textMuted}`}>ID: {payslip.id}</p>
+                        <h4 className={`font-semibold ${tc.text} text-sm`}>
+                          {new Date(payslip.generatedAt).toLocaleString('default', { month: 'long' })} {pYear}
+                        </h4>
+                        <p className={`text-xs ${tc.textMuted}`}>#{payslip.payslipNumber}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -897,7 +647,7 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ theme, attendance }) => {
                       )}
                       <div className={`px-2 py-1 rounded-lg text-xs font-medium ${getStatusColor(payslip.status)} flex items-center gap-1 border`}>
                         {getStatusIcon(payslip.status)}
-                        {payslip.status}
+                        {getStatusLabel(payslip.status)}
                       </div>
                     </div>
                   </div>
@@ -906,47 +656,49 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ theme, attendance }) => {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between items-center">
                       <span className={tc.textSecondary}>Employee</span>
-                      <span className={`font-medium ${tc.text}`}>{payslip.employeeName}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className={tc.textSecondary}>ID</span>
-                      <span className={`font-mono text-xs ${tc.textMuted}`}>{payslip.employeeId}</span>
+                      <span className={`font-medium ${tc.text}`}>{payslip.employeeNameSnapshot}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className={tc.textSecondary}>Department</span>
-                      <span className={`text-xs ${tc.textMuted}`}>{payslip.department}</span>
+                      <span className={`text-xs ${tc.textMuted}`}>{payslip.employeeDepartmentSnapshot}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className={tc.textSecondary}>Paid On</span>
-                      <span className={`text-xs ${tc.textMuted}`}>{payslip.paidOn}</span>
+                      <span className={`text-xs ${tc.textMuted}`}>
+                        {payslip.paidAt ? new Date(payslip.paidAt).toLocaleDateString() : 'N/A'}
+                      </span>
                     </div>
                   </div>
 
-                  {/* Earnings with Visual Enhancement */}
+                  {/* Earnings */}
                   <div className={`mt-3 pt-3 ${tc.border} border-t grid grid-cols-2 gap-2`}>
                     <div className={`p-2 rounded-lg ${tc.input}`}>
                       <p className={`text-[10px] ${tc.textMuted}`}>Gross</p>
-                      <p className={`text-sm font-bold ${tc.text}`}>{payslip.gross}</p>
+                      <p className={`text-sm font-bold ${tc.text}`}>
+                        {formatCurrency(payslip.totalEarnings, payslip.currency)}
+                      </p>
                     </div>
                     <div className={`p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/10`}>
                       <p className={`text-[10px] ${tc.textMuted}`}>Net</p>
-                      <p className={`text-sm font-bold text-emerald-400`}>{payslip.net}</p>
+                      <p className={`text-sm font-bold text-emerald-400`}>
+                        {formatCurrency(payslip.netSalary, payslip.currency)}
+                      </p>
                     </div>
                   </div>
 
                   {/* Actions */}
                   <div className="mt-4 flex gap-2">
                     <button
-                      onClick={() => toggleExpand(payslip.id)}
+                      onClick={() => toggleExpand(payslip.payslipId)}
                       className={`flex-1 px-3 py-1.5 ${tc.border} ${tc.textSecondary} rounded-xl text-xs font-medium hover:${tc.bgCardHover} transition-all duration-300 flex items-center justify-center gap-1`}
                     >
                       <EyeIcon className="w-3 h-3" />
-                      {expandedPayslip === payslip.id ? 'Hide' : 'Preview'}
+                      {expandedPayslip === payslip.payslipId ? 'Hide' : 'Preview'}
                     </button>
                     <button
                       onClick={() => handleDownload(payslip)}
-                      disabled={payslip.status !== 'Generated'}
-                      className={`flex-1 px-3 py-1.5 bg-gradient-to-r ${isCurrent ? 'from-emerald-500 to-emerald-600' : 'from-indigo-500 to-indigo-600'} text-white rounded-xl text-xs font-medium hover:from-${isCurrent ? 'emerald' : 'indigo'}-600 hover:to-${isCurrent ? 'emerald' : 'indigo'}-700 transition-all duration-300 shadow-lg ${isCurrent ? 'shadow-emerald-500/25' : 'shadow-indigo-500/25'} flex items-center justify-center gap-1 ${payslip.status !== 'Generated' ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
+                      disabled={!canDownload}
+                      className={`flex-1 px-3 py-1.5 bg-gradient-to-r ${isCurrent ? 'from-emerald-500 to-emerald-600' : 'from-indigo-500 to-indigo-600'} text-white rounded-xl text-xs font-medium hover:from-${isCurrent ? 'emerald' : 'indigo'}-600 hover:to-${isCurrent ? 'emerald' : 'indigo'}-700 transition-all duration-300 shadow-lg ${isCurrent ? 'shadow-emerald-500/25' : 'shadow-indigo-500/25'} flex items-center justify-center gap-1 ${!canDownload ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
                     >
                       <CloudArrowDownIcon className="w-3 h-3" />
                       Download
@@ -954,30 +706,47 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ theme, attendance }) => {
                   </div>
 
                   {/* Expandable Preview */}
-                  {expandedPayslip === payslip.id && (
+                  {expandedPayslip === payslip.payslipId && (
                     <div className={`mt-3 pt-3 ${tc.border} border-t ${tc.input} rounded-xl p-3 animate-slideDown`}>
                       <div className="space-y-2 text-xs">
                         <div className="flex justify-between">
                           <span className={tc.textMuted}>Generated On</span>
-                          <span className={tc.text}>{payslip.paidOn}</span>
+                          <span className={tc.text}>{new Date(payslip.generatedAt).toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className={tc.textMuted}>Status</span>
-                          <span className={`${getStatusColor(payslip.status)} px-2 py-0.5 rounded-full`}>
-                            {payslip.status}
-                          </span>
+                          <span className={tc.textMuted}>Working Days</span>
+                          <span className={tc.text}>{payslip.workingDays}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className={tc.textMuted}>Payment Method</span>
-                          <span className={tc.text}>Bank Transfer</span>
+                          <span className={tc.textMuted}>Payable Days</span>
+                          <span className={tc.text}>{payslip.payableDays}</span>
                         </div>
-                        <button
-                          onClick={() => handleDownload(payslip)}
-                          className="w-full mt-2 px-3 py-1.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-medium hover:bg-emerald-500/30 transition-all flex items-center justify-center gap-2"
-                        >
-                          <PrinterIcon className="w-3 h-3" />
-                          Print Preview
-                        </button>
+                        <div className="flex justify-between">
+                          <span className={tc.textMuted}>Unpaid Leave</span>
+                          <span className={tc.text}>{payslip.unpaidLeaveDays}</span>
+                        </div>
+                        {payslip.earnings && payslip.earnings.length > 0 && (
+                          <div className="mt-2 pt-2 border-t border-white/10">
+                            <p className={`text-[10px] font-medium ${tc.textMuted} mb-1`}>Earnings</p>
+                            {payslip.earnings.map((earning) => (
+                              <div key={earning.earningType} className="flex justify-between text-xs">
+                                <span className={tc.textMuted}>{earning.earningType}</span>
+                                <span className={tc.text}>{formatCurrency(Number(earning.amount), payslip.currency)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {payslip.deductions && payslip.deductions.length > 0 && (
+                          <div className="mt-2 pt-2 border-t border-white/10">
+                            <p className={`text-[10px] font-medium ${tc.textMuted} mb-1`}>Deductions</p>
+                            {payslip.deductions.map((deduction) => (
+                              <div key={deduction.deductionType} className="flex justify-between text-xs">
+                                <span className={tc.textMuted}>{deduction.deductionType}</span>
+                                <span className={tc.text}>{formatCurrency(Number(deduction.amount), payslip.currency)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -987,15 +756,14 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ theme, attendance }) => {
           })}
         </div>
       ) : (
-        // List View with Enhanced Table
+        // List View
         <div className={`${tc.bgCard} rounded-2xl ${tc.border} ${tc.shadow} overflow-hidden transition-all duration-300 hover:shadow-lg`}>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className={`text-left text-xs ${tc.tableHeader} ${tc.border} border-b`}>
-                  <th className="px-4 py-3 font-medium">Month</th>
+                  <th className="px-4 py-3 font-medium">Period</th>
                   <th className="px-4 py-3 font-medium">Employee</th>
-                  <th className="px-4 py-3 font-medium">ID</th>
                   <th className="px-4 py-3 font-medium">Department</th>
                   <th className="px-4 py-3 font-medium">Gross</th>
                   <th className="px-4 py-3 font-medium">Net</th>
@@ -1005,21 +773,26 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ theme, attendance }) => {
               </thead>
               <tbody>
                 {filteredPayslips.map((payslip, index) => {
-                  const isCurrent = payslip.year === currentYear.toString() && 
-                                   new Date(payslip.month).getMonth() + 1 === currentMonth;
+                  const pMonth = new Date(payslip.generatedAt).getMonth() + 1;
+                  const pYear = new Date(payslip.generatedAt).getFullYear();
+                  const isCurrent = pYear === currentYear && pMonth === currentMonth;
+                  const canDownload = payslip.status === 'Approved' || payslip.status === 'Paid';
+
                   return (
                     <tr 
-                      key={payslip.id} 
+                      key={payslip.payslipId} 
                       className={`${tc.border} border-b last:border-0 ${tc.bgTableHover} transition-all duration-300 hover:bg-opacity-50 animate-fadeIn ${isCurrent ? 'bg-emerald-500/5' : ''}`}
                       style={{ animationDelay: `${index * 50}ms` }}
                     >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <div className={`w-8 h-8 bg-gradient-to-br ${isCurrent ? 'from-emerald-500 to-emerald-600' : 'from-indigo-500 to-purple-600'} rounded-lg flex items-center justify-center text-white text-xs font-bold shadow-lg ${isCurrent ? 'shadow-emerald-500/25' : 'shadow-indigo-500/25'}`}>
-                            {new Date(payslip.month).toLocaleString('default', { month: 'short' })}
+                            {new Date(payslip.generatedAt).toLocaleString('default', { month: 'short' })}
                           </div>
                           <div>
-                            <span className={`font-medium ${tc.text} text-sm`}>{payslip.month}</span>
+                            <span className={`font-medium ${tc.text} text-sm`}>
+                              {new Date(payslip.generatedAt).toLocaleString('default', { month: 'long' })} {pYear}
+                            </span>
                             {isCurrent && (
                               <span className="ml-2 px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full text-[8px] font-medium border border-emerald-500/30">
                                 Current
@@ -1028,21 +801,24 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ theme, attendance }) => {
                           </div>
                         </div>
                       </td>
-                      <td className={`px-4 py-3 text-sm ${tc.text}`}>{payslip.employeeName}</td>
-                      <td className={`px-4 py-3 text-xs font-mono ${tc.textMuted}`}>{payslip.employeeId}</td>
-                      <td className={`px-4 py-3 text-xs ${tc.textMuted}`}>{payslip.department}</td>
-                      <td className={`px-4 py-3 text-sm font-medium ${tc.text}`}>{payslip.gross}</td>
-                      <td className={`px-4 py-3 text-sm font-bold text-emerald-400`}>{payslip.net}</td>
+                      <td className={`px-4 py-3 text-sm ${tc.text}`}>{payslip.employeeNameSnapshot}</td>
+                      <td className={`px-4 py-3 text-xs ${tc.textMuted}`}>{payslip.employeeDepartmentSnapshot}</td>
+                      <td className={`px-4 py-3 text-sm font-medium ${tc.text}`}>
+                        {formatCurrency(payslip.totalEarnings, payslip.currency)}
+                      </td>
+                      <td className={`px-4 py-3 text-sm font-bold text-emerald-400`}>
+                        {formatCurrency(payslip.netSalary, payslip.currency)}
+                      </td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-1 rounded-lg text-xs font-medium ${getStatusColor(payslip.status)} flex items-center gap-1 border w-fit`}>
                           {getStatusIcon(payslip.status)}
-                          {payslip.status}
+                          {getStatusLabel(payslip.status)}
                         </span>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-2">
                           <button
-                            onClick={() => toggleExpand(payslip.id)}
+                            onClick={() => toggleExpand(payslip.payslipId)}
                             className={`p-1.5 rounded-lg ${tc.btnBg} transition-all hover:scale-110`}
                             aria-label="Preview payslip"
                           >
@@ -1050,8 +826,8 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ theme, attendance }) => {
                           </button>
                           <button
                             onClick={() => handleDownload(payslip)}
-                            disabled={payslip.status !== 'Generated'}
-                            className={`p-1.5 rounded-lg bg-gradient-to-r ${isCurrent ? 'from-emerald-500 to-emerald-600' : 'from-indigo-500 to-indigo-600'} text-white transition-all hover:scale-110 ${payslip.status !== 'Generated' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            disabled={!canDownload}
+                            className={`p-1.5 rounded-lg bg-gradient-to-r ${isCurrent ? 'from-emerald-500 to-emerald-600' : 'from-indigo-500 to-indigo-600'} text-white transition-all hover:scale-110 ${!canDownload ? 'opacity-50 cursor-not-allowed' : ''}`}
                             aria-label="Download payslip"
                           >
                             <CloudArrowDownIcon className="w-4 h-4" />
@@ -1066,65 +842,6 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ theme, attendance }) => {
           </div>
         </div>
       )}
-
-      {/* Quick Action - Generate Current */}
-      <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow} transition-all duration-300 hover:shadow-lg relative overflow-hidden`}>
-        <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/5 rounded-full -mr-20 -mt-20"></div>
-        <div className="absolute bottom-0 left-0 w-32 h-32 bg-indigo-500/5 rounded-full -ml-16 -mb-16"></div>
-        <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/25 animate-pulse">
-              <ArrowUpIcon className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h3 className={`font-semibold ${tc.text} flex items-center gap-2`}>
-                Generate Current Payslip
-                <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full">
-                  {currentMonthName} {currentYear}
-                </span>
-              </h3>
-              <p className={`text-sm ${tc.textSecondary}`}>
-                {canGenerateCurrentMonth 
-                  ? 'Your payslip is ready for download' 
-                  : `Available from 25th of ${currentMonthName}`}
-              </p>
-              <div className="flex items-center gap-3 mt-1">
-                <span className={`text-xs ${tc.textMuted} flex items-center gap-1`}>
-                  <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
-                  {currentDate.format('DD MMM YYYY')}
-                </span>
-                {currentDay >= 25 && (
-                  <span className="text-xs text-emerald-400/70 flex items-center gap-1">
-                    <CheckCircleIcon className="w-3 h-3" />
-                    Available
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-          <button
-            onClick={() => {
-              if (canGenerateCurrentMonth) {
-                handleGenerateCurrent();
-              } else {
-                // Show notification that it's not available yet
-                setSuccessMessage(`Payslip for ${currentMonthName} will be available from 25th`);
-                setShowSuccessMessage(true);
-                setTimeout(() => setShowSuccessMessage(false), 3000);
-              }
-            }}
-            className={`px-6 py-2.5 bg-gradient-to-r ${
-              canGenerateCurrentMonth 
-                ? 'from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-emerald-500/25 hover:shadow-emerald-500/40' 
-                : 'from-gray-500 to-gray-600 cursor-not-allowed opacity-50'
-            } text-white rounded-xl font-medium transition-all duration-300 shadow-lg flex items-center gap-2 group`}
-            disabled={!canGenerateCurrentMonth}
-          >
-            <CloudArrowDownIcon className="w-4 h-4 group-hover:scale-110 transition-transform" />
-            {canGenerateCurrentMonth ? 'Generate Now' : `Available on 25th`}
-          </button>
-        </div>
-      </div>
 
       {/* CSS Animations */}
       <style>{`
