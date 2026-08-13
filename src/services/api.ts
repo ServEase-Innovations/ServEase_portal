@@ -1,6 +1,13 @@
-// src/services/api.ts
+// src/services/api.ts - Fully updated with payslip APIs
 import axios, { AxiosInstance, AxiosError } from 'axios';
-import { User, CreateAccountData, ApiResponse } from '../types';
+import { 
+  User, 
+  Payslip,
+  PayslipListResponse,
+  PayslipGenerateResponse,
+  GeneratePayslipPayload,
+  Employee,
+} from '../types';
 
 // Get API base URL from environment variable
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000/';
@@ -56,7 +63,8 @@ api.interceptors.response.use(
   }
 );
 
-// Auth API calls
+// ============= AUTH API =============
+
 interface LoginResponse {
   token: string;
   user: User;
@@ -106,7 +114,8 @@ export const authService = {
   },
 };
 
-// User API calls
+// ============= USER API =============
+
 interface UpdateUserData {
   fullName?: string;
   email?: string;
@@ -140,7 +149,8 @@ export const userService = {
   },
 };
 
-// Daily Task API calls
+// ============= DAILY TASK API =============
+
 interface DailyTaskData {
   workDescription: string;
   status: 'Pending' | 'Completed';
@@ -163,37 +173,31 @@ interface DailyTaskQueryParams {
 }
 
 export const dailyTaskService = {
-  // Create a new daily task
   create: async (data: DailyTaskData): Promise<DailyTask> => {
     const response = await api.post<DailyTask>('/daily-tasks', data);
     return response.data;
   },
 
-  // Get all tasks (reviewer only)
   getAll: async (params?: DailyTaskQueryParams): Promise<DailyTask[]> => {
     const response = await api.get<DailyTask[]>('/daily-tasks', { params });
     return response.data;
   },
 
-  // Get my tasks
   getMyTasks: async (params?: Omit<DailyTaskQueryParams, 'employeeId'>): Promise<DailyTask[]> => {
     const response = await api.get<DailyTask[]>('/daily-tasks/mine', { params });
     return response.data;
   },
 
-  // Get task by ID
   getById: async (id: string): Promise<DailyTask> => {
     const response = await api.get<DailyTask>(`/daily-tasks/${id}`);
     return response.data;
   },
 
-  // Update task
   update: async (id: string, data: Partial<DailyTaskData>): Promise<DailyTask> => {
     const response = await api.patch<DailyTask>(`/daily-tasks/${id}`, data);
     return response.data;
   },
 
-  // Upload attachments
   uploadAttachments: async (taskId: string, formData: FormData): Promise<{ attachments: string[] }> => {
     const response = await api.post<{ attachments: string[] }>(`/daily-tasks/${taskId}/attachments`, formData, {
       headers: {
@@ -203,9 +207,145 @@ export const dailyTaskService = {
     return response.data;
   },
 
-  // Delete attachment
   deleteAttachment: async (taskId: string, attachmentId: string): Promise<void> => {
     await api.delete(`/daily-tasks/${taskId}/attachments/${attachmentId}`);
+  },
+};
+
+// ============= PAYSLIP API =============
+
+export const payslipService = {
+  /**
+   * Get all payslips with optional filters
+   * @param params - Filter parameters (employeeId, month, year, status)
+   * @returns List of payslips
+   * @access SuperAdmin, Manager
+   */
+  getAllPayslips: async (params?: {
+    employeeId?: string;
+    month?: number;
+    year?: number;
+    status?: 'Draft' | 'Approved' | 'Paid' | 'Cancelled';
+  }): Promise<PayslipListResponse> => {
+    const response = await api.get<PayslipListResponse>('/payslips', { params });
+    return response.data;
+  },
+
+  /**
+   * Get the authenticated employee's payslips
+   * @param params - Filter parameters (month, year, status)
+   * @returns List of payslips (only Approved and Paid)
+   * @access Employee, HR Partner (self-service)
+   */
+  getMyPayslips: async (params?: {
+    month?: number;
+    year?: number;
+    status?: 'Approved' | 'Paid';
+  }): Promise<PayslipListResponse> => {
+    const response = await api.get<PayslipListResponse>('/payslips/mine', { params });
+    return response.data;
+  },
+
+  /**
+   * Get payslips for a specific employee
+   * @param employeeId - Employee ID
+   * @param params - Filter parameters (month, year, status)
+   * @returns Single payslip (if month/year provided) or list of payslips
+   * @access SuperAdmin, Manager, or self (restricted to current/previous month)
+   */
+  getEmployeePayslips: async (
+    employeeId: string,
+    params?: {
+      month?: number;
+      year?: number;
+      status?: 'Draft' | 'Approved' | 'Paid' | 'Cancelled';
+    }
+  ): Promise<{ payslip?: Payslip; count?: number; payslips?: Payslip[] }> => {
+    const response = await api.get<{ payslip?: Payslip; count?: number; payslips?: Payslip[] }>(
+      `/payslips/employee/${employeeId}`,
+      { params }
+    );
+    return response.data;
+  },
+
+  /**
+   * Generate a payslip for an employee
+   * @param payload - Employee ID, date, month, year
+   * @returns Generated payslip
+   * @access SuperAdmin, Manager
+   */
+  generatePayslip: async (payload: GeneratePayslipPayload): Promise<PayslipGenerateResponse> => {
+    const response = await api.post<PayslipGenerateResponse>('/payslips/generate', payload);
+    return response.data;
+  },
+
+  /**
+   * Download payslip PDF
+   * @param employeeId - Employee ID
+   * @param month - Month (1-12)
+   * @param year - Year
+   * @returns PDF blob
+   * @access SuperAdmin, Manager, or self (restricted to current/previous month)
+   */
+  downloadPayslipPdf: async (
+    employeeId: string,
+    month: number,
+    year: number
+  ): Promise<Blob> => {
+    const response = await api.get<Blob>(`/payslips/employee/${employeeId}/pdf`, {
+      params: { month, year },
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  /**
+   * Update a draft payslip
+   * @param employeeId - Employee ID
+   * @param month - Month (1-12)
+   * @param year - Year
+   * @param data - Update data
+   * @returns Updated payslip
+   * @access SuperAdmin, Manager
+   */
+  updateDraftPayslip: async (
+    employeeId: string,
+    month: number,
+    year: number,
+    data: {
+      workingDays?: number;
+      payableDays?: number;
+      unpaidLeaveDays?: number;
+      bankAccountMasked?: string | null;
+      earnings?: Array<{
+        earningType: string;
+        description?: string | null;
+        amount: number;
+        isTaxable?: boolean;
+      }>;
+      deductions?: Array<{
+        deductionType: string;
+        description?: string | null;
+        amount: number;
+      }>;
+    }
+  ): Promise<{ message: string; payslip?: Payslip }> => {
+    const response = await api.patch<{ message: string; payslip?: Payslip }>(
+      `/payslips/employee/${employeeId}`,
+      data,
+      { params: { month, year } }
+    );
+    return response.data;
+  },
+
+  /**
+   * Get all employees (for payslip generation dropdown)
+   * @returns List of active employees
+   * @access SuperAdmin, Manager
+   */
+  getAllEmployees: async (): Promise<Employee[]> => {
+    const response = await api.get<Employee[]>('/employees');
+    return response.data;
   },
 };
 

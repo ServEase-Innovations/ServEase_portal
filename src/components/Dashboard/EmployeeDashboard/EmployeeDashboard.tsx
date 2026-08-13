@@ -1,4 +1,4 @@
-// EmployeeDashboard.tsx - Main entry point
+// EmployeeDashboard.tsx - Main entry point with updated PayslipsTab integration
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../../Layout/Sidebar';
 import Header from '../../Layout/Header';
@@ -75,9 +75,58 @@ const EmployeeDashboard: React.FC = () => {
 
   const tc = getThemeClasses(theme);
 
+  // Get the page title and subtitle based on the current path
+  const getPageInfo = () => {
+    const path = location.pathname;
+    
+    // Get user info for subtitle
+    const userDisplayName = user?.name || 'Rohan';
+    const userDesignation = (user as any)?.designation || 'Senior Software Engineer';
+    const userEmployeeId = user?.id || 'SE-187';
+    
+    // Common subtitle
+    const subtitle = `${userDesignation} - ${userEmployeeId}`;
+    
+    // Title mapping
+    const titleMap: Record<string, string> = {
+      '/dashboard': `Good day, ${userDisplayName} 👋`,
+      '/dashboard/': `Good day, ${userDisplayName} 👋`,
+      '/dashboard/attendance': 'Attendance',
+      '/dashboard/tasks': 'My Tasks',
+      '/dashboard/leave': 'Leave Management',
+      '/dashboard/payslips': 'Payslips',
+      '/dashboard/queries': 'Queries',
+      '/dashboard/team': 'My Team',
+      '/dashboard/messages': 'Messages',
+    };
+    
+    const title = titleMap[path] || `Good day, ${userDisplayName} 👋`;
+    
+    // Special subtitles for specific pages
+    const subtitleMap: Record<string, string> = {
+      '/dashboard/payslips': 'View and download your salary payslips',
+      '/dashboard/leave': 'Apply for leave and view history',
+      '/dashboard/tasks': 'View your assigned tasks',
+      '/dashboard/attendance': 'Track your attendance',
+      '/dashboard/queries': 'Send and receive messages',
+      '/dashboard/team': 'View your team members',
+      '/dashboard/messages': 'Team messages',
+    };
+    
+    const customSubtitle = subtitleMap[path];
+    
+    return {
+      title,
+      subtitle: customSubtitle || subtitle,
+    };
+  };
+
+  const { title, subtitle } = getPageInfo();
+
   const renderContent = () => {
     const path = location.pathname;
-    const tabProps = { theme, attendance };
+    // Pass the full user object and role to PayslipsTab
+    const tabProps = { theme, attendance, user };
     
     if (path === '/dashboard' || path === '/dashboard/') {
       return <DashboardTab {...tabProps} />;
@@ -88,7 +137,8 @@ const EmployeeDashboard: React.FC = () => {
     } else if (path === '/dashboard/leave') {
       return <LeaveTab {...tabProps} />;
     } else if (path === '/dashboard/payslips') {
-      return <PayslipsTab {...tabProps} />;
+      // Pass user role to PayslipsTab for proper API access
+      return <PayslipsTab theme={theme} attendance={attendance} userRole={user?.role || 'employee'} />;
     } else if (path === '/dashboard/queries') {
       return <QueriesTab {...tabProps} />;
     } else if (path === '/dashboard/team') {
@@ -117,8 +167,8 @@ const EmployeeDashboard: React.FC = () => {
 
       <div className="flex-1 flex flex-col overflow-hidden w-full">
         <Header 
-          title="Good day, Rohan 👋"
-          subtitle={`${((user as any)?.designation) || 'Senior Software Engineer'} - ${user?.id || 'SE-187'}`}
+          title={title}
+          subtitle={subtitle}
           theme={theme}
           onThemeToggle={toggleTheme}
           onMobileMenuToggle={toggleMobileSidebar}
