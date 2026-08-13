@@ -153,15 +153,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // No need to store it in localStorage
       
       // Sanitize and map the employee data to User type
-      const userData = sanitizeUserData(employeeData);
+      const sanitizedUserData = sanitizeUserData(employeeData);
       
       // Store sanitized user data (but NOT token - it's in HTTP-only cookie)
-      localStorage.setItem('servease_user', JSON.stringify(userData));
-      setUser(userData);
+      const sanitizedJson = JSON.stringify(sanitizedUserData);
+      localStorage.setItem('servease_user', sanitizedJson);
+      setUser(sanitizedUserData);
       setToken(null); // No token in state
       setIsAuthenticated(true);
       
-      toast.success(`Welcome back, ${userData.name || 'User'}!`);
+      toast.success(`Welcome back, ${sanitizedUserData.name || 'User'}!`);
       setLoading(false);
     } catch (err: any) {
       console.error('Login error:', err);
@@ -249,10 +250,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const response = await authService.getCurrentUser();
       if (response) {
-        // Sanitize data before storing in localStorage
-        const userData = sanitizeUserData(response);
-        setUser(userData);
-        localStorage.setItem('servease_user', JSON.stringify(userData));
+        // Sanitize data before storing in localStorage (prevents XSS/injection)
+        const sanitizedUserData = sanitizeUserData(response);
+        setUser(sanitizedUserData);
+        // Store sanitized user data in localStorage
+        const sanitizedJson = JSON.stringify(sanitizedUserData);
+        localStorage.setItem('servease_user', sanitizedJson);
       }
     } catch (err) {
       console.error('Failed to refresh user:', err);
