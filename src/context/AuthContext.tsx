@@ -97,20 +97,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Load user from API on mount (cookie auth) - NO localStorage
   useEffect(() => {
     const loadUser = async () => {
+      console.log('[AuthContext] Loading user from cookie...');
       try {
         // Fetch user from API using HTTP-only cookie
         const response = await authService.getCurrentUser();
+        console.log('[AuthContext] User loaded successfully:', response);
         if (response) {
           const userData = mapUserData(response);
           setUser(userData);
           setIsAuthenticated(true);
+          console.log('[AuthContext] User authenticated:', userData.name);
         }
       } catch (error) {
         // No valid session, user needs to login
-        console.log('No valid session found');
+        console.log('[AuthContext] No valid session found, error:', error);
         setIsAuthenticated(false);
       } finally {
         setLoading(false);
+        console.log('[AuthContext] Loading complete');
       }
     };
     

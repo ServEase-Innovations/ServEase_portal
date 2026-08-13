@@ -101,8 +101,8 @@ export const authService = {
 
   getCurrentUser: async (): Promise<User> => {
     // New endpoint that uses cookie authentication
-    const response = await api.get<{ employee: User }>('auth/me');
-    return response.data.employee;
+    const response = await api.get<User>('auth/me');
+    return response.data;
   },
 };
 
