@@ -297,7 +297,7 @@ export interface CreateAccountData {
   email: string;
   password: string;
   confirmPassword?: string;
-  role: Role | string;
+  role: Role; // Changed from 'Role | string' to just 'Role'
   department?: string;
   baseSalary?: number;
   allowances?: number;

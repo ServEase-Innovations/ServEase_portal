@@ -297,6 +297,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       
                       return (
                         <button
+                          type="button"
                           key={itemIndex}
                           onClick={() => handleNavigation(item.path)}
                           className={`
@@ -325,6 +326,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             {/* Bottom Section */}
             <div className="p-4 border-t border-white/10">
               <button
+                type="button"
                 onClick={handleLogout}
                 className="flex items-center gap-3 px-3 py-2.5 text-blue-200/80 rounded-xl hover:bg-red-500/20 hover:text-red-300 transition-all duration-200 w-full group"
               >
@@ -456,24 +458,28 @@ const Sidebar: React.FC<SidebarProps> = ({
                 {role === 'employee' ? (
                   <>
                     <button 
+                      type="button"
                       onClick={() => navigate('/dashboard/leave')}
                       className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all duration-200 text-white/90 font-medium"
                     >
                       Apply Leave
                     </button>
                     <button 
+                      type="button"
                       onClick={() => navigate('/dashboard/tasks')}
                       className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all duration-200 text-white/90 font-medium"
                     >
                       View Tasks
                     </button>
                     <button 
+                      type="button"
                       onClick={() => navigate('/dashboard/payslips')}
                       className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all duration-200 text-white/90 font-medium"
                     >
                       Payslips
                     </button>
                     <button 
+                      type="button"
                       onClick={() => navigate('/dashboard/attendance')}
                       className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all duration-200 text-white/90 font-medium"
                     >
@@ -483,36 +489,42 @@ const Sidebar: React.FC<SidebarProps> = ({
                 ) : role === 'manager' ? (
                   <>
                     <button 
+                      type="button"
                       onClick={() => navigate('/dashboard/assign-tasks')}
                       className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all duration-200 text-white/90 font-medium"
                     >
                       Assign Task
                     </button>
                     <button 
+                      type="button"
                       onClick={() => navigate('/dashboard/daily-tasks')}
                       className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all duration-200 text-white/90 font-medium"
                     >
                       Daily Tasks
                     </button>
                     <button 
+                      type="button"
                       onClick={() => navigate('/dashboard/leave-approvals')}
                       className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all duration-200 text-white/90 font-medium"
                     >
                       Approve Leave
                     </button>
                     <button 
+                      type="button"
                       onClick={() => navigate('/dashboard/leave')}
                       className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all duration-200 text-white/90 font-medium"
                     >
                       My Leave
                     </button>
                     <button 
+                      type="button"
                       onClick={() => navigate('/dashboard/payslips')}
                       className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all duration-200 text-white/90 font-medium"
                     >
                       Payslips
                     </button>
                     <button 
+                      type="button"
                       onClick={() => navigate('/dashboard/generate-payslip')}
                       className="text-xs bg-indigo-500/20 hover:bg-indigo-500/30 px-3 py-1.5 rounded-lg transition-all duration-200 text-indigo-300 font-medium"
                     >
@@ -522,24 +534,28 @@ const Sidebar: React.FC<SidebarProps> = ({
                 ) : role === 'hr-partner' ? (
                   <>
                     <button 
+                      type="button"
                       onClick={() => navigate('/dashboard/onboarding')}
                       className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all duration-200 text-white/90 font-medium"
                     >
                       New Hire
                     </button>
                     <button 
+                      type="button"
                       onClick={() => navigate('/dashboard/announcements')}
                       className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all duration-200 text-white/90 font-medium"
                     >
                       Announce
                     </button>
                     <button 
+                      type="button"
                       onClick={() => navigate('/dashboard/leave')}
                       className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all duration-200 text-white/90 font-medium"
                     >
                       My Leave
                     </button>
                     <button 
+                      type="button"
                       onClick={() => navigate('/dashboard/payslips')}
                       className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all duration-200 text-white/90 font-medium"
                     >
@@ -549,30 +565,35 @@ const Sidebar: React.FC<SidebarProps> = ({
                 ) : (
                   <>
                     <button 
+                      type="button"
                       onClick={() => navigate('/dashboard/employees')}
                       className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all duration-200 text-white/90 font-medium"
                     >
                       Add User
                     </button>
                     <button 
+                      type="button"
                       onClick={() => navigate('/dashboard/analytics')}
                       className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all duration-200 text-white/90 font-medium"
                     >
                       Analytics
                     </button>
                     <button 
+                      type="button"
                       onClick={() => navigate('/dashboard/leave')}
                       className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all duration-200 text-white/90 font-medium"
                     >
                       My Leave
                     </button>
                     <button 
+                      type="button"
                       onClick={() => navigate('/dashboard/payslips')}
                       className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all duration-200 text-white/90 font-medium"
                     >
                       Payslips
                     </button>
                     <button 
+                      type="button"
                       onClick={() => navigate('/dashboard/generate-payslip')}
                       className="text-xs bg-indigo-500/20 hover:bg-indigo-500/30 px-3 py-1.5 rounded-lg transition-all duration-200 text-indigo-300 font-medium"
                     >
@@ -585,6 +606,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
             {/* Logout Button */}
             <button
+              type="button"
               onClick={handleLogout}
               className="flex items-center gap-3 px-3 py-2.5 text-blue-200/80 rounded-xl hover:bg-red-500/20 hover:text-red-300 transition-all duration-200 w-full group"
             >
@@ -595,6 +617,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         ) : (
           <div className="flex flex-col gap-1.5">
             <button 
+              type="button"
               onClick={() => navigate('/dashboard/leave')}
               className="w-full p-2.5 text-blue-200/70 rounded-xl hover:bg-white/10 transition-all duration-200 group"
               title="Quick Action"
@@ -602,6 +625,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               <ClipboardDocumentCheckIcon className="w-5 h-5 mx-auto group-hover:scale-110 transition-transform" />
             </button>
             <button 
+              type="button"
               onClick={() => navigate('/dashboard/payslips')}
               className="w-full p-2.5 text-blue-200/70 rounded-xl hover:bg-white/10 transition-all duration-200 group"
               title="Payslips"
@@ -610,6 +634,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             </button>
             {(role === 'manager' || role === 'super-admin') && (
               <button 
+                type="button"
                 onClick={() => navigate('/dashboard/generate-payslip')}
                 className="w-full p-2.5 text-indigo-300/70 rounded-xl hover:bg-indigo-500/20 transition-all duration-200 group"
                 title="Generate Payslip"
@@ -619,6 +644,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             )}
             {role === 'manager' && (
               <button 
+                type="button"
                 onClick={() => navigate('/dashboard/daily-tasks')}
                 className="w-full p-2.5 text-blue-200/70 rounded-xl hover:bg-white/10 transition-all duration-200 group"
                 title="Daily Tasks"
@@ -627,6 +653,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               </button>
             )}
             <button
+              type="button"
               onClick={handleLogout}
               className="w-full p-2.5 text-blue-200/70 rounded-xl hover:bg-red-500/20 hover:text-red-300 transition-all duration-200 group"
               title="Logout"

@@ -2,8 +2,6 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import { 
   User, 
-  CreateAccountData, 
-  ApiResponse,
   Payslip,
   PayslipListResponse,
   PayslipGenerateResponse,

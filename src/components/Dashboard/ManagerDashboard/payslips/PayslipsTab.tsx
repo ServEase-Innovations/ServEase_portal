@@ -2,26 +2,18 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   DocumentTextIcon,
-  ArrowUpTrayIcon,
-  ArrowUpIcon,
   MagnifyingGlassIcon,
   CalendarIcon,
   ChevronDownIcon,
-  ChevronUpIcon,
   EyeIcon,
-  PrinterIcon,
   CloudArrowDownIcon,
   CheckCircleIcon,
   ClockIcon,
-  SparklesIcon,
-  FireIcon,
-  GiftIcon,
   ExclamationTriangleIcon,
   ArrowPathIcon,
 } from '@heroicons/react/24/outline';
-import { ThemeClasses } from '../types';
+import { ThemeClasses, Payslip } from '../types';
 import { payslipService } from '../../../../services/api';
-import { Payslip } from '../types';
 import moment from 'moment';
 import toast from 'react-hot-toast';
 
@@ -35,7 +27,6 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ tc, userRole, employeeId }) =
   const currentDate = moment();
   const currentYear = currentDate.year();
   const currentMonth = currentDate.month() + 1;
-  const currentDay = currentDate.date();
 
   const [payslips, setPayslips] = useState<Payslip[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,11 +35,37 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ tc, userRole, employeeId }) =
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [expandedPayslip, setExpandedPayslip] = useState<string | null>(null);
-  const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const isAdmin = userRole === 'super-admin' || userRole === 'manager';
   const isSelf = !isAdmin;
+
+  // Helper to build params
+  const buildParams = (): { month?: number; year?: number } => {
+    const params: { month?: number; year?: number } = {};
+    const year = selectedYear !== 'all' ? Number(selectedYear) : undefined;
+    const month = selectedMonth !== 'all' ? Number(selectedMonth) : undefined;
+    if (month) params.month = month;
+    if (year) params.year = year;
+    return params;
+  };
+
+  // Helper to fetch payslips based on user role
+  const fetchPayslipsByRole = async (params: { month?: number; year?: number }) => {
+    if (isSelf) {
+      // Employee/HR view - only approved/paid payslips
+      const data = await payslipService.getMyPayslips(params);
+      return data.payslips || [];
+    } else if (employeeId) {
+      // Admin viewing specific employee
+      const result = await payslipService.getEmployeePayslips(employeeId, params);
+      return result.payslips || [];
+    } else {
+      // Admin viewing all payslips
+      const data = await payslipService.getAllPayslips(params);
+      return data.payslips || [];
+    }
+  };
 
   // Fetch payslips
   useEffect(() => {
@@ -60,32 +77,9 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ tc, userRole, employeeId }) =
     setError(null);
 
     try {
-      let data;
-      const year = selectedYear !== 'all' ? Number(selectedYear) : undefined;
-      const month = selectedMonth !== 'all' ? Number(selectedMonth) : undefined;
-
-      if (isSelf) {
-        // Employee/HR view - only approved/paid payslips
-        const params: { month?: number; year?: number } = {};
-        if (month) params.month = month;
-        if (year) params.year = year;
-        data = await payslipService.getMyPayslips(params);
-        setPayslips(data.payslips || []);
-      } else if (employeeId) {
-        // Admin viewing specific employee
-        const params: { month?: number; year?: number } = {};
-        if (month) params.month = month;
-        if (year) params.year = year;
-        const result = await payslipService.getEmployeePayslips(employeeId, params);
-        setPayslips(result.payslips || []);
-      } else {
-        // Admin viewing all payslips
-        const params: { month?: number; year?: number } = {};
-        if (month) params.month = month;
-        if (year) params.year = year;
-        data = await payslipService.getAllPayslips(params);
-        setPayslips(data.payslips || []);
-      }
+      const params = buildParams();
+      const payslipData = await fetchPayslipsByRole(params);
+      setPayslips(payslipData);
     } catch (err: any) {
       console.error('Failed to fetch payslips:', err);
       const errorMsg = err.response?.data?.message || 'Failed to load payslips';
@@ -231,7 +225,7 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ tc, userRole, employeeId }) =
       link.download = `${payslip.payslipNumber}.pdf`;
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
+      link.remove(); // Use remove() instead of removeChild()
       window.URL.revokeObjectURL(url);
 
       toast.success('Payslip downloaded successfully');
@@ -403,6 +397,7 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ tc, userRole, employeeId }) =
             {/* View Mode Toggle */}
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <button
+                type="button"
                 onClick={() => setViewMode('grid')}
                 className={`p-2 rounded-xl transition-all duration-300 ${viewMode === 'grid' ? tc.statusActiveBtn : tc.statusInactiveBtn}`}
               >
@@ -414,6 +409,7 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ tc, userRole, employeeId }) =
                 </svg>
               </button>
               <button
+                type="button"
                 onClick={() => setViewMode('list')}
                 className={`p-2 rounded-xl transition-all duration-300 ${viewMode === 'list' ? tc.statusActiveBtn : tc.statusInactiveBtn}`}
               >
@@ -529,6 +525,7 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ tc, userRole, employeeId }) =
                   {/* Actions */}
                   <div className="mt-4 flex gap-2">
                     <button
+                      type="button"
                       onClick={() => toggleExpand(payslip.payslipId)}
                       className={`flex-1 px-3 py-1.5 ${tc.border} ${tc.textSecondary} rounded-xl text-xs font-medium hover:${tc.bgCardHover} transition-all duration-300 flex items-center justify-center gap-1`}
                     >
@@ -536,6 +533,7 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ tc, userRole, employeeId }) =
                       {expandedPayslip === payslip.payslipId ? 'Hide' : 'Preview'}
                     </button>
                     <button
+                      type="button"
                       onClick={() => handleDownload(payslip)}
                       disabled={!canDownload}
                       className={`flex-1 px-3 py-1.5 bg-gradient-to-r ${isCurrent ? 'from-emerald-500 to-emerald-600' : 'from-indigo-500 to-indigo-600'} text-white rounded-xl text-xs font-medium hover:from-${isCurrent ? 'emerald' : 'indigo'}-600 hover:to-${isCurrent ? 'emerald' : 'indigo'}-700 transition-all duration-300 shadow-lg ${isCurrent ? 'shadow-emerald-500/25' : 'shadow-indigo-500/25'} flex items-center justify-center gap-1 ${!canDownload ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
@@ -568,8 +566,8 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ tc, userRole, employeeId }) =
                         {payslip.earnings && payslip.earnings.length > 0 && (
                           <div className="mt-2 pt-2 border-t border-white/10">
                             <p className={`text-[10px] font-medium ${tc.textMuted} mb-1`}>Earnings</p>
-                            {payslip.earnings.map((earning, i) => (
-                              <div key={i} className="flex justify-between text-xs">
+                            {payslip.earnings.map((earning) => (
+                              <div key={earning.earningType} className="flex justify-between text-xs">
                                 <span className={tc.textMuted}>{earning.earningType}</span>
                                 <span className={tc.text}>{formatCurrency(Number(earning.amount), payslip.currency)}</span>
                               </div>
@@ -646,12 +644,14 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ tc, userRole, employeeId }) =
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-2">
                           <button
+                            type="button"
                             onClick={() => toggleExpand(payslip.payslipId)}
                             className={`p-1.5 rounded-lg ${tc.btnBg} transition-all hover:scale-110`}
                           >
                             <EyeIcon className="w-4 h-4" />
                           </button>
                           <button
+                            type="button"
                             onClick={() => handleDownload(payslip)}
                             disabled={!canDownload}
                             className={`p-1.5 rounded-lg bg-gradient-to-r ${isCurrent ? 'from-emerald-500 to-emerald-600' : 'from-indigo-500 to-indigo-600'} text-white transition-all hover:scale-110 ${!canDownload ? 'opacity-50 cursor-not-allowed' : ''}`}

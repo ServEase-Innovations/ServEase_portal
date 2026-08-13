@@ -14,11 +14,9 @@ import {
   DocumentTextIcon,
   ArrowPathIcon,
 } from '@heroicons/react/24/outline';
-import { ThemeClasses } from '../types';
+import { ThemeClasses, Employee } from '../types';
 import { payslipService } from '../../../../services/api';
-import { Employee } from '../types';
 import toast from 'react-hot-toast';
-import moment from 'moment';
 
 interface GeneratePayslipProps {
   tc: ThemeClasses;
@@ -132,10 +130,10 @@ const GeneratePayslip: React.FC<GeneratePayslipProps> = ({ tc, userRole }) => {
     // If selected month/year is current, use today's date (if within month)
     if (month === currentMonth && year === currentYear) {
       const todayStr = today.toISOString().split('T')[0];
-      const lastDay = getLastDayOfMonth(month, year);
+      const lastDayStr = getLastDayOfMonth(month, year);
       // If today is past the last day, use the last day
-      if (todayStr > lastDay) {
-        return lastDay;
+      if (todayStr > lastDayStr) {
+        return lastDayStr;
       }
       return todayStr;
     }
@@ -143,7 +141,6 @@ const GeneratePayslip: React.FC<GeneratePayslipProps> = ({ tc, userRole }) => {
     // For past months, use the last day of the month (or a reasonable date)
     // Use a date that's well within the payroll period (e.g., 15th of the month)
     const midMonth = `${year}-${String(month).padStart(2, '0')}-15`;
-    const lastDay = getLastDayOfMonth(month, year);
     
     // For very recent past months, use a mid-month date
     if (year === currentYear && month === currentMonth - 1) {
@@ -183,8 +180,8 @@ const GeneratePayslip: React.FC<GeneratePayslipProps> = ({ tc, userRole }) => {
 
     // Validate date before submitting
     if (!validateDate(selectedDate, selectedMonth, selectedYear)) {
-      const lastDay = getLastDayOfMonth(selectedMonth, selectedYear);
-      toast.error(`Please select a date within the payroll period (up to ${lastDay})`);
+      const lastDayStr = getLastDayOfMonth(selectedMonth, selectedYear);
+      toast.error(`Please select a date within the payroll period (up to ${lastDayStr})`);
       return;
     }
 
@@ -217,8 +214,8 @@ const GeneratePayslip: React.FC<GeneratePayslipProps> = ({ tc, userRole }) => {
       
       // Provide more helpful error messages
       if (errorMessage.includes('falls after the payroll period end')) {
-        const lastDay = getLastDayOfMonth(selectedMonth, selectedYear);
-        errorMessage = `The selected date (${selectedDate}) is after the payroll period end (${lastDay}). Please select a date on or before ${lastDay}.`;
+        const lastDayStr = getLastDayOfMonth(selectedMonth, selectedYear);
+        errorMessage = `The selected date (${selectedDate}) is after the payroll period end (${lastDayStr}). Please select a date on or before ${lastDayStr}.`;
       }
       
       setGenerationResult({
@@ -241,6 +238,72 @@ const GeneratePayslip: React.FC<GeneratePayslipProps> = ({ tc, userRole }) => {
   const getMonthName = (month: number) => {
     return months.find(m => m.value === month)?.label || '';
   };
+
+  // Helper to render employee list content
+  const renderEmployeeList = () => {
+    if (isLoadingEmployees) {
+      return (
+        <div className="flex items-center justify-center py-8">
+          <ArrowPathIcon className="w-6 h-6 text-indigo-400 animate-spin" />
+        </div>
+      );
+    }
+
+    if (filteredEmployees.length === 0) {
+      return (
+        <div className="text-center py-8 text-sm text-gray-400">
+          {searchTerm ? 'No employees match your search' : 'No employees found'}
+        </div>
+      );
+    }
+
+    return filteredEmployees.map((employee) => (
+      <button
+        key={employee.employeeId}
+        type="button"
+        onClick={() => {
+          setSelectedEmployeeId(employee.employeeId);
+          setSearchTerm('');
+        }}
+        className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-all duration-200 hover:bg-white/5 ${
+          selectedEmployeeId === employee.employeeId
+            ? 'bg-indigo-500/20 border-l-2 border-indigo-400'
+            : ''
+        }`}
+      >
+        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-medium text-sm flex-shrink-0">
+          {employee.fullName.charAt(0).toUpperCase()}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className={`text-sm font-medium ${tc.text}`}>{employee.fullName}</p>
+          <div className="flex items-center gap-2 text-xs text-gray-400">
+            <span>ID: {employee.employeeId}</span>
+            <span>•</span>
+            <span>{employee.assignedDepartment || 'N/A'}</span>
+            <span>•</span>
+            <span className="text-indigo-400">{employee.assignedRole}</span>
+          </div>
+        </div>
+        {selectedEmployeeId === employee.employeeId && (
+          <CheckCircleIcon className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+        )}
+      </button>
+    ));
+  };
+
+  // Helper to get button status text
+  const getButtonStatusText = () => {
+    if (!selectedEmployeeId) {
+      return 'Please select an employee first';
+    }
+    if (validationError) {
+      return validationError;
+    }
+    return `Generating for ${selectedEmployee?.fullName || 'selected employee'} for ${getMonthName(selectedMonth)} ${selectedYear}`;
+  };
+
+  // Determine if generate button should be disabled
+  const isGenerateDisabled = isLoading || !selectedEmployeeId || !!validationError;
 
   if (!canGenerate) {
     return (
@@ -283,7 +346,7 @@ const GeneratePayslip: React.FC<GeneratePayslipProps> = ({ tc, userRole }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Employee Selection */}
           <div className="md:col-span-2">
-            <label className={`block text-sm font-medium ${tc.textSecondary} mb-2`}>
+            <label htmlFor="employeeSearch" className={`block text-sm font-medium ${tc.textSecondary} mb-2`}>
               Select Employee <span className="text-red-400">*</span>
             </label>
             <div className="relative">
@@ -291,6 +354,7 @@ const GeneratePayslip: React.FC<GeneratePayslipProps> = ({ tc, userRole }) => {
                 <UserGroupIcon className="w-5 h-5" />
               </div>
               <input
+                id="employeeSearch"
                 type="text"
                 placeholder="Search by name, ID, department, or email..."
                 value={searchTerm}
@@ -299,53 +363,13 @@ const GeneratePayslip: React.FC<GeneratePayslipProps> = ({ tc, userRole }) => {
               />
             </div>
             <div className="mt-2 max-h-48 overflow-y-auto rounded-xl border border-white/10">
-              {isLoadingEmployees ? (
-                <div className="flex items-center justify-center py-8">
-                  <ArrowPathIcon className="w-6 h-6 text-indigo-400 animate-spin" />
-                </div>
-              ) : filteredEmployees.length === 0 ? (
-                <div className="text-center py-8 text-sm text-gray-400">
-                  {searchTerm ? 'No employees match your search' : 'No employees found'}
-                </div>
-              ) : (
-                filteredEmployees.map((employee) => (
-                  <button
-                    key={employee.employeeId}
-                    onClick={() => {
-                      setSelectedEmployeeId(employee.employeeId);
-                      setSearchTerm('');
-                    }}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-all duration-200 hover:bg-white/5 ${
-                      selectedEmployeeId === employee.employeeId
-                        ? 'bg-indigo-500/20 border-l-2 border-indigo-400'
-                        : ''
-                    }`}
-                  >
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-medium text-sm flex-shrink-0">
-                      {employee.fullName.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-medium ${tc.text}`}>{employee.fullName}</p>
-                      <div className="flex items-center gap-2 text-xs text-gray-400">
-                        <span>ID: {employee.employeeId}</span>
-                        <span>•</span>
-                        <span>{employee.assignedDepartment || 'N/A'}</span>
-                        <span>•</span>
-                        <span className="text-indigo-400">{employee.assignedRole}</span>
-                      </div>
-                    </div>
-                    {selectedEmployeeId === employee.employeeId && (
-                      <CheckCircleIcon className="w-5 h-5 text-emerald-400 flex-shrink-0" />
-                    )}
-                  </button>
-                ))
-              )}
+              {renderEmployeeList()}
             </div>
           </div>
 
           {/* Month Selection */}
           <div>
-            <label className={`block text-sm font-medium ${tc.textSecondary} mb-2`}>
+            <label htmlFor="monthSelect" className={`block text-sm font-medium ${tc.textSecondary} mb-2`}>
               Month <span className="text-red-400">*</span>
             </label>
             <div className="relative">
@@ -353,6 +377,7 @@ const GeneratePayslip: React.FC<GeneratePayslipProps> = ({ tc, userRole }) => {
                 <CalendarIcon className="w-5 h-5" />
               </div>
               <select
+                id="monthSelect"
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(Number(e.target.value))}
                 className={`w-full pl-10 pr-8 py-3 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all appearance-none`}
@@ -373,7 +398,7 @@ const GeneratePayslip: React.FC<GeneratePayslipProps> = ({ tc, userRole }) => {
 
           {/* Year Selection */}
           <div>
-            <label className={`block text-sm font-medium ${tc.textSecondary} mb-2`}>
+            <label htmlFor="yearSelect" className={`block text-sm font-medium ${tc.textSecondary} mb-2`}>
               Year <span className="text-red-400">*</span>
             </label>
             <div className="relative">
@@ -381,6 +406,7 @@ const GeneratePayslip: React.FC<GeneratePayslipProps> = ({ tc, userRole }) => {
                 <CalendarIcon className="w-5 h-5" />
               </div>
               <select
+                id="yearSelect"
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(Number(e.target.value))}
                 className={`w-full pl-10 pr-8 py-3 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all appearance-none`}
@@ -401,7 +427,7 @@ const GeneratePayslip: React.FC<GeneratePayslipProps> = ({ tc, userRole }) => {
 
           {/* Date Input */}
           <div className="md:col-span-2">
-            <label className={`block text-sm font-medium ${tc.textSecondary} mb-2`}>
+            <label htmlFor="effectiveDate" className={`block text-sm font-medium ${tc.textSecondary} mb-2`}>
               Effective Date <span className="text-red-400">*</span>
               <span className="block text-xs text-gray-400 mt-0.5">
                 Must be between {getFirstDayOfMonth(selectedMonth, selectedYear)} and {getLastDayOfMonth(selectedMonth, selectedYear)}
@@ -412,6 +438,7 @@ const GeneratePayslip: React.FC<GeneratePayslipProps> = ({ tc, userRole }) => {
                 <CalendarIcon className="w-5 h-5" />
               </div>
               <input
+                id="effectiveDate"
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
@@ -467,8 +494,9 @@ const GeneratePayslip: React.FC<GeneratePayslipProps> = ({ tc, userRole }) => {
         {/* Generate Button */}
         <div className="mt-6 flex flex-col sm:flex-row items-center gap-4">
           <button
+            type="button"
             onClick={handleGenerate}
-            disabled={isLoading || !selectedEmployeeId || !!validationError}
+            disabled={isGenerateDisabled}
             className={`w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl font-medium hover:from-indigo-600 hover:to-purple-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             {isLoading ? (
@@ -484,11 +512,7 @@ const GeneratePayslip: React.FC<GeneratePayslipProps> = ({ tc, userRole }) => {
             )}
           </button>
           <span className={`text-xs ${tc.textMuted}`}>
-            {!selectedEmployeeId
-              ? 'Please select an employee first'
-              : validationError
-              ? validationError
-              : `Generating for ${selectedEmployee?.fullName || 'selected employee'} for ${getMonthName(selectedMonth)} ${selectedYear}`}
+            {getButtonStatusText()}
           </span>
         </div>
       </div>

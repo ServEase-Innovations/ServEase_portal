@@ -14,7 +14,6 @@ import {
   CalendarIcon,
   ChevronDownIcon,
   EyeIcon,
-  PrinterIcon,
   CloudArrowDownIcon,
   CheckCircleIcon,
   ClockIcon,
@@ -729,8 +728,8 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ theme, attendance, userRole =
                         {payslip.earnings && payslip.earnings.length > 0 && (
                           <div className="mt-2 pt-2 border-t border-white/10">
                             <p className={`text-[10px] font-medium ${tc.textMuted} mb-1`}>Earnings</p>
-                            {payslip.earnings.map((earning, i) => (
-                              <div key={i} className="flex justify-between text-xs">
+                            {payslip.earnings.map((earning) => (
+                              <div key={earning.earningType} className="flex justify-between text-xs">
                                 <span className={tc.textMuted}>{earning.earningType}</span>
                                 <span className={tc.text}>{formatCurrency(Number(earning.amount), payslip.currency)}</span>
                               </div>
@@ -740,8 +739,8 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ theme, attendance, userRole =
                         {payslip.deductions && payslip.deductions.length > 0 && (
                           <div className="mt-2 pt-2 border-t border-white/10">
                             <p className={`text-[10px] font-medium ${tc.textMuted} mb-1`}>Deductions</p>
-                            {payslip.deductions.map((deduction, i) => (
-                              <div key={i} className="flex justify-between text-xs">
+                            {payslip.deductions.map((deduction) => (
+                              <div key={deduction.deductionType} className="flex justify-between text-xs">
                                 <span className={tc.textMuted}>{deduction.deductionType}</span>
                                 <span className={tc.text}>{formatCurrency(Number(deduction.amount), payslip.currency)}</span>
                               </div>
