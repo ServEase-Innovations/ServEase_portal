@@ -9,6 +9,8 @@ import { useAttendanceHandlers } from '../../../hooks/useAttendanceHandlers';
 import { useLeaveHandlers } from '../../../hooks/useLeaveHandlers';
 import { useAttendanceTimer } from '../../../hooks/useAttendanceTimer';
 import { useLeave } from '../../../hooks/useLeave';
+import { dailyTaskService } from '../../../services/api'; // Add API service
+import toast from 'react-hot-toast'; // Add toast for notifications
 import OverviewTab from './overview/OverviewTab';
 import MyTeamTab from './team/MyTeamTab';
 import ProjectTeamsTab from './team/ProjectTeamsTab';
@@ -35,7 +37,15 @@ const ManagerDashboard = () => {
   const location = useLocation();
   const { theme, toggleTheme, getThemeClasses } = useTheme();
   const tc = getThemeClasses();
-  const { token, user } = useAuth();
+  const { token, user, isAuthenticated } = useAuth();
+  
+  console.log('🔑 [ManagerDashboard] Auth state:', { 
+    hasToken: !!token, 
+    hasUser: !!user,
+    isAuthenticated,
+    token: token ? 'exists' : 'missing',
+    user: user ? user.username : 'no user'
+  });
   
   // Get attendance hook for API integration
   const attendance = useAttendance();
@@ -93,50 +103,19 @@ const ManagerDashboard = () => {
     imagePreview: null as string | null,
   });
 
-  const [taskStatus, setTaskStatus] = useState<'In Progress' | 'Completed' | 'Pending'>('In Progress');
-  const [jiraLinks, setJiraLinks] = useState<string[]>(['']);
+  const [taskStatus, setTaskStatus] = useState<'Pending' | 'Completed'>('Pending'); // Fix: Use correct status type
+  const [jiraLinks, setJiraLinks] = useState<Array<{ label?: string; url: string }>>([{ url: '' }]); // Fix: Use proper structure
   const [taskDescription, setTaskDescription] = useState('');
   const [newIdea, setNewIdea] = useState('');
   const [stylingAdded, setStylingAdded] = useState(false);
   const [additionalInfo, setAdditionalInfo] = useState('');
   const [taskImageFile, setTaskImageFile] = useState<File | null>(null);
   const [taskImagePreview, setTaskImagePreview] = useState<string | null>(null);
-  const [taskHistory, setTaskHistory] = useState<TaskHistory[]>([
-    {
-      id: 'TASK-001',
-      jiraLinks: ['https://jira.serveasein.com/browse/ATL-1284'],
-      taskDescription: 'Migrated OAuth 2.1 token rotation flow and updated middleware',
-      status: 'Completed',
-      newIdea: 'Add token refresh retry mechanism with exponential backoff',
-      stylingAdded: true,
-      imageUrl: null,
-      submittedAt: '2026-06-07 17:30',
-      date: '2026-06-07'
-    },
-    {
-      id: 'TASK-002',
-      jiraLinks: ['https://jira.serveasein.com/browse/ATL-1271'],
-      taskDescription: 'Updated retry policy for middleware to handle 429 responses',
-      status: 'Completed',
-      newIdea: 'Implement circuit breaker pattern for external API calls',
-      stylingAdded: false,
-      imageUrl: null,
-      submittedAt: '2026-06-06 16:45',
-      date: '2026-06-06'
-    },
-    {
-      id: 'TASK-003',
-      jiraLinks: ['https://jira.serveasein.com/browse/ORI-441'],
-      taskDescription: 'Created PDF service spike for payslip generation',
-      status: 'Pending',
-      newIdea: 'Add QR code for instant payslip verification',
-      stylingAdded: false,
-      imageUrl: null,
-      submittedAt: '2026-06-05 15:20',
-      date: '2026-06-05'
-    }
-  ]);
+  const [taskHistory, setTaskHistory] = useState<any[]>([]); // Will be populated from API
   const [showTaskSuccess, setShowTaskSuccess] = useState(false);
+  const [isSubmittingTask, setIsSubmittingTask] = useState(false); // Add loading state
+  const [fetchingTaskHistory, setFetchingTaskHistory] = useState(false); // Add fetching state
+  const [selectedTaskDate, setSelectedTaskDate] = useState<string>(new Date().toISOString().split('T')[0]); // Add date filter
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -300,6 +279,63 @@ const ManagerDashboard = () => {
     }
   }, []);
 
+  // Fetch daily task history from API
+  const fetchMyTasks = async (date?: string) => {
+    console.log('📞 [ManagerDashboard] fetchMyTasks called', { 
+      isAuthenticated, 
+      date,
+      selectedTaskDate 
+    });
+
+    if (!isAuthenticated) {
+      console.error('❌ [ManagerDashboard] User not authenticated');
+      return;
+    }
+
+    setFetchingTaskHistory(true);
+    try {
+      const params: any = {};
+      if (date) {
+        params.date = date;
+      }
+      
+      console.log('📤 [ManagerDashboard] Calling dailyTaskService.getMyTasks with params:', params);
+      const response = await dailyTaskService.getMyTasks(params);
+      console.log('📥 [ManagerDashboard] Fetched tasks response:', response);
+      
+      if (response && response.dailyTasks) {
+        console.log('✅ [ManagerDashboard] Setting task history:', response.dailyTasks.length, 'tasks');
+        setTaskHistory(response.dailyTasks);
+      } else {
+        console.log('⚠️ [ManagerDashboard] No dailyTasks in response, setting empty array');
+        setTaskHistory([]);
+      }
+    } catch (error: any) {
+      console.error('❌ [ManagerDashboard] Failed to fetch tasks:', error);
+      toast.error(error.message || 'Failed to fetch task history');
+    } finally {
+      setFetchingTaskHistory(false);
+    }
+  };
+
+  console.log('💡 [ManagerDashboard] About to define useEffect for fetchMyTasks');
+
+  // Load tasks when component mounts or date changes (only on daily-tasks tab)
+  useEffect(() => {
+    console.log('🔄 [ManagerDashboard] useEffect triggered', { 
+      isAuthenticated, 
+      selectedTaskDate,
+      activeTab,
+      pathname: location.pathname
+    });
+    if (isAuthenticated && activeTab === 'daily-tasks') {
+      console.log('✅ [ManagerDashboard] Conditions met, calling fetchMyTasks');
+      fetchMyTasks(selectedTaskDate);
+    } else {
+      console.log('⚠️ [ManagerDashboard] Not fetching:', { isAuthenticated, activeTab });
+    }
+  }, [isAuthenticated, selectedTaskDate, location.pathname]);
+
   // Use shared attendance handlers
   const {
     handleStartWork,
@@ -398,36 +434,85 @@ const ManagerDashboard = () => {
     }
   };
 
-  const handleSubmitTask = () => {
-    const filteredLinks = jiraLinks.filter(link => link.trim() !== '');
+  const handleSubmitTask = async () => {
+    console.log('🚀 Manager handleSubmitTask called');
     
-    if (filteredLinks.length === 0 || !taskDescription) {
-      alert('Please fill in at least one Jira link and task description');
+    // Filter out empty Jira links
+    const filteredLinks = jiraLinks.filter(link => link.url.trim() !== '');
+    
+    // Fix: Only require task description, Jira links are optional
+    if (!taskDescription.trim()) {
+      toast.error('Please provide a task description');
       return;
     }
 
-    const newTask: TaskHistory = {
-      id: `TASK-${String(taskHistory.length + 1).padStart(3, '0')}`,
-      jiraLinks: filteredLinks,
-      taskDescription: taskDescription,
-      status: taskStatus,
-      newIdea: newIdea,
-      stylingAdded: stylingAdded,
-      imageUrl: taskImagePreview,
-      submittedAt: new Date().toLocaleString(),
-      date: new Date().toISOString().split('T')[0]
-    };
+    // Validate Jira URLs
+    for (const link of filteredLinks) {
+      try {
+        new URL(link.url);
+      } catch {
+        toast.error(`Invalid URL: ${link.url}`);
+        return;
+      }
+    }
 
-    setTaskHistory([newTask, ...taskHistory]);
-    setJiraLinks(['']);
-    setTaskDescription('');
-    setNewIdea('');
-    setStylingAdded(false);
-    setAdditionalInfo('');
-    setTaskImageFile(null);
-    setTaskImagePreview(null);
-    setShowTaskSuccess(true);
-    setTimeout(() => setShowTaskSuccess(false), 3000);
+    setIsSubmittingTask(true);
+
+    try {
+      // Step 1: Create the daily task via API
+      const taskData = {
+        workDescription: taskDescription.trim(),
+        status: taskStatus,
+        newIdeas: newIdea.trim() || undefined,
+        jiraLinks: filteredLinks.map(link => ({
+          label: link.label?.trim() || undefined,
+          url: link.url.trim()
+        }))
+      };
+
+      console.log('📤 Creating task with data:', taskData);
+      const createResponse = await dailyTaskService.create(taskData);
+      console.log('📥 Task created response:', createResponse);
+
+      if (!createResponse || !createResponse.dailyTask) {
+        throw new Error('Failed to create task');
+      }
+
+      const taskId = createResponse.dailyTask.dailyTaskSubmissionId;
+
+      // Step 2: Upload task image if provided
+      if (taskImageFile) {
+        const formData = new FormData();
+        formData.append('files', taskImageFile);
+
+        console.log('📤 Uploading attachment for task:', taskId);
+        await dailyTaskService.uploadAttachments(taskId, formData);
+      }
+
+      // Success!
+      setShowTaskSuccess(true);
+      toast.success('Task submitted successfully!');
+      
+      // Reset form
+      setJiraLinks([{ url: '' }]);
+      setTaskDescription('');
+      setNewIdea('');
+      setStylingAdded(false);
+      setAdditionalInfo('');
+      setTaskImageFile(null);
+      setTaskImagePreview(null);
+      setTaskStatus('Pending');
+      
+      // Refresh task history
+      await fetchMyTasks(selectedTaskDate);
+      
+      setTimeout(() => setShowTaskSuccess(false), 3000);
+    } catch (error: any) {
+      console.error('❌ Error submitting task:', error);
+      toast.error(error.message || 'Failed to submit task');
+    } finally {
+      setIsSubmittingTask(false);
+    }
   };
 
   // Message Functions
@@ -597,11 +682,11 @@ const ManagerDashboard = () => {
         return (
           <DailyTasksTab
             tc={tc}
-            token={token}
-            taskStatus={taskStatus as 'Pending' | 'Completed'}
-            setTaskStatus={(status: 'Pending' | 'Completed') => setTaskStatus(status)}
-            jiraLinks={jiraLinks.map(url => ({ url }))}
-            setJiraLinks={(links) => setJiraLinks(links.map(l => l.url))}
+            isAuthenticated={isAuthenticated}
+            taskStatus={taskStatus}
+            setTaskStatus={setTaskStatus}
+            jiraLinks={jiraLinks}
+            setJiraLinks={setJiraLinks}
             taskDescription={taskDescription}
             setTaskDescription={setTaskDescription}
             newIdea={newIdea}
@@ -613,24 +698,14 @@ const ManagerDashboard = () => {
             taskImagePreview={taskImagePreview}
             setTaskImagePreview={setTaskImagePreview}
             setTaskImageFile={setTaskImageFile}
-            taskHistory={taskHistory.map(task => ({
-              dailyTaskSubmissionId: task.id,
-              employeeId: 'SE-187',
-              workDescription: task.taskDescription,
-              status: task.status as 'Pending' | 'Completed',
-              newIdeas: task.newIdea || null,
-              submissionDate: task.date,
-              submissionDateEpoch: Date.now().toString(),
-              submittedAt: task.submittedAt,
-              submittedAtEpoch: Date.now().toString(),
-              updatedAt: task.submittedAt,
-              updatedAtEpoch: Date.now().toString(),
-              jiraLinks: task.jiraLinks.map(url => ({ url })),
-              attachments: [],
-            }))}
+            taskHistory={taskHistory} // Pass API response directly
+            fetchingHistory={fetchingTaskHistory}
+            selectedDate={selectedTaskDate}
+            setSelectedDate={setSelectedTaskDate}
+            fetchMyTasks={fetchMyTasks}
             addJiraLink={() => {
-              if (jiraLinks.length < 10) {
-                setJiraLinks([...jiraLinks, '']);
+              if (jiraLinks.length < 25) {
+                setJiraLinks([...jiraLinks, { url: '' }]);
               }
             }}
             removeJiraLink={(index: number) => {
@@ -639,9 +714,9 @@ const ManagerDashboard = () => {
                 setJiraLinks(newLinks);
               }
             }}
-            updateJiraLink={(index: number, value: string) => {
+            updateJiraLink={(index: number, field: 'label' | 'url', value: string) => {
               const newLinks = [...jiraLinks];
-              newLinks[index] = value;
+              newLinks[index] = { ...newLinks[index], [field]: value };
               setJiraLinks(newLinks);
             }}
             handleTaskImageUpload={handleTaskImageUpload}
