@@ -158,12 +158,36 @@ interface DailyTaskData {
   jiraLinks?: Array<{ label?: string; url: string }>;
 }
 
-interface DailyTask extends DailyTaskData {
-  taskId: string;
+interface DailyTask {
+  dailyTaskSubmissionId: string;
   employeeId: string;
+  workDescription: string;
+  status: 'Pending' | 'Completed';
+  newIdeas: string | null;
   submissionDate: string;
-  createdAt: string;
+  submissionDateEpoch: string;
+  submittedAt: string;
+  submittedAtEpoch: string;
   updatedAt: string;
+  updatedAtEpoch: string;
+  jiraLinks: Array<{
+    dailyTaskJiraLinkId: string;
+    label: string | null;
+    url: string;
+    createdAt: string;
+    createdAtEpoch: string;
+  }>;
+  attachments: Array<{
+    dailyTaskAttachmentId: string;
+    fileName: string;
+    fileUrl: string;
+    fileType: string;
+    mimeType: string;
+    fileSize: number;
+    uploadedAt: string;
+    uploadedAtEpoch: string;
+  }>;
+  employee?: any;
 }
 
 interface DailyTaskQueryParams {
@@ -172,34 +196,45 @@ interface DailyTaskQueryParams {
   status?: 'Pending' | 'Completed';
 }
 
+interface DailyTaskListResponse {
+  date: string;
+  count: number;
+  dailyTasks: DailyTask[];
+}
+
+interface DailyTaskCreateResponse {
+  message: string;
+  dailyTask: DailyTask;
+}
+
 export const dailyTaskService = {
-  create: async (data: DailyTaskData): Promise<DailyTask> => {
-    const response = await api.post<DailyTask>('/daily-tasks', data);
+  create: async (data: DailyTaskData): Promise<DailyTaskCreateResponse> => {
+    const response = await api.post<DailyTaskCreateResponse>('/daily-tasks', data);
     return response.data;
   },
 
-  getAll: async (params?: DailyTaskQueryParams): Promise<DailyTask[]> => {
-    const response = await api.get<DailyTask[]>('/daily-tasks', { params });
+  getAll: async (params?: DailyTaskQueryParams): Promise<DailyTaskListResponse> => {
+    const response = await api.get<DailyTaskListResponse>('/daily-tasks', { params });
     return response.data;
   },
 
-  getMyTasks: async (params?: Omit<DailyTaskQueryParams, 'employeeId'>): Promise<DailyTask[]> => {
-    const response = await api.get<DailyTask[]>('/daily-tasks/mine', { params });
+  getMyTasks: async (params?: Omit<DailyTaskQueryParams, 'employeeId'>): Promise<DailyTaskListResponse> => {
+    const response = await api.get<DailyTaskListResponse>('/daily-tasks/mine', { params });
     return response.data;
   },
 
-  getById: async (id: string): Promise<DailyTask> => {
-    const response = await api.get<DailyTask>(`/daily-tasks/${id}`);
+  getById: async (id: string): Promise<{ dailyTask: DailyTask }> => {
+    const response = await api.get<{ dailyTask: DailyTask }>(`/daily-tasks/${id}`);
     return response.data;
   },
 
-  update: async (id: string, data: Partial<DailyTaskData>): Promise<DailyTask> => {
-    const response = await api.patch<DailyTask>(`/daily-tasks/${id}`, data);
+  update: async (id: string, data: Partial<DailyTaskData>): Promise<DailyTaskCreateResponse> => {
+    const response = await api.patch<DailyTaskCreateResponse>(`/daily-tasks/${id}`, data);
     return response.data;
   },
 
-  uploadAttachments: async (taskId: string, formData: FormData): Promise<{ attachments: string[] }> => {
-    const response = await api.post<{ attachments: string[] }>(`/daily-tasks/${taskId}/attachments`, formData, {
+  uploadAttachments: async (taskId: string, formData: FormData): Promise<DailyTaskCreateResponse> => {
+    const response = await api.post<DailyTaskCreateResponse>(`/daily-tasks/${taskId}/attachments`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
