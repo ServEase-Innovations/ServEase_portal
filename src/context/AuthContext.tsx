@@ -58,37 +58,67 @@ const mapRole = (apiRole: string): 'super-admin' | 'hr-partner' | 'manager' | 'e
   
   const mappedRole = roleMap[apiRole];
   if (!mappedRole) {
-    console.warn(`Unknown role "${apiRole}" from API, defaulting to employee`);
+    // Security: Don't log user-controlled data
+    console.warn('Unknown role from API, defaulting to employee');
     return 'employee';
   }
   return mappedRole;
 };
 
+// Helper to map API response to User type
+const mapUserData = (data: any): User => {
+  return {
+    id: data.employeeId || data.id,
+    name: data.fullName || data.name,
+    username: data.username || '',
+    email: data.emailAddress || data.email || '',
+    role: mapRole(data.assignedRole || data.role),
+    mobileNumber: data.mobileNumber || '',
+    isActive: data.isActive !== undefined ? data.isActive : true,
+    assignedRole: data.assignedRole,
+    assignedDepartment: data.assignedDepartment,
+    baseSalary: data.baseSalary,
+    allowances: data.allowances,
+    deductions: data.deductions,
+    joinedAt: data.joinedAt,
+    lastLogin: data.lastLogin,
+    managerId: data.managerId,
+    teamId: data.teamId,
+  };
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Start as loading
   const [error, setError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Load user from localStorage on mount
+  // Load user from API on mount (cookie auth) - NO localStorage
   useEffect(() => {
-    const storedToken = localStorage.getItem('servease_token');
-    const storedUser = localStorage.getItem('servease_user');
-    
-    if (storedToken && storedUser) {
+    const loadUser = async () => {
+      console.log('[AuthContext] Loading user from cookie...');
       try {
-        const parsedUser = JSON.parse(storedUser);
-        setToken(storedToken);
-        setUser(parsedUser);
-        setIsAuthenticated(true);
-        console.log('User loaded from localStorage:', parsedUser);
-      } catch (e) {
-        console.error('Error loading user from localStorage:', e);
-        localStorage.removeItem('servease_token');
-        localStorage.removeItem('servease_user');
+        // Fetch user from API using HTTP-only cookie
+        const response = await authService.getCurrentUser();
+        if (response) {
+          const userData = mapUserData(response);
+          setUser(userData);
+          setIsAuthenticated(true);
+          console.log('[AuthContext] User authenticated successfully');
+        }
+      } catch (error) {
+        // No valid session - this is expected for logged-out users
+        console.log('[AuthContext] No active session found');
+        setIsAuthenticated(false);
+        setUser(null);
+      } finally {
+        setLoading(false);
+        console.log('[AuthContext] Loading complete');
       }
-    }
+    };
+    
+    loadUser();
   }, []);
 
   const clearError = useCallback(() => {
@@ -101,51 +131,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
     
     try {
-      console.log('Attempting login with username:', username);
+      // Attempting login
+      // Login successful
       const response = await authService.login(username, password);
-      console.log('Login response:', response);
+      console.log('Login successful');
       
       // Handle the API response structure
       const employeeData = response.data?.employee || response.employee;
-      const token = response.data?.token || response.token;
       
-      // Store token
-      if (token) {
-        localStorage.setItem('servease_token', token);
-        setToken(token);
-      }
+      // Token is now stored in HTTP-only cookie by the server
+      // User data is fetched from API on demand - NO localStorage
       
-      // Map the employee data to your User type
-      const userData: User = {
-        id: employeeData.employeeId || employeeData.id,
-        name: employeeData.fullName || employeeData.name,
-        username: employeeData.username || username,
-        email: employeeData.emailAddress || employeeData.email || '',
-        role: mapRole(employeeData.assignedRole || employeeData.role),
-        mobileNumber: employeeData.mobileNumber || '',
-        isActive: employeeData.isActive !== undefined ? employeeData.isActive : true,
-        assignedRole: employeeData.assignedRole,
-        assignedDepartment: employeeData.assignedDepartment,
-        baseSalary: employeeData.baseSalary,
-        allowances: employeeData.allowances,
-        deductions: employeeData.deductions,
-        joinedAt: employeeData.joinedAt,
-        lastLogin: employeeData.lastLogin,
-        managerId: employeeData.managerId,
-        teamId: employeeData.teamId,
-      };
+      // Map user data to User type
+      const userData = mapUserData(employeeData);
       
-      console.log('Mapped user data:', userData);
-      
-      // Store user
-      localStorage.setItem('servease_user', JSON.stringify(userData));
       setUser(userData);
+      setToken(null); // No token in state
       setIsAuthenticated(true);
       
       toast.success(`Welcome back, ${userData.name || 'User'}!`);
       setLoading(false);
     } catch (err: any) {
-      console.error('Login error:', err);
       const errorMessage = err.response?.data?.message || err.message || 'Login failed';
       setError(errorMessage);
       toast.error(errorMessage);
@@ -190,9 +196,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         confirmPassword: userData.confirmPassword || userData.password,
       };
 
-      console.log('Creating account with payload:', payload);
+      // Creating account
       const response = await authService.register(payload);
-      console.log('Registration response:', response);
       
       if (response.error) {
         throw new Error(response.message || 'Registration failed');
@@ -213,15 +218,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = useCallback(async () => {
     try {
+      // Call backend to clear HTTP-only cookies
       await authService.logout();
     } catch (err) {
-      console.error('Logout error:', err);
+      // Logout failed on server, but we'll clear local state anyway
+      console.log('[AuthContext] Server logout failed, clearing local state');
     } finally {
       setUser(null);
       setToken(null);
       setIsAuthenticated(false);
-      localStorage.removeItem('servease_token');
-      localStorage.removeItem('servease_user');
+      // No localStorage to clear - using cookies only
       toast.success('Logged out successfully');
     }
   }, []);
@@ -230,29 +236,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const response = await authService.getCurrentUser();
       if (response) {
-        const userData: User = {
-          id: response.employeeId || response.id,
-          name: response.fullName || response.name,
-          username: response.username || '',
-          email: response.emailAddress || response.email || '',
-          role: mapRole(response.assignedRole || response.role),
-          mobileNumber: response.mobileNumber || '',
-          isActive: response.isActive !== undefined ? response.isActive : true,
-          assignedRole: response.assignedRole,
-          assignedDepartment: response.assignedDepartment,
-          baseSalary: response.baseSalary,
-          allowances: response.allowances,
-          deductions: response.deductions,
-          joinedAt: response.joinedAt,
-          lastLogin: response.lastLogin,
-          managerId: response.managerId,
-          teamId: response.teamId,
-        };
+        // Map data and store in state only (no localStorage)
+        const userData = mapUserData(response);
         setUser(userData);
-        localStorage.setItem('servease_user', JSON.stringify(userData));
+        setIsAuthenticated(true);
       }
     } catch (err) {
-      console.error('Failed to refresh user:', err);
+      // Failed to refresh user - likely expired session
+      console.log('[AuthContext] Failed to refresh user, clearing session');
+      setIsAuthenticated(false);
+      setUser(null);
     }
   }, []);
 

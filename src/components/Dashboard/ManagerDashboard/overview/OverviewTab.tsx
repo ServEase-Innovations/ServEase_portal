@@ -16,7 +16,6 @@ import { Attendance } from '../../../types';
 import { ThemeClasses, TeamMember } from '../types';
 import StatsCard from '../common/StatsCard';
 import TimerControls from './TimerControls';
-import LeaveModal from '../leave/LeaveModal';
 import AttendanceCalendar from './AttendanceCalendar';
 import { InfoCard } from '../../shared/InfoCard';
 import { StatusBadge } from '../../shared/StatusBadge';
@@ -176,16 +175,6 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
           <ActionButtons buttons={actionButtons} />
         </div>
       </div>
-
-      <LeaveModal
-        showLeaveModal={showLeaveModal}
-        setShowLeaveModal={setShowLeaveModal}
-        leaveRequest={leaveRequest}
-        setLeaveRequest={setLeaveRequest}
-        handleSubmitLeave={handleSubmitLeave}
-        handleLeaveImageUpload={handleLeaveImageUpload}
-        tc={tc}
-      />
 
       <TimerControls
         isClockedIn={isClockedIn}

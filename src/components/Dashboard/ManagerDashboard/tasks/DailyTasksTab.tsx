@@ -12,7 +12,7 @@ import toast from 'react-hot-toast';
 
 interface DailyTasksTabProps {
   tc: ThemeClasses;
-  token?: string | null;
+  isAuthenticated?: boolean;
   // For ManagerDashboard compatibility - these will override the internal state if provided
   taskStatus?: 'Pending' | 'Completed';
   setTaskStatus?: (status: 'Pending' | 'Completed') => void;
@@ -30,9 +30,15 @@ interface DailyTasksTabProps {
   setTaskImagePreview?: (preview: string | null) => void;
   setTaskImageFile?: (file: File | null) => void;
   taskHistory?: DailyTask[];
+  fetchingHistory?: boolean;
+  selectedDate?: string;
+  setSelectedDate?: (date: string) => void;
+  fetchMyTasks?: (date?: string) => void;
+  showTaskSuccess?: boolean;
+  isSubmittingTask?: boolean;
   addJiraLink?: () => void;
   removeJiraLink?: (index: number) => void;
-  updateJiraLink?: (index: number, value: string) => void;
+  updateJiraLink?: (index: number, field: 'label' | 'url', value: string) => void;
   handleTaskImageUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleSubmitTask?: () => void;
 }
@@ -72,7 +78,7 @@ interface DailyTask {
 
 const DailyTasksTab: React.FC<DailyTasksTabProps> = ({ 
   tc, 
-  token,
+  isAuthenticated,
   // ManagerDashboard props (optional)
   taskStatus: externalTaskStatus,
   setTaskStatus: externalSetTaskStatus,
@@ -90,12 +96,23 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
   setTaskImagePreview: externalSetTaskImagePreview,
   setTaskImageFile: externalSetTaskImageFile,
   taskHistory: externalTaskHistory,
+  fetchingHistory: externalFetchingHistory,
+  selectedDate: externalSelectedDate,
+  setSelectedDate: externalSetSelectedDate,
+  fetchMyTasks: externalFetchMyTasks,
+  showTaskSuccess: externalShowTaskSuccess,
+  isSubmittingTask: externalIsSubmittingTask,
   addJiraLink: externalAddJiraLink,
   removeJiraLink: externalRemoveJiraLink,
   updateJiraLink: externalUpdateJiraLink,
   handleTaskImageUpload: externalHandleTaskImageUpload,
   handleSubmitTask: externalHandleSubmitTask,
 }) => {
+  console.log('🎨 [DailyTasksTab] Component function executing', {
+    isAuthenticated,
+    hasExternalTaskStatus: externalTaskStatus !== undefined
+  });
+
   // Determine if using external props
   const isUsingExternalProps = externalTaskStatus !== undefined;
   
@@ -116,7 +133,7 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
   
   // History state (internal)
   const [internalTaskHistory, setInternalTaskHistory] = useState<DailyTask[]>([]);
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [internalSelectedDate, setInternalSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
   // Determine which state to use
   const taskStatus = isUsingExternalProps ? externalTaskStatus! : internalTaskStatus;
@@ -129,21 +146,29 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
   const setNewIdeas = isUsingExternalProps ? externalSetNewIdea! : setInternalNewIdeas;
   const additionalInfo = isUsingExternalProps ? externalAdditionalInfo! : internalAdditionalInfo;
   const setAdditionalInfo = isUsingExternalProps ? externalSetAdditionalInfo! : setInternalAdditionalInfo;
-  // Commented out due to duplication - using the one below
-  // const taskImagePreview = isUsingExternalProps ? externalTaskImagePreview! : internalTaskImagePreview;
   const setTaskImagePreview = isUsingExternalProps ? externalSetTaskImagePreview! : setInternalTaskImagePreview;
-  const taskHistory = isUsingExternalProps ? externalTaskHistory! : internalTaskHistory;
+  const taskHistory = isUsingExternalProps && externalTaskHistory ? externalTaskHistory : internalTaskHistory;
+  const selectedDate = isUsingExternalProps && externalSelectedDate ? externalSelectedDate : internalSelectedDate;
+  const setSelectedDate = isUsingExternalProps && externalSetSelectedDate ? externalSetSelectedDate : setInternalSelectedDate;
+  const tasksFetching = isUsingExternalProps && externalFetchingHistory !== undefined ? externalFetchingHistory : fetchingHistory;
+  const taskSuccess = isUsingExternalProps && externalShowTaskSuccess !== undefined ? externalShowTaskSuccess : showSuccess;
+  const taskSubmitting = isUsingExternalProps && externalIsSubmittingTask !== undefined ? externalIsSubmittingTask : loading;
 
   // Fetch daily tasks for the current user (internal API integration)
   const fetchMyTasks = async (date?: string) => {
-    // Don't fetch if using external props (ManagerDashboard)
-    if (isUsingExternalProps) return;
+    // Use external fetchMyTasks if provided (from ManagerDashboard)
+    if (isUsingExternalProps && externalFetchMyTasks) {
+      console.log('📞 Using external fetchMyTasks from ManagerDashboard');
+      await externalFetchMyTasks(date);
+      return;
+    }
     
-    if (!token) {
-      console.error('No authentication token available');
+    if (!isAuthenticated) {
+      console.error('User not authenticated');
       return;
     }
 
+    console.log('📞 Using internal fetchMyTasks');
     setFetchingHistory(true);
     try {
       const params: any = {};
@@ -167,12 +192,24 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
     }
   };
 
-  // Load tasks on mount and when date changes (internal only)
+  // Load tasks on mount and when date changes
   useEffect(() => {
-    if (!isUsingExternalProps && token) {
+    console.log('🔄 [DailyTasksTab] useEffect triggered', { 
+      isAuthenticated,
+      isUsingExternalProps,
+      selectedDate,
+      hasExternalFetch: !!externalFetchMyTasks,
+      taskHistoryLength: taskHistory?.length || 0
+    });
+    
+    if (isAuthenticated) {
+      console.log('🔄 [DailyTasksTab] Calling fetchMyTasks with date:', selectedDate);
+      // Always call fetchMyTasks (will use external or internal)
       fetchMyTasks(selectedDate);
+    } else {
+      console.log('⚠️ [DailyTasksTab] User not authenticated, skipping fetch');
     }
-  }, [token, selectedDate, isUsingExternalProps]);
+  }, [isAuthenticated, selectedDate]);
 
   // Jira Links handlers (internal)
   const internalAddJiraLink = () => {
@@ -362,8 +399,16 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
   };
 
   // Determine if we should show loading based on context
-  const isLoading = isUsingExternalProps ? false : fetchingHistory;
-  const currentTaskHistory = isUsingExternalProps ? taskHistory : internalTaskHistory;
+  const isLoading = tasksFetching;
+  const currentTaskHistory = taskHistory;
+
+  console.log('📊 [DailyTasksTab] Render state:', {
+    isLoading,
+    taskHistoryLength: currentTaskHistory?.length || 0,
+    taskHistory: currentTaskHistory,
+    isUsingExternalProps,
+    selectedDate
+  });
 
   // Render task history content
   const renderTaskHistoryContent = () => {
@@ -697,13 +742,13 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
           <button 
             type="button"
             onClick={handleSubmitTaskHandler}
-            disabled={loading}
+            disabled={taskSubmitting}
             className={`w-full bg-gradient-to-r from-indigo-500 to-indigo-600 text-white py-2.5 sm:py-3 rounded-xl font-medium text-sm sm:text-base hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2 group ${
-              loading ? 'opacity-50 cursor-not-allowed' : ''
+              taskSubmitting ? 'opacity-50 cursor-not-allowed' : ''
             }`}
           >
-            <PaperAirplaneIcon className={`w-4 h-4 sm:w-5 sm:h-5 ${!loading ? 'group-hover:translate-x-1 transition-transform' : ''}`} />
-            {loading ? 'Submitting...' : 'Submit Daily Task'}
+            <PaperAirplaneIcon className={`w-4 h-4 sm:w-5 sm:h-5 ${!taskSubmitting ? 'group-hover:translate-x-1 transition-transform' : ''}`} />
+            {taskSubmitting ? 'Submitting...' : 'Submit Daily Task'}
           </button>
         </div>
       </div>

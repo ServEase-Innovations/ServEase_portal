@@ -75,6 +75,7 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
   const [loading, setLoading] = useState(false);
   const [fetchingHistory, setFetchingHistory] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [statusFilter, setStatusFilter] = useState<'Pending' | 'Completed' | ''>(''); // Add status filter
 
   // Fetch daily tasks for the current user
   const fetchMyTasks = async (date?: string) => {
@@ -89,10 +90,14 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
       if (date) {
         params.date = date;
       }
+      if (statusFilter) {
+        params.status = statusFilter;
+      }
       
       const response = await dailyTaskService.getMyTasks(params);
       console.log('Fetched tasks:', response);
       
+      // Fix: Use the correct response structure - response.dailyTasks directly (not response.data.dailyTasks)
       if (response && response.dailyTasks) {
         setTaskHistory(response.dailyTasks);
       } else {
@@ -106,12 +111,12 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
     }
   };
 
-  // Load tasks on mount and when date changes
+  // Load tasks on mount and when date or status changes
   useEffect(() => {
     if (token) {
       fetchMyTasks(selectedDate);
     }
-  }, [token, selectedDate]);
+  }, [token, selectedDate, statusFilter]);
 
   const addJiraLink = () => {
     if (jiraLinks.length < 25) {
@@ -157,10 +162,21 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
   };
 
   const handleSubmitTask = async () => {
+    console.log('🚀 handleSubmitTask called');
+    console.log('Current state:', {
+      workDescription: workDescription.trim(),
+      taskStatus,
+      newIdeas: newIdeas.trim(),
+      jiraLinks,
+      token: !!token,
+      loading
+    });
+
     // Validate required fields
     const filteredLinks = jiraLinks.filter(link => link.url.trim() !== '');
     
     if (!workDescription.trim()) {
+      console.log('❌ Validation failed: No work description');
       toast.error('Please provide a task description');
       return;
     }
@@ -170,11 +186,13 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
       try {
         new URL(link.url);
       } catch {
+        console.log('❌ Validation failed: Invalid URL:', link.url);
         toast.error(`Invalid URL: ${link.url}`);
         return;
       }
     }
 
+    console.log('✅ Validation passed, starting API call');
     setLoading(true);
 
     try {
@@ -189,10 +207,11 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
         }))
       };
 
-      console.log('Creating task with data:', taskData);
+      console.log('📤 Creating task with data:', taskData);
       const createResponse = await dailyTaskService.create(taskData);
-      console.log('Task created:', createResponse);
+      console.log('📥 Task created response:', createResponse);
 
+      // Fix: Use correct response structure
       if (!createResponse || !createResponse.dailyTask) {
         throw new Error('Failed to create task');
       }
@@ -257,9 +276,19 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
 
   const formatDate = (dateStr: string) => {
     try {
-      return new Date(dateStr).toLocaleString();
+      // Handle both ISO string and epoch timestamp
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) {
+        // If it's not a valid date, try parsing as epoch timestamp
+        const epochTime = parseInt(dateStr);
+        if (!isNaN(epochTime)) {
+          return new Date(epochTime).toLocaleString();
+        }
+        return 'Invalid Date';
+      }
+      return date.toLocaleString();
     } catch {
-      return dateStr;
+      return 'Invalid Date';
     }
   };
 
@@ -494,6 +523,15 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
             <p className={`text-sm ${tc.textSecondary}`}>Your submitted daily tasks</p>
           </div>
           <div className="flex items-center gap-2">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as 'Pending' | 'Completed' | '')}
+              className={`px-2 py-1 ${tc.input} rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent outline-none`}
+            >
+              <option value="">All Status</option>
+              <option value="Pending">Pending</option>
+              <option value="Completed">Completed</option>
+            </select>
             <input
               type="date"
               value={selectedDate}
