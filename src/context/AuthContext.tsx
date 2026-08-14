@@ -109,8 +109,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } catch (error) {
         // No valid session - this is expected for logged-out users
-        // Don't log error details to avoid exposing user-controlled data
+        console.log('[AuthContext] No active session found');
         setIsAuthenticated(false);
+        setUser(null);
       } finally {
         setLoading(false);
         console.log('[AuthContext] Loading complete');
@@ -220,7 +221,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Call backend to clear HTTP-only cookies
       await authService.logout();
     } catch (err) {
-      console.error('Logout error:', err);
+      // Logout failed on server, but we'll clear local state anyway
+      console.log('[AuthContext] Server logout failed, clearing local state');
     } finally {
       setUser(null);
       setToken(null);
@@ -240,8 +242,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsAuthenticated(true);
       }
     } catch (err) {
-      console.error('Failed to refresh user:', err);
+      // Failed to refresh user - likely expired session
+      console.log('[AuthContext] Failed to refresh user, clearing session');
       setIsAuthenticated(false);
+      setUser(null);
     }
   }, []);
 
