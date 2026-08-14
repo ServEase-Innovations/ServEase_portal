@@ -466,11 +466,61 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ tc, userRole, employeeId }) =
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
                       <div className={`w-10 h-10 bg-gradient-to-br ${isCurrent ? 'from-emerald-500 to-emerald-600' : 'from-indigo-500 to-purple-600'} rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-lg ${isCurrent ? 'shadow-emerald-500/25' : 'shadow-indigo-500/25'} group-hover:scale-110 transition-transform`}>
-                        {new Date(payslip.generatedAt).toLocaleString('default', { month: 'short' })}
+                        {(() => {
+                          let month, year;
+                          
+                          // Method 1: From payrollRun object (preferred)
+                          if (payslip.payrollRun?.payrollMonth && payslip.payrollRun?.payrollYear) {
+                            month = payslip.payrollRun.payrollMonth;
+                            year = payslip.payrollRun.payrollYear;
+                          }
+                          // Method 2: From payslip number - PS-YYYYMM-X format
+                          else if (payslip.payslipNumber) {
+                            const match = payslip.payslipNumber.match(/PS-(\d{4})(\d{2})-/);
+                            if (match) {
+                              year = parseInt(match[1]);
+                              month = parseInt(match[2]);
+                            }
+                          }
+                          
+                          // Display proper month
+                          if (month && year) {
+                            return new Date(year, month - 1).toLocaleString('default', { month: 'short' });
+                          }
+                          
+                          // Fallback: use generatedAt
+                          return new Date(payslip.generatedAt).toLocaleString('default', { month: 'short' });
+                        })()}
                       </div>
                       <div>
                         <h4 className={`font-semibold ${tc.text} text-sm`}>
-                          {new Date(payslip.generatedAt).toLocaleString('default', { month: 'long' })} {new Date(payslip.generatedAt).getFullYear()}
+                          {(() => {
+                            let month, year;
+                            
+                            // Method 1: From payrollRun object (preferred)
+                            if (payslip.payrollRun?.payrollMonth && payslip.payrollRun?.payrollYear) {
+                              month = payslip.payrollRun.payrollMonth;
+                              year = payslip.payrollRun.payrollYear;
+                            }
+                            // Method 2: From payslip number - PS-YYYYMM-X format
+                            else if (payslip.payslipNumber) {
+                              const match = payslip.payslipNumber.match(/PS-(\d{4})(\d{2})-/);
+                              if (match) {
+                                year = parseInt(match[1]);
+                                month = parseInt(match[2]);
+                              }
+                            }
+                            
+                            // Display proper month and year
+                            if (month && year) {
+                              const monthName = new Date(year, month - 1).toLocaleString('default', { month: 'long' });
+                              return `${monthName} ${year}`;
+                            }
+                            
+                            // Fallback: use generatedAt
+                            const fallbackDate = new Date(payslip.generatedAt);
+                            return `${fallbackDate.toLocaleString('default', { month: 'long' })} ${fallbackDate.getFullYear()}`;
+                          })()}
                         </h4>
                         <p className={`text-xs ${tc.textMuted}`}>#{payslip.payslipNumber}</p>
                       </div>
@@ -613,11 +663,61 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ tc, userRole, employeeId }) =
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <div className={`w-8 h-8 bg-gradient-to-br ${isCurrent ? 'from-emerald-500 to-emerald-600' : 'from-indigo-500 to-purple-600'} rounded-lg flex items-center justify-center text-white text-xs font-bold shadow-lg ${isCurrent ? 'shadow-emerald-500/25' : 'shadow-indigo-500/25'}`}>
-                            {new Date(payslip.generatedAt).toLocaleString('default', { month: 'short' })}
+                            {(() => {
+                              let month, year;
+                              
+                              // Method 1: From payrollRun object (preferred)
+                              if (payslip.payrollRun?.payrollMonth && payslip.payrollRun?.payrollYear) {
+                                month = payslip.payrollRun.payrollMonth;
+                                year = payslip.payrollRun.payrollYear;
+                              }
+                              // Method 2: From payslip number - PS-YYYYMM-X format
+                              else if (payslip.payslipNumber) {
+                                const match = payslip.payslipNumber.match(/PS-(\d{4})(\d{2})-/);
+                                if (match) {
+                                  year = parseInt(match[1]);
+                                  month = parseInt(match[2]);
+                                }
+                              }
+                              
+                              // Display proper month
+                              if (month && year) {
+                                return new Date(year, month - 1).toLocaleString('default', { month: 'short' });
+                              }
+                              
+                              // Fallback: use generatedAt
+                              return new Date(payslip.generatedAt).toLocaleString('default', { month: 'short' });
+                            })()}
                           </div>
                           <div>
                             <span className={`font-medium ${tc.text} text-sm`}>
-                              {new Date(payslip.generatedAt).toLocaleString('default', { month: 'long' })} {new Date(payslip.generatedAt).getFullYear()}
+                              {(() => {
+                                let month, year;
+                                
+                                // Method 1: From payrollRun object (preferred)
+                                if (payslip.payrollRun?.payrollMonth && payslip.payrollRun?.payrollYear) {
+                                  month = payslip.payrollRun.payrollMonth;
+                                  year = payslip.payrollRun.payrollYear;
+                                }
+                                // Method 2: From payslip number - PS-YYYYMM-X format
+                                else if (payslip.payslipNumber) {
+                                  const match = payslip.payslipNumber.match(/PS-(\d{4})(\d{2})-/);
+                                  if (match) {
+                                    year = parseInt(match[1]);
+                                    month = parseInt(match[2]);
+                                  }
+                                }
+                                
+                                // Display proper month and year
+                                if (month && year) {
+                                  const monthName = new Date(year, month - 1).toLocaleString('default', { month: 'long' });
+                                  return `${monthName} ${year}`;
+                                }
+                                
+                                // Fallback: use generatedAt
+                                const fallbackDate = new Date(payslip.generatedAt);
+                                return `${fallbackDate.toLocaleString('default', { month: 'long' })} ${fallbackDate.getFullYear()}`;
+                              })()}
                             </span>
                             {isCurrent && (
                               <span className="ml-2 px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full text-[8px] font-medium border border-emerald-500/30">
