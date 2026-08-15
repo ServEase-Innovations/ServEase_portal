@@ -17,7 +17,6 @@ import { ThemeClasses } from '../types';
 import { payslipAutomationApi } from '../../../../services/api';
 import { 
   PayslipAutomationStatus, 
-  PayslipGenerationRequest, 
   PayslipHistoricalRequest,
   PayslipCoverageAnalysis 
 } from '../../../../types';
@@ -142,6 +141,7 @@ const PayslipAutomation: React.FC<PayslipAutomationProps> = ({ tc }) => {
               </div>
               
               <button
+                type="button"
                 onClick={toggleScheduler}
                 className={`p-2 rounded-xl transition-all ${
                   automationStatus?.scheduler?.enabled
@@ -218,6 +218,7 @@ const PayslipAutomation: React.FC<PayslipAutomationProps> = ({ tc }) => {
             </p>
             
             <button
+              type="button"
               onClick={generateHistoricalPayslips}
               className="w-full px-4 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transition-all duration-300 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 flex items-center justify-center gap-2"
             >
@@ -242,6 +243,7 @@ const PayslipAutomation: React.FC<PayslipAutomationProps> = ({ tc }) => {
             </p>
             
             <button
+              type="button"
               onClick={analyzeCoverage}
               className="w-full px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-medium hover:from-emerald-600 hover:to-emerald-700 transition-all duration-300 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 flex items-center justify-center gap-2"
             >
@@ -266,6 +268,7 @@ const PayslipAutomation: React.FC<PayslipAutomationProps> = ({ tc }) => {
             </p>
             
             <button
+              type="button"
               onClick={() => {
                 // Will implement current month generation
                 console.log('Generate current month payslips');
@@ -320,7 +323,7 @@ const PayslipAutomation: React.FC<PayslipAutomationProps> = ({ tc }) => {
                     </div>
                     <div className="text-xs text-red-300 space-y-1">
                       {historicalProgress.errors.slice(0, 3).map((error: string, index: number) => (
-                        <div key={index}>{error}</div>
+                        <div key={`error-${index}-${error.slice(0, 20)}`}>{error}</div>
                       ))}
                       {historicalProgress.errors.length > 3 && (
                         <div>+ {historicalProgress.errors.length - 3} more errors</div>
@@ -333,6 +336,7 @@ const PayslipAutomation: React.FC<PayslipAutomationProps> = ({ tc }) => {
             
             <div className="flex gap-3 mt-6">
               <button
+                type="button"
                 onClick={() => setShowHistoricalModal(false)}
                 className={`flex-1 px-4 py-2 ${tc.border} ${tc.textSecondary} rounded-xl font-medium hover:${tc.bgCardHover} transition-all`}
               >
@@ -358,6 +362,7 @@ const PayslipAutomation: React.FC<PayslipAutomationProps> = ({ tc }) => {
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setShowCoverageModal(false)}
                 className={`p-2 rounded-xl ${tc.btnBg} hover:bg-opacity-80 transition-all`}
               >
@@ -425,7 +430,7 @@ const PayslipAutomation: React.FC<PayslipAutomationProps> = ({ tc }) => {
                 </h4>
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {coverageAnalysis.missingRecords.map((record: any, index: number) => (
-                    <div key={index} className={`p-3 rounded-lg bg-red-500/10 border border-red-500/20`}>
+                    <div key={`missing-${record.employeeId}-${record.monthYear}`} className={`p-3 rounded-lg bg-red-500/10 border border-red-500/20`}>
                       <div className="flex justify-between items-center">
                         <div>
                           <span className={`text-sm font-medium text-red-400`}>{record.employeeName}</span>
@@ -441,6 +446,7 @@ const PayslipAutomation: React.FC<PayslipAutomationProps> = ({ tc }) => {
             
             <div className="flex gap-3">
               <button
+                type="button"
                 onClick={() => setShowCoverageModal(false)}
                 className={`flex-1 px-4 py-2 ${tc.border} ${tc.textSecondary} rounded-xl font-medium hover:${tc.bgCardHover} transition-all`}
               >
@@ -448,6 +454,7 @@ const PayslipAutomation: React.FC<PayslipAutomationProps> = ({ tc }) => {
               </button>
               {coverageAnalysis.missingPayslips > 0 && (
                 <button
+                  type="button"
                   onClick={() => {
                     setShowCoverageModal(false);
                     generateHistoricalPayslips();
