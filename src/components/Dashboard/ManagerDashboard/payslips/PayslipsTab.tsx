@@ -23,6 +23,155 @@ interface PayslipsTabProps {
   employeeId?: string;
 }
 
+// ============================================================================
+// HELPER COMPONENTS - Defined outside parent to prevent recreation on re-render
+// ============================================================================
+
+interface PayslipPeriodProps {
+  payslip: Payslip;
+  tc: ThemeClasses;
+  showBadge?: boolean;
+  compact?: boolean;
+  currentYear: number;
+  currentMonth: number;
+  getPayslipPeriod: (payslip: Payslip) => { month: number; year: number };
+  formatShortMonth: (payslip: Payslip) => string;
+  formatPeriodDisplay: (payslip: Payslip) => string;
+}
+
+const PayslipPeriod: React.FC<PayslipPeriodProps> = ({ 
+  payslip, 
+  tc,
+  showBadge = true, 
+  compact = false,
+  currentYear,
+  currentMonth,
+  getPayslipPeriod,
+  formatShortMonth,
+  formatPeriodDisplay
+}) => {
+  const { month, year } = getPayslipPeriod(payslip);
+  const isCurrent = year === currentYear && month === currentMonth;
+  const shortMonth = formatShortMonth(payslip);
+  const fullPeriod = formatPeriodDisplay(payslip);
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className={`${compact ? 'w-8 h-8 rounded-lg text-xs' : 'w-10 h-10 rounded-xl text-sm'} bg-gradient-to-br ${isCurrent ? 'from-emerald-500 to-emerald-600' : 'from-indigo-500 to-purple-600'} flex items-center justify-center text-white font-bold shadow-lg ${isCurrent ? 'shadow-emerald-500/25' : 'shadow-indigo-500/25'} ${compact ? '' : 'group-hover:scale-110 transition-transform'}`}>
+        {shortMonth}
+      </div>
+      <div>
+        {compact ? (
+          <>
+            <span className={`font-medium ${tc.text} text-sm`}>{fullPeriod}</span>
+            {isCurrent && showBadge && (
+              <span className="ml-2 px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full text-[8px] font-medium border border-emerald-500/30">
+                Current
+              </span>
+            )}
+          </>
+        ) : (
+          <>
+            <h4 className={`font-semibold ${tc.text} text-sm`}>{fullPeriod}</h4>
+            <p className={`text-xs ${tc.textMuted}`}>#{payslip.payslipNumber}</p>
+          </>
+        )}
+      </div>
+      {!compact && showBadge && isCurrent && (
+        <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full text-[10px] font-medium border border-emerald-500/30">
+          Current
+        </span>
+      )}
+    </div>
+  );
+};
+
+interface PayslipStatusProps {
+  status: string;
+  getStatusIcon: (status: string) => JSX.Element;
+  getStatusColor: (status: string) => string;
+  getStatusLabel: (status: string) => string;
+}
+
+const PayslipStatus: React.FC<PayslipStatusProps> = ({ status, getStatusIcon, getStatusColor, getStatusLabel }) => (
+  <div className={`px-2 py-1 rounded-lg text-xs font-medium ${getStatusColor(status)} flex items-center gap-1 border`}>
+    {getStatusIcon(status)}
+    {getStatusLabel(status)}
+  </div>
+);
+
+interface PayslipActionsProps {
+  payslip: Payslip;
+  tc: ThemeClasses;
+  isCompact?: boolean;
+  currentYear: number;
+  currentMonth: number;
+  expandedPayslip: string | null;
+  getPayslipPeriod: (payslip: Payslip) => { month: number; year: number };
+  onToggleExpand: (id: string) => void;
+  onDownload: (payslip: Payslip) => void;
+}
+
+const PayslipActions: React.FC<PayslipActionsProps> = ({ 
+  payslip, 
+  tc,
+  isCompact = false,
+  currentYear,
+  currentMonth,
+  expandedPayslip,
+  getPayslipPeriod,
+  onToggleExpand,
+  onDownload
+}) => {
+  const { month, year } = getPayslipPeriod(payslip);
+  const isCurrent = year === currentYear && month === currentMonth;
+  const canDownload = payslip.status === 'Approved' || payslip.status === 'Paid';
+
+  if (isCompact) {
+    return (
+      <div className="flex items-center justify-end gap-2">
+        <button
+          type="button"
+          onClick={() => onToggleExpand(payslip.payslipId)}
+          className={`p-1.5 rounded-lg ${tc.btnBg} transition-all hover:scale-110`}
+        >
+          <EyeIcon className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => onDownload(payslip)}
+          disabled={!canDownload}
+          className={`p-1.5 rounded-lg bg-gradient-to-r ${isCurrent ? 'from-emerald-500 to-emerald-600' : 'from-indigo-500 to-indigo-600'} text-white transition-all hover:scale-110 ${!canDownload ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
+          <CloudArrowDownIcon className="w-4 h-4" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex gap-2">
+      <button
+        type="button"
+        onClick={() => onToggleExpand(payslip.payslipId)}
+        className={`flex-1 px-3 py-1.5 ${tc.border} ${tc.textSecondary} rounded-xl text-xs font-medium hover:${tc.bgCardHover} transition-all duration-300 flex items-center justify-center gap-1`}
+      >
+        <EyeIcon className="w-3 h-3" />
+        {expandedPayslip === payslip.payslipId ? 'Hide' : 'Preview'}
+      </button>
+      <button
+        type="button"
+        onClick={() => onDownload(payslip)}
+        disabled={!canDownload}
+        className={`flex-1 px-3 py-1.5 bg-gradient-to-r ${isCurrent ? 'from-emerald-500 to-emerald-600' : 'from-indigo-500 to-indigo-600'} text-white rounded-xl text-xs font-medium hover:from-${isCurrent ? 'emerald' : 'indigo'}-600 hover:to-${isCurrent ? 'emerald' : 'indigo'}-700 transition-all duration-300 shadow-lg ${isCurrent ? 'shadow-emerald-500/25' : 'shadow-indigo-500/25'} flex items-center justify-center gap-1 ${!canDownload ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
+      >
+        <CloudArrowDownIcon className="w-3 h-3" />
+        Download
+      </button>
+    </div>
+  );
+};
+
 const PayslipsTab: React.FC<PayslipsTabProps> = ({ tc, userRole, employeeId }) => {
   const currentDate = moment();
   const currentYear = currentDate.year();
@@ -55,10 +204,11 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ tc, userRole, employeeId }) =
     }
     // Method 2: From payslip number - PS-YYYYMM-X format
     else if (payslip.payslipNumber) {
-      const match = payslip.payslipNumber.match(/PS-(\d{4})(\d{2})-/);
+      const regex = /PS-(\d{4})(\d{2})-/;
+      const match = regex.exec(payslip.payslipNumber);
       if (match) {
-        year = parseInt(match[1]);
-        month = parseInt(match[2]);
+        year = Number.parseInt(match[1], 10);
+        month = Number.parseInt(match[2], 10);
       }
     }
     
@@ -307,109 +457,6 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ tc, userRole, employeeId }) =
     setExpandedPayslip(expandedPayslip === id ? null : id);
   };
 
-  // ============================================================================
-  // REUSABLE COMPONENTS - Prevent UI code duplication
-  // ============================================================================
-
-  // Reusable PayslipPeriod component to avoid duplication
-  const PayslipPeriod: React.FC<{ payslip: Payslip; showBadge?: boolean; compact?: boolean }> = ({ 
-    payslip, 
-    showBadge = true, 
-    compact = false 
-  }) => {
-    const isCurrent = isCurrentPeriod(payslip);
-    const shortMonth = formatShortMonth(payslip);
-    const fullPeriod = formatPeriodDisplay(payslip);
-
-    return (
-      <div className="flex items-center gap-2">
-        <div className={`${compact ? 'w-8 h-8 rounded-lg text-xs' : 'w-10 h-10 rounded-xl text-sm'} bg-gradient-to-br ${isCurrent ? 'from-emerald-500 to-emerald-600' : 'from-indigo-500 to-purple-600'} flex items-center justify-center text-white font-bold shadow-lg ${isCurrent ? 'shadow-emerald-500/25' : 'shadow-indigo-500/25'} ${compact ? '' : 'group-hover:scale-110 transition-transform'}`}>
-          {shortMonth}
-        </div>
-        <div>
-          {compact ? (
-            <>
-              <span className={`font-medium ${tc.text} text-sm`}>{fullPeriod}</span>
-              {isCurrent && showBadge && (
-                <span className="ml-2 px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full text-[8px] font-medium border border-emerald-500/30">
-                  Current
-                </span>
-              )}
-            </>
-          ) : (
-            <>
-              <h4 className={`font-semibold ${tc.text} text-sm`}>{fullPeriod}</h4>
-              <p className={`text-xs ${tc.textMuted}`}>#{payslip.payslipNumber}</p>
-            </>
-          )}
-        </div>
-        {!compact && showBadge && isCurrent && (
-          <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full text-[10px] font-medium border border-emerald-500/30">
-            Current
-          </span>
-        )}
-      </div>
-    );
-  };
-
-  // Reusable PayslipStatus component
-  const PayslipStatus: React.FC<{ status: string }> = ({ status }) => (
-    <div className={`px-2 py-1 rounded-lg text-xs font-medium ${getStatusColor(status)} flex items-center gap-1 border`}>
-      {getStatusIcon(status)}
-      {getStatusLabel(status)}
-    </div>
-  );
-
-  // Reusable PayslipActions component
-  const PayslipActions: React.FC<{ payslip: Payslip; isCompact?: boolean }> = ({ payslip, isCompact = false }) => {
-    const isCurrent = isCurrentPeriod(payslip);
-    const canDownload = payslip.status === 'Approved' || payslip.status === 'Paid';
-
-    if (isCompact) {
-      return (
-        <div className="flex items-center justify-end gap-2">
-          <button
-            type="button"
-            onClick={() => toggleExpand(payslip.payslipId)}
-            className={`p-1.5 rounded-lg ${tc.btnBg} transition-all hover:scale-110`}
-          >
-            <EyeIcon className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => handleDownload(payslip)}
-            disabled={!canDownload}
-            className={`p-1.5 rounded-lg bg-gradient-to-r ${isCurrent ? 'from-emerald-500 to-emerald-600' : 'from-indigo-500 to-indigo-600'} text-white transition-all hover:scale-110 ${!canDownload ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            <CloudArrowDownIcon className="w-4 h-4" />
-          </button>
-        </div>
-      );
-    }
-
-    return (
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => toggleExpand(payslip.payslipId)}
-          className={`flex-1 px-3 py-1.5 ${tc.border} ${tc.textSecondary} rounded-xl text-xs font-medium hover:${tc.bgCardHover} transition-all duration-300 flex items-center justify-center gap-1`}
-        >
-          <EyeIcon className="w-3 h-3" />
-          {expandedPayslip === payslip.payslipId ? 'Hide' : 'Preview'}
-        </button>
-        <button
-          type="button"
-          onClick={() => handleDownload(payslip)}
-          disabled={!canDownload}
-          className={`flex-1 px-3 py-1.5 bg-gradient-to-r ${isCurrent ? 'from-emerald-500 to-emerald-600' : 'from-indigo-500 to-indigo-600'} text-white rounded-xl text-xs font-medium hover:from-${isCurrent ? 'emerald' : 'indigo'}-600 hover:to-${isCurrent ? 'emerald' : 'indigo'}-700 transition-all duration-300 shadow-lg ${isCurrent ? 'shadow-emerald-500/25' : 'shadow-indigo-500/25'} flex items-center justify-center gap-1 ${!canDownload ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
-        >
-          <CloudArrowDownIcon className="w-3 h-3" />
-          Download
-        </button>
-      </div>
-    );
-  };
-
   // Loading state
   if (isLoading) {
     return (
@@ -620,14 +667,28 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ tc, userRole, employeeId }) =
                 <div className="p-5">
                   {/* Header */}
                   <div className="flex items-start justify-between mb-3">
-                    <PayslipPeriod payslip={payslip} showBadge={false} />
+                    <PayslipPeriod 
+                      payslip={payslip} 
+                      tc={tc}
+                      showBadge={false}
+                      currentYear={currentYear}
+                      currentMonth={currentMonth}
+                      getPayslipPeriod={getPayslipPeriod}
+                      formatShortMonth={formatShortMonth}
+                      formatPeriodDisplay={formatPeriodDisplay}
+                    />
                     <div className="flex items-center gap-2">
                       {isCurrent && (
                         <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full text-[10px] font-medium border border-emerald-500/30">
                           Current
                         </span>
                       )}
-                      <PayslipStatus status={payslip.status} />
+                      <PayslipStatus 
+                        status={payslip.status}
+                        getStatusIcon={getStatusIcon}
+                        getStatusColor={getStatusColor}
+                        getStatusLabel={getStatusLabel}
+                      />
                     </div>
                   </div>
 
@@ -666,7 +727,16 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ tc, userRole, employeeId }) =
                   </div>
 
                   {/* Actions */}
-                  <PayslipActions payslip={payslip} />
+                  <PayslipActions 
+                    payslip={payslip}
+                    tc={tc}
+                    currentYear={currentYear}
+                    currentMonth={currentMonth}
+                    expandedPayslip={expandedPayslip}
+                    getPayslipPeriod={getPayslipPeriod}
+                    onToggleExpand={toggleExpand}
+                    onDownload={handleDownload}
+                  />
 
                   {/* Expandable Preview */}
                   {expandedPayslip === payslip.payslipId && (
@@ -734,7 +804,16 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ tc, userRole, employeeId }) =
                       style={{ animationDelay: `${index * 50}ms` }}
                     >
                       <td className="px-4 py-3">
-                        <PayslipPeriod payslip={payslip} compact={true} />
+                        <PayslipPeriod 
+                          payslip={payslip} 
+                          tc={tc}
+                          compact={true}
+                          currentYear={currentYear}
+                          currentMonth={currentMonth}
+                          getPayslipPeriod={getPayslipPeriod}
+                          formatShortMonth={formatShortMonth}
+                          formatPeriodDisplay={formatPeriodDisplay}
+                        />
                       </td>
                       <td className={`px-4 py-3 text-sm ${tc.text}`}>{payslip.employeeNameSnapshot}</td>
                       <td className={`px-4 py-3 text-xs ${tc.textMuted}`}>{payslip.employeeDepartmentSnapshot}</td>
@@ -745,10 +824,25 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ tc, userRole, employeeId }) =
                         {formatCurrency(payslip.netSalary, payslip.currency)}
                       </td>
                       <td className="px-4 py-3">
-                        <PayslipStatus status={payslip.status} />
+                        <PayslipStatus 
+                          status={payslip.status}
+                          getStatusIcon={getStatusIcon}
+                          getStatusColor={getStatusColor}
+                          getStatusLabel={getStatusLabel}
+                        />
                       </td>
                       <td className="px-4 py-3">
-                        <PayslipActions payslip={payslip} isCompact={true} />
+                        <PayslipActions 
+                          payslip={payslip}
+                          tc={tc}
+                          isCompact={true}
+                          currentYear={currentYear}
+                          currentMonth={currentMonth}
+                          expandedPayslip={expandedPayslip}
+                          getPayslipPeriod={getPayslipPeriod}
+                          onToggleExpand={toggleExpand}
+                          onDownload={handleDownload}
+                        />
                       </td>
                     </tr>
                   );
