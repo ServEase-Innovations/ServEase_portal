@@ -15,9 +15,11 @@ import {
   ClockIcon,
   SparklesIcon,
   FireIcon,
-  GiftIcon
+  GiftIcon,
+  CogIcon
 } from '@heroicons/react/24/outline';
 import { ThemeClasses } from '../types';
+import PayslipAutomation from './PayslipAutomation';
 import moment from 'moment';
 
 interface PayslipData {
@@ -46,6 +48,7 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ tc, downloadPayslip, payslips
   const currentMonth = currentDate.month() + 1; // 1-12
   const currentDay = currentDate.date();
 
+  const [activeTab, setActiveTab] = useState<'payslips' | 'automation'>('payslips');
   const [selectedYear, setSelectedYear] = useState<string>(currentYear.toString());
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -91,88 +94,73 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ tc, downloadPayslip, payslips
     return months;
   }, [selectedYear, currentYear, currentMonth]);
 
-  // Generate payslip data with historical records
-  const allPayslips: PayslipData[] = useMemo(() => {
-    const payslipData: PayslipData[] = [];
-
-    // Generate historical data from 2020 to current year
-    for (let year = 2020; year <= currentYear; year++) {
-      const maxMonth = (year === currentYear) ? currentMonth : 12;
-      
-      for (let month = 1; month <= maxMonth; month++) {
-        const monthStr = month.toString().padStart(2, '0');
-        const monthName = new Date(year, month - 1).toLocaleString('default', { month: 'long' });
-        
-        // Random status for demo
-        const statuses: ('Generated' | 'Processing' | 'Pending')[] = ['Generated', 'Generated', 'Generated', 'Generated', 'Processing'];
-        const status = statuses[(year + month) % statuses.length];
-        const isEven = (year + month) % 2 === 0;
-        
-        // Random salary data
-        const baseGross = 120000 + Math.floor(Math.random() * 50000);
-        const baseNet = baseGross - Math.floor(baseGross * 0.18);
-        
-        // Last day of month for payment date
-        const lastDay = new Date(year, month, 0).getDate();
-        const paymentDay = Math.min(28, lastDay);
-        
-        payslipData.push({
-          id: `PS-${year}-${monthStr}`,
-          month: `${monthName} ${year}`,
-          year: year.toString(),
-          paidOn: `${year}-${monthStr}-${paymentDay}`,
-          gross: `₹${baseGross.toLocaleString()}`,
-          net: `₹${baseNet.toLocaleString()}`,
-          status: status,
-          employeeName: isEven ? 'Karan Singh' : 'Priya Nair',
-          employeeId: isEven ? 'SE-118' : 'SE-042',
-          department: isEven ? 'Engineering' : 'Management'
-        });
+  // Helper function to extract month/year from payslip
+  const extractPayslipPeriod = (payslip: any): { month: number; year: number } => {
+    let month, year;
+    
+    // Method 1: From payrollRun object (preferred)
+    if (payslip.payrollRun?.payrollMonth && payslip.payrollRun?.payrollYear) {
+      month = payslip.payrollRun.payrollMonth;
+      year = payslip.payrollRun.payrollYear;
+    }
+    // Method 2: From payslip number (fallback) - PS-YYYYMM-X format
+    else if (payslip.payslipNumber) {
+      const regex = /PS-(\d{4})(\d{2})-/;
+      const match = regex.exec(payslip.payslipNumber);
+      if (match) {
+        year = Number.parseInt(match[1], 10);
+        month = Number.parseInt(match[2], 10);
       }
     }
+    // Method 3: From direct properties (fallback)
+    else {
+      month = payslip.month || currentMonth;
+      year = payslip.year || currentYear;
+    }
+    
+    return { month: month || currentMonth, year: year || currentYear };
+  };
 
-    // Override with existing payslips data for last 3 months
-    const existingData = payslips.map((p, index) => {
-      const monthNum = (currentMonth - (2 - index) + 12) % 12 || 12;
-      const yearNum = currentYear - (index === 2 && currentMonth <= 3 ? 1 : 0);
-      const monthStr = monthNum.toString().padStart(2, '0');
-      const monthName = new Date(yearNum, monthNum - 1).toLocaleString('default', { month: 'long' });
-      
-      // Find and update existing record or add new
-      const existingIndex = payslipData.findIndex(d => 
-        d.year === yearNum.toString() && 
-        d.month.includes(monthName)
-      );
-      
-      if (existingIndex !== -1) {
-        payslipData[existingIndex] = {
-          ...payslipData[existingIndex],
-          gross: p.gross,
-          net: p.net,
-          status: 'Generated'
-        };
-      } else {
-        payslipData.push({
-          id: `PS-${yearNum}-${monthStr}`,
-          month: `${monthName} ${yearNum}`,
-          year: yearNum.toString(),
-          paidOn: p.paidOn,
-          gross: p.gross,
-          net: p.net,
-          status: 'Generated',
-          employeeName: 'Karan Singh',
-          employeeId: 'SE-118',
-          department: 'Engineering'
-        });
-      }
-      return payslipData;
-    });
+  // Helper function to map status
+  const mapPayslipStatus = (status: string): 'Generated' | 'Processing' | 'Pending' => {
+    if (status === 'Draft' || status === 'Paid') {
+      return 'Generated';
+    }
+    return status as 'Generated' | 'Processing' | 'Pending';
+  };
+
+  // Helper function to process a single payslip
+  const processPayslip = (payslip: any): PayslipData => {
+    const { month, year } = extractPayslipPeriod(payslip);
+    const monthName = new Date(year, (month || 1) - 1).toLocaleString('default', { month: 'long' });
+    
+    return {
+      id: payslip.payslipId || payslip.id || `PS-${year}-${(month || 1).toString().padStart(2, '0')}`,
+      month: `${monthName} ${year}`,
+      year: year.toString(),
+      paidOn: payslip.paidOn || payslip.generatedAt || new Date().toISOString().split('T')[0],
+      gross: payslip.gross || `₹${(Number(payslip.totalEarnings || 0)).toLocaleString()}`,
+      net: payslip.net || `₹${(Number(payslip.netSalary || 0)).toLocaleString()}`,
+      status: mapPayslipStatus(payslip.status),
+      employeeName: payslip.employeeName || payslip.employeeNameSnapshot || payslip.employee?.fullName || 'Employee',
+      employeeId: payslip.employeeId || payslip.employee?.employeeId || 'EMP-001',
+      department: payslip.department || payslip.employeeDepartmentSnapshot || payslip.employee?.assignedDepartment || 'Unknown'
+    };
+  };
+
+  // Generate payslip data with actual API data
+  const allPayslips: PayslipData[] = useMemo(() => {
+    console.log('Raw payslips data:', payslips); // Debug log
+    
+    // Convert actual payslips from API to the expected format
+    const actualPayslips = payslips.map(processPayslip);
 
     // Sort by year descending, then month descending
-    return payslipData.sort((a, b) => {
-      if (a.year !== b.year) return parseInt(b.year) - parseInt(a.year);
-      const monthA = new Date(a.month).getMonth() || 0;
-      const monthB = new Date(b.month).getMonth() || 0;
+    return actualPayslips.sort((a, b) => {
+      if (a.year !== b.year) return Number.parseInt(b.year, 10) - Number.parseInt(a.year, 10);
+      // Parse month from the "Month YYYY" format
+      const monthA = new Date(Date.parse(a.month + " 1")).getMonth();
+      const monthB = new Date(Date.parse(b.month + " 1")).getMonth();
       return monthB - monthA;
     });
   }, [payslips, currentYear, currentMonth]);
@@ -286,6 +274,39 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ tc, downloadPayslip, payslips
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Tab Navigation */}
+      <div className={`${tc.bgCard} p-2 rounded-2xl ${tc.border} ${tc.shadow} flex gap-1`}>
+        <button
+          type="button"
+          onClick={() => setActiveTab('payslips')}
+          className={`flex-1 px-4 py-2.5 rounded-xl font-medium transition-all duration-300 flex items-center justify-center gap-2 ${
+            activeTab === 'payslips'
+              ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-lg shadow-indigo-500/25'
+              : `${tc.textSecondary} hover:${tc.bgCardHover}`
+          }`}
+        >
+          <DocumentTextIcon className="w-4 h-4" />
+          My Payslips
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('automation')}
+          className={`flex-1 px-4 py-2.5 rounded-xl font-medium transition-all duration-300 flex items-center justify-center gap-2 ${
+            activeTab === 'automation'
+              ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg shadow-purple-500/25'
+              : `${tc.textSecondary} hover:${tc.bgCardHover}`
+          }`}
+        >
+          <CogIcon className="w-4 h-4" />
+          Automation
+        </button>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'automation' ? (
+        <PayslipAutomation tc={tc} />
+      ) : (
+        <div className="space-y-4 sm:space-y-6">
       {/* Generate Current Month Payslip Banner */}
       {canGenerateCurrentMonth && (
         <div className={`bg-gradient-to-r from-emerald-500/20 to-emerald-600/10 border border-emerald-500/30 rounded-2xl p-4 sm:p-6 animate-fadeIn relative overflow-hidden`}>
@@ -871,6 +892,8 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ tc, downloadPayslip, payslips
           animation: slideDown 0.3s ease-out forwards;
         }
       `}</style>
+        </div>
+      )}
     </div>
   );
 };

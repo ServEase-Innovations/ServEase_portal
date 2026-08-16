@@ -384,5 +384,264 @@ export const payslipService = {
   },
 };
 
+// ============= PAYSLIP AUTOMATION API =============
+
+export interface BulkPayslipResult {
+  success: boolean;
+  totalEmployees: number;
+  successfulPayslips: number;
+  failedPayslips: number;
+  generationTimeMs: number;
+  errors: Array<{
+    employeeId: string;
+    error: string;
+  }>;
+}
+
+export interface HistoricalGenerationResult {
+  success: boolean;
+  totalMonths: number;
+  successfulMonths: number;
+  failedMonths: number;
+  totalGenerationTime: number;
+  monthResults: Array<{
+    month: number;
+    year: number;
+    success: boolean;
+    totalEmployees: number;
+    successfulPayslips: number;
+    failedPayslips: number;
+    errors: Array<{ employeeId: string; error: string }>;
+  }>;
+  overallErrors: string[];
+}
+
+export interface PayslipCoverage {
+  coverage: Array<{
+    month: number;
+    year: number;
+    totalPayslips: number;
+    totalEmployees: number;
+    coveragePercentage: number;
+  }>;
+  missingMonths: Array<{ month: number; year: number }>;
+  summary: {
+    totalMonthsCovered: number;
+    totalMonthsExpected: number;
+    overallCoveragePercentage: number;
+  };
+}
+
+export interface SchedulerStatus {
+  scheduler: {
+    isActive: boolean;
+    isRunning: boolean;
+    nextScheduledRun: string | null;
+    taskName: string | null;
+  };
+  configuration: {
+    enabled: boolean;
+    cronExpression: string;
+    timezone: string;
+    retryAttempts: number;
+    retryDelayMs: number;
+  };
+}
+
+export const payslipAutomationService = {
+  /**
+   * Manually trigger monthly payslip generation for current month
+   * @returns Bulk generation result
+   * @access SuperAdmin, Manager
+   */
+  triggerMonthlyGeneration: async (): Promise<{ message: string; result: BulkPayslipResult }> => {
+    const response = await api.post<{ message: string; result: BulkPayslipResult }>('/payslips/automation/generate-monthly');
+    return response.data;
+  },
+
+  /**
+   * Generate payslips for a specific month/year
+   * @param month - Month (1-12)
+   * @param year - Year
+   * @returns Bulk generation result
+   * @access SuperAdmin, Manager
+   */
+  generateForMonth: async (month: number, year: number): Promise<{ 
+    message: string; 
+    period: { month: number; year: number }; 
+    result: BulkPayslipResult;
+  }> => {
+    const response = await api.post<{ 
+      message: string; 
+      period: { month: number; year: number }; 
+      result: BulkPayslipResult;
+    }>('/payslips/automation/generate-for-month', { month, year });
+    return response.data;
+  },
+
+  /**
+   * Generate historical payslips from January 2026 to current month
+   * @returns Historical generation result
+   * @access SuperAdmin, Manager
+   */
+  generateHistoricalPayslips: async (): Promise<{ 
+    message: string; 
+    result: HistoricalGenerationResult;
+  }> => {
+    const response = await api.post<{ 
+      message: string; 
+      result: HistoricalGenerationResult;
+    }>('/payslips/automation/generate-historical');
+    return response.data;
+  },
+
+  /**
+   * Generate payslips for a custom date range
+   * @param startMonth - Starting month (1-12)
+   * @param startYear - Starting year
+   * @param endMonth - Ending month (1-12) 
+   * @param endYear - Ending year
+   * @returns Historical generation result
+   * @access SuperAdmin, Manager
+   */
+  generateForDateRange: async (
+    startMonth: number, 
+    startYear: number, 
+    endMonth: number, 
+    endYear: number
+  ): Promise<{ 
+    message: string; 
+    dateRange: { startMonth: number; startYear: number; endMonth: number; endYear: number };
+    result: HistoricalGenerationResult;
+  }> => {
+    const response = await api.post<{ 
+      message: string; 
+      dateRange: { startMonth: number; startYear: number; endMonth: number; endYear: number };
+      result: HistoricalGenerationResult;
+    }>('/payslips/automation/generate-date-range', { 
+      startMonth, 
+      startYear, 
+      endMonth, 
+      endYear 
+    });
+    return response.data;
+  },
+
+  /**
+   * Get payslip coverage analysis
+   * @returns Coverage analysis showing missing months
+   * @access SuperAdmin, Manager
+   */
+  getCoverage: async (): Promise<PayslipCoverage & { message: string }> => {
+    const response = await api.get<PayslipCoverage & { message: string }>('/payslips/automation/coverage');
+    return response.data;
+  },
+
+  /**
+   * Get scheduler status
+   * @returns Current scheduler status and configuration
+   * @access SuperAdmin, Manager
+   */
+  getSchedulerStatus: async (): Promise<SchedulerStatus> => {
+    const response = await api.get<SchedulerStatus>('/payslips/automation/scheduler/status');
+    return response.data;
+  },
+
+  /**
+   * Start the automatic payslip scheduler
+   * @returns Success message and status
+   * @access SuperAdmin only
+   */
+  startScheduler: async (): Promise<{ message: string; status: SchedulerStatus }> => {
+    const response = await api.post<{ message: string; status: SchedulerStatus }>('/payslips/automation/scheduler/start');
+    return response.data;
+  },
+
+  /**
+   * Stop the automatic payslip scheduler
+   * @returns Success message and status
+   * @access SuperAdmin only
+   */
+  stopScheduler: async (): Promise<{ message: string; status: SchedulerStatus }> => {
+    const response = await api.post<{ message: string; status: SchedulerStatus }>('/payslips/automation/scheduler/stop');
+    return response.data;
+  },
+};
+
 // Export api instance as default
 export default api;
+// Automation API endpoints
+export const payslipAutomationApi = {
+  /**
+   * Get automation status
+   * @returns Current automation status
+   * @access SuperAdmin, HR
+   */
+  getStatus: async () => {
+    const response = await api.get('/payslips/automation/status');
+    return response.data;
+  },
+
+  /**
+   * Start the scheduler
+   * @returns Success message
+   * @access SuperAdmin
+   */
+  startScheduler: async () => {
+    const response = await api.post('/payslips/automation/scheduler/start');
+    return response.data;
+  },
+
+  /**
+   * Stop the scheduler
+   * @returns Success message
+   * @access SuperAdmin
+   */
+  stopScheduler: async () => {
+    const response = await api.post('/payslips/automation/scheduler/stop');
+    return response.data;
+  },
+
+  /**
+   * Generate historical payslips
+   * @param request - Historical generation request
+   * @returns Generation progress
+   * @access SuperAdmin
+   */
+  generateHistorical: async (request: any) => {
+    const response = await api.post('/payslips/automation/generate-historical', request);
+    return response.data;
+  },
+
+  /**
+   * Get coverage analysis
+   * @returns Coverage analysis data
+   * @access SuperAdmin, HR
+   */
+  getCoverageAnalysis: async () => {
+    const response = await api.get('/payslips/automation/coverage-analysis');
+    return response.data;
+  },
+
+  /**
+   * Generate current month payslips
+   * @param request - Generation request
+   * @returns Generation result
+   * @access SuperAdmin
+   */
+  generateCurrentMonth: async (request: any) => {
+    const response = await api.post('/payslips/automation/generate-bulk', request);
+    return response.data;
+  },
+
+  /**
+   * Get generation progress
+   * @param sessionId - Generation session ID
+   * @returns Current progress
+   * @access SuperAdmin, HR
+   */
+  getProgress: async (sessionId: string) => {
+    const response = await api.get(`/payslips/automation/progress/${sessionId}`);
+    return response.data;
+  },
+};

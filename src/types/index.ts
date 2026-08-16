@@ -549,3 +549,148 @@ export interface PayslipData {
     professionalTax: number;
   };
 }
+
+// ============= PAYSLIP AUTOMATION TYPES =============
+
+export interface BulkPayslipResult {
+  success: boolean;
+  totalEmployees: number;
+  successfulPayslips: number;
+  failedPayslips: number;
+  generationTimeMs: number;
+  errors: Array<{
+    employeeId: string;
+    error: string;
+  }>;
+}
+
+export interface MonthResult {
+  month: number;
+  year: number;
+  success: boolean;
+  totalEmployees: number;
+  successfulPayslips: number;
+  failedPayslips: number;
+  errors: Array<{ employeeId: string; error: string }>;
+}
+
+export interface HistoricalGenerationResult {
+  success: boolean;
+  totalMonths: number;
+  successfulMonths: number;
+  failedMonths: number;
+  totalGenerationTime: number;
+  monthResults: MonthResult[];
+  overallErrors: string[];
+}
+
+export interface PayslipCoverageMonth {
+  month: number;
+  year: number;
+  totalPayslips: number;
+  totalEmployees: number;
+  coveragePercentage: number;
+}
+
+export interface PayslipCoverage {
+  coverage: PayslipCoverageMonth[];
+  missingMonths: Array<{ month: number; year: number }>;
+  summary: {
+    totalMonthsCovered: number;
+    totalMonthsExpected: number;
+    overallCoveragePercentage: number;
+  };
+}
+
+export interface SchedulerConfig {
+  enabled: boolean;
+  cronExpression: string;
+  timezone: string;
+  retryAttempts: number;
+  retryDelayMs: number;
+}
+
+export interface SchedulerInfo {
+  isActive: boolean;
+  isRunning: boolean;
+  nextScheduledRun: string | null;
+  taskName: string | null;
+}
+
+export interface SchedulerStatus {
+  scheduler: SchedulerInfo;
+  configuration: SchedulerConfig;
+}
+// ============= PAYSLIP AUTOMATION TYPES =============
+
+// Scheduler status interface
+export interface PayslipSchedulerStatus {
+  enabled: boolean;
+  nextRun: string | null;
+  lastRun: string | null;
+  schedule: string; // cron expression
+  timezone: string;
+}
+
+// Automation status response
+export interface PayslipAutomationStatus {
+  scheduler: PayslipSchedulerStatus;
+  lastBulkGeneration: {
+    date: string | null;
+    processed: number;
+    errors: number;
+  };
+  systemStatus: {
+    enabled: boolean;
+    version: string;
+  };
+}
+
+// Historical generation request
+export interface PayslipHistoricalRequest {
+  startDate: string; // YYYY-MM-DD
+  endDate: string;   // YYYY-MM-DD
+  employeeIds?: string[];
+  dryRun?: boolean;
+}
+
+// Bulk generation request
+export interface PayslipGenerationRequest {
+  date: string;      // YYYY-MM-DD
+  employeeIds?: string[];
+  dryRun?: boolean;
+}
+
+// Generation progress response
+export interface PayslipGenerationProgress {
+  total: number;
+  processed: number;
+  successful: number;
+  failed: number;
+  errors: string[];
+  completed: boolean;
+  startTime: string;
+  estimatedCompletion?: string;
+}
+
+// Coverage analysis response
+export interface PayslipCoverageAnalysis {
+  totalEmployees: number;
+  monthsAnalyzed: number;
+  generatedPayslips: number;
+  missingPayslips: number;
+  coveragePercentage: number;
+  missingRecords: Array<{
+    employeeId: string;
+    employeeName: string;
+    monthYear: string;
+    reason?: string;
+  }>;
+  monthlyBreakdown: Array<{
+    month: string;
+    year: number;
+    expectedCount: number;
+    actualCount: number;
+    coverage: number;
+  }>;
+}
