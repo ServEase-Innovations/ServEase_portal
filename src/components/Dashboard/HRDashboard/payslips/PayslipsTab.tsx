@@ -22,6 +22,9 @@ import { ThemeClasses } from '../types';
 import PayslipAutomation from './PayslipAutomation';
 import moment from 'moment';
 
+// Type alias for payslip status
+type PayslipStatus = 'Generated' | 'Processing' | 'Pending';
+
 interface PayslipData {
   id: string;
   month: string;
@@ -29,7 +32,7 @@ interface PayslipData {
   paidOn: string;
   gross: string;
   net: string;
-  status: 'Generated' | 'Processing' | 'Pending';
+  status: PayslipStatus;
   employeeName: string;
   employeeId: string;
   department: string;
@@ -41,6 +44,68 @@ interface PayslipsTabProps {
   payslips: { month: string; paidOn: string; gross: string; net: string; }[];
   generatePayslipData: (employeeName?: string) => any;
 }
+
+// Helper function to extract month/year from payslip
+const extractPayslipPeriod = (
+  payslip: any,
+  currentMonth: number,
+  currentYear: number
+): { month: number; year: number } => {
+  let month, year;
+  
+  // Method 1: From payrollRun object (preferred)
+  if (payslip.payrollRun?.payrollMonth && payslip.payrollRun?.payrollYear) {
+    month = payslip.payrollRun.payrollMonth;
+    year = payslip.payrollRun.payrollYear;
+  }
+  // Method 2: From payslip number (fallback) - PS-YYYYMM-X format
+  else if (payslip.payslipNumber) {
+    const regex = /PS-(\d{4})(\d{2})-/;
+    const match = regex.exec(payslip.payslipNumber);
+    if (match) {
+      year = Number.parseInt(match[1], 10);
+      month = Number.parseInt(match[2], 10);
+    }
+  }
+  // Method 3: From direct properties (fallback)
+  else {
+    month = payslip.month || currentMonth;
+    year = payslip.year || currentYear;
+  }
+  
+  return { month: month || currentMonth, year: year || currentYear };
+};
+
+// Helper function to map status
+const mapPayslipStatus = (status: string): PayslipStatus => {
+  if (status === 'Draft' || status === 'Paid') {
+    return 'Generated';
+  }
+  return status as PayslipStatus;
+};
+
+// Helper function to process a single payslip
+const processPayslip = (
+  payslip: any,
+  currentMonth: number,
+  currentYear: number
+): PayslipData => {
+  const { month, year } = extractPayslipPeriod(payslip, currentMonth, currentYear);
+  const monthName = new Date(year, (month || 1) - 1).toLocaleString('default', { month: 'long' });
+  
+  return {
+    id: payslip.payslipId || payslip.id || `PS-${year}-${(month || 1).toString().padStart(2, '0')}`,
+    month: `${monthName} ${year}`,
+    year: year.toString(),
+    paidOn: payslip.paidOn || payslip.generatedAt || new Date().toISOString().split('T')[0],
+    gross: payslip.gross || `₹${(Number(payslip.totalEarnings || 0)).toLocaleString()}`,
+    net: payslip.net || `₹${(Number(payslip.netSalary || 0)).toLocaleString()}`,
+    status: mapPayslipStatus(payslip.status),
+    employeeName: payslip.employeeName || payslip.employeeNameSnapshot || payslip.employee?.fullName || 'Employee',
+    employeeId: payslip.employeeId || payslip.employee?.employeeId || 'EMP-001',
+    department: payslip.department || payslip.employeeDepartmentSnapshot || payslip.employee?.assignedDepartment || 'Unknown'
+  };
+};
 
 const PayslipsTab: React.FC<PayslipsTabProps> = ({ tc, downloadPayslip, payslips, generatePayslipData }) => {
   const currentDate = moment();
@@ -94,66 +159,14 @@ const PayslipsTab: React.FC<PayslipsTabProps> = ({ tc, downloadPayslip, payslips
     return months;
   }, [selectedYear, currentYear, currentMonth]);
 
-  // Helper function to extract month/year from payslip
-  const extractPayslipPeriod = (payslip: any): { month: number; year: number } => {
-    let month, year;
-    
-    // Method 1: From payrollRun object (preferred)
-    if (payslip.payrollRun?.payrollMonth && payslip.payrollRun?.payrollYear) {
-      month = payslip.payrollRun.payrollMonth;
-      year = payslip.payrollRun.payrollYear;
-    }
-    // Method 2: From payslip number (fallback) - PS-YYYYMM-X format
-    else if (payslip.payslipNumber) {
-      const regex = /PS-(\d{4})(\d{2})-/;
-      const match = regex.exec(payslip.payslipNumber);
-      if (match) {
-        year = Number.parseInt(match[1], 10);
-        month = Number.parseInt(match[2], 10);
-      }
-    }
-    // Method 3: From direct properties (fallback)
-    else {
-      month = payslip.month || currentMonth;
-      year = payslip.year || currentYear;
-    }
-    
-    return { month: month || currentMonth, year: year || currentYear };
-  };
-
-  // Helper function to map status
-  const mapPayslipStatus = (status: string): 'Generated' | 'Processing' | 'Pending' => {
-    if (status === 'Draft' || status === 'Paid') {
-      return 'Generated';
-    }
-    return status as 'Generated' | 'Processing' | 'Pending';
-  };
-
-  // Helper function to process a single payslip
-  const processPayslip = (payslip: any): PayslipData => {
-    const { month, year } = extractPayslipPeriod(payslip);
-    const monthName = new Date(year, (month || 1) - 1).toLocaleString('default', { month: 'long' });
-    
-    return {
-      id: payslip.payslipId || payslip.id || `PS-${year}-${(month || 1).toString().padStart(2, '0')}`,
-      month: `${monthName} ${year}`,
-      year: year.toString(),
-      paidOn: payslip.paidOn || payslip.generatedAt || new Date().toISOString().split('T')[0],
-      gross: payslip.gross || `₹${(Number(payslip.totalEarnings || 0)).toLocaleString()}`,
-      net: payslip.net || `₹${(Number(payslip.netSalary || 0)).toLocaleString()}`,
-      status: mapPayslipStatus(payslip.status),
-      employeeName: payslip.employeeName || payslip.employeeNameSnapshot || payslip.employee?.fullName || 'Employee',
-      employeeId: payslip.employeeId || payslip.employee?.employeeId || 'EMP-001',
-      department: payslip.department || payslip.employeeDepartmentSnapshot || payslip.employee?.assignedDepartment || 'Unknown'
-    };
-  };
-
   // Generate payslip data with actual API data
   const allPayslips: PayslipData[] = useMemo(() => {
     console.log('Raw payslips data:', payslips); // Debug log
     
     // Convert actual payslips from API to the expected format
-    const actualPayslips = payslips.map(processPayslip);
+    const actualPayslips = payslips.map((payslip) => 
+      processPayslip(payslip, currentMonth, currentYear)
+    );
 
     // Sort by year descending, then month descending
     return actualPayslips.sort((a, b) => {

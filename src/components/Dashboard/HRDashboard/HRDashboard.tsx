@@ -69,7 +69,6 @@ const HRDashboard = () => {
   const [selectedDepartment, setSelectedDepartment] = useState('All');
   const [showOnboardModal, setShowOnboardModal] = useState(false);
   const [payslips, setPayslips] = useState<any[]>([]);
-  const [isLoadingPayslips, setIsLoadingPayslips] = useState(false);
 
   // Timer Hook
   const timer = useTimer('Sanya Kapoor');
@@ -77,7 +76,6 @@ const HRDashboard = () => {
   // Load payslips data
   const loadPayslips = async () => {
     try {
-      setIsLoadingPayslips(true);
       console.log('🔍 Loading payslips...'); // Debug log
       
       // Try to get user from different sources
@@ -104,7 +102,8 @@ const HRDashboard = () => {
       console.error('❌ Failed to load payslips:', error);
       console.error('❌ Error details:', error.response?.data || error.message);
       
-      // If API fails due to auth, let's use test data that matches backend structure
+      // Fallback to test data for development/demo purposes
+      // In production, you might want to show an error message to the user instead
       console.log('🔄 API failed (likely auth), using test data to verify date processing...');
       
       const testPayslips = [
@@ -144,8 +143,6 @@ const HRDashboard = () => {
       
       console.log('🧪 Using test payslips:', testPayslips);
       setPayslips(testPayslips);
-    } finally {
-      setIsLoadingPayslips(false);
     }
   };
 
