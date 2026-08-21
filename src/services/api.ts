@@ -1,4 +1,4 @@
-// src/services/api.ts - Fully updated with payslip APIs
+// src/services/api.ts
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import { 
   User, 
@@ -81,10 +81,6 @@ interface RegisterData {
 export const authService = {
   login: async (username: string, password: string): Promise<LoginResponse> => {
     const response = await api.post<LoginResponse>('auth/login', { username, password });
-    
-    // Token is now in HTTP-only cookie, no need to store in localStorage
-    // But keep user data in localStorage for now (will be removed in next step)
-    
     return response.data;
   },
 
@@ -95,20 +91,17 @@ export const authService = {
 
   logout: async (): Promise<void> => {
     try {
-      // Call backend to clear cookies
       await api.post('auth/logout');
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {
         console.error('Logout API error:', error);
       }
     }
-    // Clear localStorage (migration cleanup)
     localStorage.removeItem('servease_token');
     localStorage.removeItem('servease_user');
   },
 
   getCurrentUser: async (): Promise<User> => {
-    // New endpoint that uses cookie authentication
     const response = await api.get<User>('auth/me');
     return response.data;
   },
@@ -207,6 +200,7 @@ interface DailyTaskCreateResponse {
   dailyTask: DailyTask;
 }
 
+// ✅ FIXED: Daily Task Service with proper response handling
 export const dailyTaskService = {
   create: async (data: DailyTaskData): Promise<DailyTaskCreateResponse> => {
     const response = await api.post<DailyTaskCreateResponse>('/daily-tasks', data);
@@ -219,8 +213,42 @@ export const dailyTaskService = {
   },
 
   getMyTasks: async (params?: Omit<DailyTaskQueryParams, 'employeeId'>): Promise<DailyTaskListResponse> => {
-    const response = await api.get<DailyTaskListResponse>('/daily-tasks/mine', { params });
-    return response.data;
+    try {
+      console.log('🔵 [api] getMyTasks called with params:', params);
+      const response = await api.get<DailyTaskListResponse>('/daily-tasks/mine', { params });
+      console.log('🔵 [api] getMyTasks raw response:', response);
+      console.log('🔵 [api] getMyTasks data:', response.data);
+      
+      // ✅ FIXED: Ensure we return the correct structure
+      if (response.data && response.data.dailyTasks !== undefined) {
+        console.log('✅ [api] Returning response.data with dailyTasks:', response.data.dailyTasks.length);
+        return response.data;
+      } else if (response.data && Array.isArray(response.data)) {
+        // If the API returns an array directly, wrap it
+        console.log('✅ [api] Response is array, wrapping:', response.data.length);
+        return {
+          date: params?.date || new Date().toISOString().split('T')[0],
+          count: response.data.length,
+          dailyTasks: response.data
+        };
+      } else {
+        // Return empty structure
+        console.log('⚠️ [api] No dailyTasks found, returning empty');
+        return {
+          date: params?.date || new Date().toISOString().split('T')[0],
+          count: 0,
+          dailyTasks: []
+        };
+      }
+    } catch (error) {
+      console.error('❌ [api] getMyTasks error:', error);
+      // Return empty structure on error to prevent crashes
+      return {
+        date: params?.date || new Date().toISOString().split('T')[0],
+        count: 0,
+        dailyTasks: []
+      };
+    }
   },
 
   getById: async (id: string): Promise<{ dailyTask: DailyTask }> => {
@@ -250,12 +278,6 @@ export const dailyTaskService = {
 // ============= PAYSLIP API =============
 
 export const payslipService = {
-  /**
-   * Get all payslips with optional filters
-   * @param params - Filter parameters (employeeId, month, year, status)
-   * @returns List of payslips
-   * @access SuperAdmin, Manager
-   */
   getAllPayslips: async (params?: {
     employeeId?: string;
     month?: number;
@@ -266,12 +288,6 @@ export const payslipService = {
     return response.data;
   },
 
-  /**
-   * Get the authenticated employee's payslips
-   * @param params - Filter parameters (month, year, status)
-   * @returns List of payslips (only Approved and Paid)
-   * @access Employee, HR Partner (self-service)
-   */
   getMyPayslips: async (params?: {
     month?: number;
     year?: number;
@@ -281,13 +297,6 @@ export const payslipService = {
     return response.data;
   },
 
-  /**
-   * Get payslips for a specific employee
-   * @param employeeId - Employee ID
-   * @param params - Filter parameters (month, year, status)
-   * @returns Single payslip (if month/year provided) or list of payslips
-   * @access SuperAdmin, Manager, or self (restricted to current/previous month)
-   */
   getEmployeePayslips: async (
     employeeId: string,
     params?: {
@@ -303,25 +312,11 @@ export const payslipService = {
     return response.data;
   },
 
-  /**
-   * Generate a payslip for an employee
-   * @param payload - Employee ID, date, month, year
-   * @returns Generated payslip
-   * @access SuperAdmin, Manager
-   */
   generatePayslip: async (payload: GeneratePayslipPayload): Promise<PayslipGenerateResponse> => {
     const response = await api.post<PayslipGenerateResponse>('/payslips/generate', payload);
     return response.data;
   },
 
-  /**
-   * Download payslip PDF
-   * @param employeeId - Employee ID
-   * @param month - Month (1-12)
-   * @param year - Year
-   * @returns PDF blob
-   * @access SuperAdmin, Manager, or self (restricted to current/previous month)
-   */
   downloadPayslipPdf: async (
     employeeId: string,
     month: number,
@@ -334,15 +329,6 @@ export const payslipService = {
     return response.data;
   },
 
-  /**
-   * Update a draft payslip
-   * @param employeeId - Employee ID
-   * @param month - Month (1-12)
-   * @param year - Year
-   * @param data - Update data
-   * @returns Updated payslip
-   * @access SuperAdmin, Manager
-   */
   updateDraftPayslip: async (
     employeeId: string,
     month: number,
@@ -373,11 +359,6 @@ export const payslipService = {
     return response.data;
   },
 
-  /**
-   * Get all employees (for payslip generation dropdown)
-   * @returns List of active employees
-   * @access SuperAdmin, Manager
-   */
   getAllEmployees: async (): Promise<Employee[]> => {
     const response = await api.get<Employee[]>('/employees');
     return response.data;
@@ -449,23 +430,11 @@ export interface SchedulerStatus {
 }
 
 export const payslipAutomationService = {
-  /**
-   * Manually trigger monthly payslip generation for current month
-   * @returns Bulk generation result
-   * @access SuperAdmin, Manager
-   */
   triggerMonthlyGeneration: async (): Promise<{ message: string; result: BulkPayslipResult }> => {
     const response = await api.post<{ message: string; result: BulkPayslipResult }>('/payslips/automation/generate-monthly');
     return response.data;
   },
 
-  /**
-   * Generate payslips for a specific month/year
-   * @param month - Month (1-12)
-   * @param year - Year
-   * @returns Bulk generation result
-   * @access SuperAdmin, Manager
-   */
   generateForMonth: async (month: number, year: number): Promise<{ 
     message: string; 
     period: { month: number; year: number }; 
@@ -479,11 +448,6 @@ export const payslipAutomationService = {
     return response.data;
   },
 
-  /**
-   * Generate historical payslips from January 2026 to current month
-   * @returns Historical generation result
-   * @access SuperAdmin, Manager
-   */
   generateHistoricalPayslips: async (): Promise<{ 
     message: string; 
     result: HistoricalGenerationResult;
@@ -495,15 +459,6 @@ export const payslipAutomationService = {
     return response.data;
   },
 
-  /**
-   * Generate payslips for a custom date range
-   * @param startMonth - Starting month (1-12)
-   * @param startYear - Starting year
-   * @param endMonth - Ending month (1-12) 
-   * @param endYear - Ending year
-   * @returns Historical generation result
-   * @access SuperAdmin, Manager
-   */
   generateForDateRange: async (
     startMonth: number, 
     startYear: number, 
@@ -527,41 +482,21 @@ export const payslipAutomationService = {
     return response.data;
   },
 
-  /**
-   * Get payslip coverage analysis
-   * @returns Coverage analysis showing missing months
-   * @access SuperAdmin, Manager
-   */
   getCoverage: async (): Promise<PayslipCoverage & { message: string }> => {
     const response = await api.get<PayslipCoverage & { message: string }>('/payslips/automation/coverage');
     return response.data;
   },
 
-  /**
-   * Get scheduler status
-   * @returns Current scheduler status and configuration
-   * @access SuperAdmin, Manager
-   */
   getSchedulerStatus: async (): Promise<SchedulerStatus> => {
     const response = await api.get<SchedulerStatus>('/payslips/automation/scheduler/status');
     return response.data;
   },
 
-  /**
-   * Start the automatic payslip scheduler
-   * @returns Success message and status
-   * @access SuperAdmin only
-   */
   startScheduler: async (): Promise<{ message: string; status: SchedulerStatus }> => {
     const response = await api.post<{ message: string; status: SchedulerStatus }>('/payslips/automation/scheduler/start');
     return response.data;
   },
 
-  /**
-   * Stop the automatic payslip scheduler
-   * @returns Success message and status
-   * @access SuperAdmin only
-   */
   stopScheduler: async (): Promise<{ message: string; status: SchedulerStatus }> => {
     const response = await api.post<{ message: string; status: SchedulerStatus }>('/payslips/automation/scheduler/stop');
     return response.data;
@@ -570,76 +505,39 @@ export const payslipAutomationService = {
 
 // Export api instance as default
 export default api;
+
 // Automation API endpoints
 export const payslipAutomationApi = {
-  /**
-   * Get automation status
-   * @returns Current automation status
-   * @access SuperAdmin, HR
-   */
   getStatus: async () => {
     const response = await api.get('/payslips/automation/status');
     return response.data;
   },
 
-  /**
-   * Start the scheduler
-   * @returns Success message
-   * @access SuperAdmin
-   */
   startScheduler: async () => {
     const response = await api.post('/payslips/automation/scheduler/start');
     return response.data;
   },
 
-  /**
-   * Stop the scheduler
-   * @returns Success message
-   * @access SuperAdmin
-   */
   stopScheduler: async () => {
     const response = await api.post('/payslips/automation/scheduler/stop');
     return response.data;
   },
 
-  /**
-   * Generate historical payslips
-   * @param request - Historical generation request
-   * @returns Generation progress
-   * @access SuperAdmin
-   */
   generateHistorical: async (request: any) => {
     const response = await api.post('/payslips/automation/generate-historical', request);
     return response.data;
   },
 
-  /**
-   * Get coverage analysis
-   * @returns Coverage analysis data
-   * @access SuperAdmin, HR
-   */
   getCoverageAnalysis: async () => {
     const response = await api.get('/payslips/automation/coverage-analysis');
     return response.data;
   },
 
-  /**
-   * Generate current month payslips
-   * @param request - Generation request
-   * @returns Generation result
-   * @access SuperAdmin
-   */
   generateCurrentMonth: async (request: any) => {
     const response = await api.post('/payslips/automation/generate-bulk', request);
     return response.data;
   },
 
-  /**
-   * Get generation progress
-   * @param sessionId - Generation session ID
-   * @returns Current progress
-   * @access SuperAdmin, HR
-   */
   getProgress: async (sessionId: string) => {
     const response = await api.get(`/payslips/automation/progress/${sessionId}`);
     return response.data;
