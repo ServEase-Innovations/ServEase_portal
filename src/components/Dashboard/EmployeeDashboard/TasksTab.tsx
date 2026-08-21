@@ -54,14 +54,28 @@ interface DailyTask {
   submittedAtEpoch: string;
   updatedAt: string;
   updatedAtEpoch: string;
-  jiraLinks: JiraLink[];
+  jiraLinks: Array<{
+    dailyTaskJiraLinkId: string;
+    label: string | null;
+    url: string;
+    createdAt: string;
+    createdAtEpoch: string;
+  }>;
   attachments: Attachment[];
   employee?: any;
 }
 
+// Returns the browser's LOCAL calendar date as YYYY-MM-DD
+const getLocalDateString = (date: Date = new Date()): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
   const tc = getThemeClasses(theme);
-  const { user, token } = useAuth();
+  const { user, token, isAuthenticated } = useAuth();
   
   const [taskStatus, setTaskStatus] = useState<'Pending' | 'Completed'>('Pending');
   const [jiraLinks, setJiraLinks] = useState<JiraLink[]>([{ url: '' }]);
@@ -74,30 +88,36 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fetchingHistory, setFetchingHistory] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [statusFilter, setStatusFilter] = useState<'Pending' | 'Completed' | ''>(''); // Add status filter
+  
+  // ✅ CHANGE: Set initial date to empty string to show all history
+  const [selectedDate, setSelectedDate] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<'Pending' | 'Completed' | ''>('');
 
-  // Fetch daily tasks for the current user
+  // ✅ FIXED: Fetch daily tasks - handles both date filter and all history
   const fetchMyTasks = async (date?: string) => {
-    if (!token) {
-      console.error('No authentication token available');
+    if (!isAuthenticated) {
+      console.error('User not authenticated');
+      toast.error('Please login to view your tasks');
       return;
     }
 
     setFetchingHistory(true);
     try {
       const params: any = {};
-      if (date) {
+      
+      // ✅ Only add date param if a specific date is selected
+      if (date && date.trim() !== '') {
         params.date = date;
       }
+      
       if (statusFilter) {
         params.status = statusFilter;
       }
       
+      console.log('📤 Fetching tasks with params:', params);
       const response = await dailyTaskService.getMyTasks(params);
-      console.log('Fetched tasks:', response);
+      console.log('📥 Fetched tasks response:', response);
       
-      // Fix: Use the correct response structure - response.dailyTasks directly (not response.data.dailyTasks)
       if (response && response.dailyTasks) {
         setTaskHistory(response.dailyTasks);
       } else {
@@ -105,18 +125,23 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
       }
     } catch (error: any) {
       console.error('Failed to fetch tasks:', error);
-      toast.error(error.message || 'Failed to fetch task history');
+      if (error.response?.status === 401) {
+        toast.error('Session expired. Please login again.');
+      } else {
+        toast.error(error.message || 'Failed to fetch task history');
+      }
     } finally {
       setFetchingHistory(false);
     }
   };
 
-  // Load tasks on mount and when date or status changes
+  // Load tasks on mount and when dependencies change
   useEffect(() => {
-    if (token) {
+    if (isAuthenticated) {
+      // ✅ Pass the selected date (or empty for all history)
       fetchMyTasks(selectedDate);
     }
-  }, [token, selectedDate, statusFilter]);
+  }, [isAuthenticated, selectedDate, statusFilter]);
 
   const addJiraLink = () => {
     if (jiraLinks.length < 25) {
@@ -143,7 +168,6 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
       const newFiles = Array.from(fileList);
       setFiles([...files, ...newFiles]);
       
-      // Create previews for new files
       newFiles.forEach(file => {
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -163,40 +187,31 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
 
   const handleSubmitTask = async () => {
     console.log('🚀 handleSubmitTask called');
-    console.log('Current state:', {
-      workDescription: workDescription.trim(),
-      taskStatus,
-      newIdeas: newIdeas.trim(),
-      jiraLinks,
-      token: !!token,
-      loading
-    });
+    
+    if (!isAuthenticated) {
+      toast.error('Please login to submit a task');
+      return;
+    }
 
-    // Validate required fields
     const filteredLinks = jiraLinks.filter(link => link.url.trim() !== '');
     
     if (!workDescription.trim()) {
-      console.log('❌ Validation failed: No work description');
       toast.error('Please provide a task description');
       return;
     }
 
-    // Validate Jira URLs
     for (const link of filteredLinks) {
       try {
         new URL(link.url);
       } catch {
-        console.log('❌ Validation failed: Invalid URL:', link.url);
         toast.error(`Invalid URL: ${link.url}`);
         return;
       }
     }
 
-    console.log('✅ Validation passed, starting API call');
     setLoading(true);
 
     try {
-      // Step 1: Create the daily task
       const taskData = {
         workDescription: workDescription.trim(),
         status: taskStatus,
@@ -211,29 +226,25 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
       const createResponse = await dailyTaskService.create(taskData);
       console.log('📥 Task created response:', createResponse);
 
-      // Fix: Use correct response structure
       if (!createResponse || !createResponse.dailyTask) {
         throw new Error('Failed to create task');
       }
 
       const taskId = createResponse.dailyTask.dailyTaskSubmissionId;
 
-      // Step 2: Upload attachments if any
       if (files.length > 0) {
         const formData = new FormData();
         files.forEach(file => {
           formData.append('files', file);
         });
 
-        console.log('Uploading attachments for task:', taskId);
+        console.log('📤 Uploading attachments for task:', taskId);
         await dailyTaskService.uploadAttachments(taskId, formData);
       }
 
-      // Success!
       setShowSuccess(true);
       toast.success('Task submitted successfully!');
       
-      // Reset form
       setWorkDescription('');
       setNewIdeas('');
       setAdditionalInfo('');
@@ -242,13 +253,17 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
       setFilePreviews([]);
       setTaskStatus('Pending');
       
-      // Refresh task history
+      // ✅ Refresh task history (keeps current filter)
       await fetchMyTasks(selectedDate);
       
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (error: any) {
       console.error('Error submitting task:', error);
-      toast.error(error.message || 'Failed to submit task');
+      if (error.response?.status === 401) {
+        toast.error('Session expired. Please login again.');
+      } else {
+        toast.error(error.message || 'Failed to submit task');
+      }
     } finally {
       setLoading(false);
     }
@@ -276,10 +291,8 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
 
   const formatDate = (dateStr: string) => {
     try {
-      // Handle both ISO string and epoch timestamp
       const date = new Date(dateStr);
       if (isNaN(date.getTime())) {
-        // If it's not a valid date, try parsing as epoch timestamp
         const epochTime = parseInt(dateStr);
         if (!isNaN(epochTime)) {
           return new Date(epochTime).toLocaleString();
@@ -300,6 +313,14 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
       case 'Archive': return '📦';
       default: return '📎';
     }
+  };
+
+  // ✅ Format the date for display in the date picker label
+  const getDateDisplayText = () => {
+    if (!selectedDate) {
+      return 'All History';
+    }
+    return selectedDate;
   };
 
   return (
@@ -504,13 +525,13 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
           <button 
             type="button"
             onClick={handleSubmitTask}
-            disabled={loading}
+            disabled={loading || !isAuthenticated}
             className={`w-full bg-gradient-to-r from-indigo-500 to-indigo-600 text-white py-2.5 sm:py-3 rounded-xl font-medium text-sm sm:text-base hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2 group ${
-              loading ? 'opacity-50 cursor-not-allowed' : ''
+              loading || !isAuthenticated ? 'opacity-50 cursor-not-allowed' : ''
             }`}
           >
-            <PaperAirplaneIcon className={`w-4 h-4 sm:w-5 sm:h-5 ${!loading ? 'group-hover:translate-x-1 transition-transform' : ''}`} />
-            {loading ? 'Submitting...' : 'Submit Daily Task'}
+            <PaperAirplaneIcon className={`w-4 h-4 sm:w-5 sm:h-5 ${!loading && isAuthenticated ? 'group-hover:translate-x-1 transition-transform' : ''}`} />
+            {loading ? 'Submitting...' : !isAuthenticated ? 'Please Login' : 'Submit Daily Task'}
           </button>
         </div>
       </div>
@@ -520,9 +541,11 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-3 sm:mb-4">
           <div>
             <h3 className={`font-semibold ${tc.text} text-base sm:text-lg`}>Task History</h3>
-            <p className={`text-sm ${tc.textSecondary}`}>Your submitted daily tasks</p>
+            <p className={`text-sm ${tc.textSecondary}`}>
+              {selectedDate ? `Tasks for ${selectedDate}` : 'All Task History'}
+            </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as 'Pending' | 'Completed' | '')}
@@ -532,12 +555,26 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
               <option value="Pending">Pending</option>
               <option value="Completed">Completed</option>
             </select>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className={`px-2 py-1 ${tc.input} rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent outline-none`}
-            />
+            
+            {/* ✅ Date filter with clear button */}
+            <div className="flex items-center gap-1">
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className={`px-2 py-1 ${tc.input} rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent outline-none`}
+              />
+              {selectedDate && (
+                <button
+                  onClick={() => setSelectedDate('')}
+                  className={`p-1 rounded-lg ${tc.btnBg} transition-all hover:scale-105 text-xs`}
+                  title="Clear date filter (show all history)"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            
             <button
               onClick={() => fetchMyTasks(selectedDate)}
               className={`p-1.5 rounded-lg ${tc.btnBg} transition-all hover:scale-105`}
@@ -555,9 +592,16 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mx-auto"></div>
             <p className={`mt-2 text-sm ${tc.textSecondary}`}>Loading tasks...</p>
           </div>
+        ) : !isAuthenticated ? (
+          <div className={`text-center py-8 ${tc.textSecondary}`}>
+            <p>Please login to view your tasks</p>
+          </div>
         ) : taskHistory.length === 0 ? (
           <div className={`text-center py-8 ${tc.textSecondary}`}>
-            <p>No tasks submitted for this date</p>
+            <p>No tasks found</p>
+            <p className="text-xs mt-2">
+              {selectedDate ? `for ${selectedDate}` : 'in your history'}
+            </p>
           </div>
         ) : (
           <div className="space-y-3 sm:space-y-4">
@@ -570,6 +614,9 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
                     </span>
                     <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-xs font-medium ${getStatusColor(task.status)}`}>
                       {task.status}
+                    </span>
+                    <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-xs font-medium ${tc.textMuted} bg-gray-500/10`}>
+                      {task.submissionDate}
                     </span>
                     {task.jiraLinks.length > 0 && (
                       <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-xs font-medium ${tc.textMuted} bg-gray-500/10`}>
