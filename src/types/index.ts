@@ -694,3 +694,21 @@ export interface PayslipCoverageAnalysis {
     coverage: number;
   }>;
 }
+// ============= EMPLOYEE SEARCH TYPES =============
+
+// Minimal shape used by the header search dropdown — a subset of the full
+// Employee fields returned by GET /employees/search?q=
+export interface EmployeeSearchResult {
+  employeeId: string;
+  fullName: string;
+  emailAddress: string;
+  assignedRole: BackendRole;
+  assignedDepartment: string;
+  isActive: boolean;
+}
+
+export interface EmployeeSearchResponse {
+  query: string;
+  count: number;
+  employees: EmployeeSearchResult[];
+}

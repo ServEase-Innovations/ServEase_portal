@@ -1,7 +1,9 @@
 // Header.tsx - Updated to integrate with EmployeeDashboard and Sidebar
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { employeeSearchService } from '../../services/api';
+import { EmployeeSearchResult } from '../../types';
 import { 
   ChevronDownIcon, 
   ArrowRightOnRectangleIcon,
@@ -31,6 +33,18 @@ interface HeaderProps {
   isMobile?: boolean;
 }
 
+// Friendly labels for the backend role enum, shown in the search dropdown badge
+const ROLE_LABELS: Record<string, string> = {
+  SuperAdmin: 'Super Admin',
+  HR: 'HR',
+  Manager: 'Manager',
+  Developer: 'Developer',
+  Marketing: 'Marketing',
+  CustomStaff: 'Custom Staff',
+};
+
+const SEARCH_DEBOUNCE_MS = 300;
+
 const Header: React.FC<HeaderProps> = ({ 
   title, 
   subtitle, 
@@ -48,6 +62,16 @@ const Header: React.FC<HeaderProps> = ({
   const [notifications] = useState(3);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
+  // ---- Employee search state ----
+  const [searchResults, setSearchResults] = useState<EmployeeSearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Guards against a slow, stale request overwriting a newer one's results
+  const searchRequestIdRef = useRef(0);
+
   const handleLogout = () => {
     logout();
     navigate('/');
@@ -63,6 +87,92 @@ const Header: React.FC<HeaderProps> = ({
 
   const isProfilePage = location.pathname.includes('/profile');
   const isSettingsPage = location.pathname.includes('/settings');
+
+  // Debounced employee search - fires on every keystroke, only actually
+  // calls the API SEARCH_DEBOUNCE_MS after the user stops typing. Backend
+  // (pg_trgm) supports single-letter queries, so we search from 1 char up.
+  useEffect(() => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    const trimmed = searchQuery.trim();
+
+    if (!trimmed) {
+      setSearchResults([]);
+      setSearchError(null);
+      setIsSearching(false);
+      setIsSearchOpen(false);
+      return;
+    }
+
+    setIsSearchOpen(true);
+    setIsSearching(true);
+    setSearchError(null);
+
+    debounceRef.current = setTimeout(async () => {
+      const requestId = ++searchRequestIdRef.current;
+      try {
+        const response = await employeeSearchService.search(trimmed);
+        // Ignore this result if a newer search has since been kicked off
+        if (requestId !== searchRequestIdRef.current) return;
+        setSearchResults(response.employees || []);
+      } catch (err) {
+        if (requestId !== searchRequestIdRef.current) return;
+        console.error('Employee search failed:', err);
+        setSearchResults([]);
+        setSearchError('Search failed. Please try again.');
+      } finally {
+        if (requestId === searchRequestIdRef.current) {
+          setIsSearching(false);
+        }
+      }
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, [searchQuery]);
+
+  // Close the dropdown on outside click or Escape
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(event.target as Node)
+      ) {
+        setIsSearchOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsSearchOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, []);
+
+  const clearSearch = useCallback(() => {
+    setSearchQuery('');
+    setSearchResults([]);
+    setSearchError(null);
+    setIsSearchOpen(false);
+  }, []);
+
+  const handleSearchFocus = () => {
+    if (searchQuery.trim()) {
+      setIsSearchOpen(true);
+    }
+  };
 
   const getThemeClasses = () => {
     if (theme === 'dark') {
@@ -168,19 +278,103 @@ const Header: React.FC<HeaderProps> = ({
           
           {/* Search Bar */}
           {!isProfilePage && !isSettingsPage && (
-            <div className={`hidden sm:flex items-center ${themeClasses.searchBg} rounded-xl px-2 sm:px-2.5 md:px-3 py-1 sm:py-1.5 md:py-2 border ${themeClasses.searchBorder} transition-all focus-within:ring-2 focus-within:ring-indigo-500/50 max-w-[80px] sm:max-w-[130px] md:max-w-[160px] lg:max-w-[200px]`}>
-              <MagnifyingGlassIcon className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${themeClasses.icon} flex-shrink-0`} />
-              <input
-                type="text"
-                placeholder="Search..."
-                className={`bg-transparent outline-none text-xs sm:text-sm w-12 sm:w-20 md:w-24 lg:w-32 ml-1 sm:ml-1.5 md:ml-2 ${themeClasses.searchText} placeholder:${themeClasses.searchPlaceholder} min-w-[40px]`}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                aria-label="Search"
-              />
-              <kbd className={`hidden lg:block ml-1 sm:ml-1.5 md:ml-2 px-1.5 py-0.5 text-[10px] ${themeClasses.searchBg} rounded border ${themeClasses.searchBorder} ${themeClasses.textSecondary} flex-shrink-0`}>
-                ⌘K
-              </kbd>
+            <div ref={searchContainerRef} className="relative hidden sm:block">
+              <div className={`flex items-center ${themeClasses.searchBg} rounded-xl px-2 sm:px-2.5 md:px-3 py-1 sm:py-1.5 md:py-2 border ${themeClasses.searchBorder} transition-all focus-within:ring-2 focus-within:ring-indigo-500/50 max-w-[80px] sm:max-w-[130px] md:max-w-[160px] lg:max-w-[200px]`}>
+                <MagnifyingGlassIcon className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${themeClasses.icon} flex-shrink-0`} />
+                <input
+                  type="text"
+                  placeholder="Search people..."
+                  className={`bg-transparent outline-none text-xs sm:text-sm w-12 sm:w-20 md:w-24 lg:w-32 ml-1 sm:ml-1.5 md:ml-2 ${themeClasses.searchText} placeholder:${themeClasses.searchPlaceholder} min-w-[40px]`}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={handleSearchFocus}
+                  aria-label="Search employees"
+                />
+                {searchQuery ? (
+                  <button
+                    type="button"
+                    onClick={clearSearch}
+                    className="flex-shrink-0 ml-1"
+                    aria-label="Clear search"
+                  >
+                    <XMarkIcon className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${themeClasses.icon}`} />
+                  </button>
+                ) : (
+                  <kbd className={`hidden lg:block ml-1 sm:ml-1.5 md:ml-2 px-1.5 py-0.5 text-[10px] ${themeClasses.searchBg} rounded border ${themeClasses.searchBorder} ${themeClasses.textSecondary} flex-shrink-0`}>
+                    ⌘K
+                  </kbd>
+                )}
+              </div>
+
+              {/* Search results dropdown */}
+              {isSearchOpen && (
+                <div
+                  className={`absolute right-0 sm:left-0 mt-2 w-72 sm:w-80 ${themeClasses.dropdownBg} rounded-2xl shadow-2xl border ${themeClasses.dropdownBorder} py-1 z-50 overflow-hidden max-h-96 overflow-y-auto`}
+                >
+                  {isSearching && (
+                    <div className={`px-4 py-4 text-sm ${themeClasses.textSecondary} flex items-center gap-2`}>
+                      <span className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                      Searching...
+                    </div>
+                  )}
+
+                  {!isSearching && searchError && (
+                    <div className="px-4 py-4 text-sm text-red-400">
+                      {searchError}
+                    </div>
+                  )}
+
+                  {!isSearching && !searchError && searchResults.length === 0 && (
+                    <div className={`px-4 py-4 text-sm ${themeClasses.textSecondary}`}>
+                      No employees found for &ldquo;{searchQuery.trim()}&rdquo;
+                    </div>
+                  )}
+
+                  {!isSearching && !searchError && searchResults.map((emp) => (
+                    <div
+                      key={emp.employeeId}
+                      className={clsx(
+                        `flex items-center gap-3 px-4 py-2.5 sm:py-3 cursor-pointer transition-colors`,
+                        themeClasses.dropdownHover
+                      )}
+                      onClick={() => {
+                        // No dedicated employee-detail route exists yet in
+                        // this app; for now selecting just closes the
+                        // dropdown. Wire up navigation here once a route
+                        // like /dashboard/employees/:id is added.
+                        setIsSearchOpen(false);
+                      }}
+                    >
+                      <img
+                        src={`https://ui-avatars.com/api/?name=${encodeURIComponent(emp.fullName)}&background=6366f1&color=fff&size=40&bold=true`}
+                        alt={emp.fullName}
+                        className="w-9 h-9 rounded-full ring-2 ring-indigo-500/30 flex-shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className={`text-sm font-semibold ${themeClasses.dropdownText} truncate`}>
+                            {emp.fullName}
+                          </p>
+                          <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] rounded-full bg-indigo-500/20 text-indigo-400 font-medium">
+                            {ROLE_LABELS[emp.assignedRole] || emp.assignedRole}
+                          </span>
+                          {!emp.isActive && (
+                            <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] rounded-full bg-gray-500/20 text-gray-400 font-medium">
+                              Inactive
+                            </span>
+                          )}
+                        </div>
+                        <p className={`text-xs ${themeClasses.textSecondary} truncate`}>
+                          {emp.emailAddress}
+                        </p>
+                        <p className={`text-[11px] ${themeClasses.textMuted} truncate`}>
+                          {emp.assignedDepartment}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

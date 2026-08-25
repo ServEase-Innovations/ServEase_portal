@@ -7,6 +7,7 @@ import {
   PayslipGenerateResponse,
   GeneratePayslipPayload,
   Employee,
+  EmployeeSearchResponse,
 } from '../types';
 
 // Get API base URL from environment variable
@@ -139,6 +140,21 @@ export const userService = {
 
   delete: async (id: string): Promise<void> => {
     await api.delete(`/employees/${id}`);
+  },
+};
+
+// ============= EMPLOYEE SEARCH API =============
+// Powers the header search dropdown. Backed by GET /employees/search?q=,
+// which uses pg_trgm on the backend — matches a single letter, a partial
+// word, a full (possibly typo'd) name, or a role name (SuperAdmin, HR,
+// Manager, Developer, Marketing, CustomStaff). Accessible to any
+// authenticated employee, any role.
+export const employeeSearchService = {
+  search: async (q: string): Promise<EmployeeSearchResponse> => {
+    const response = await api.get<EmployeeSearchResponse>('/employees/search', {
+      params: { q },
+    });
+    return response.data;
   },
 };
 
