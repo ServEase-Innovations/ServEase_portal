@@ -220,7 +220,7 @@ export const dailyTaskService = {
       console.log('🔵 [api] getMyTasks data:', response.data);
       
       // ✅ FIXED: Ensure we return the correct structure
-      if (response.data && response.data.dailyTasks !== undefined) {
+      if (response.data?.dailyTasks !== undefined) {
         console.log('✅ [api] Returning response.data with dailyTasks:', response.data.dailyTasks.length);
         return response.data;
       } else if (response.data && Array.isArray(response.data)) {

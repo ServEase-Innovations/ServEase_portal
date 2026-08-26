@@ -187,7 +187,9 @@ const ManagerDashboard = () => {
     }
   ]);
 
-  const [leaveHistory, setLeaveHistory] = useState<LeaveRequest[]>([]);
+  // Only the setter is used (populated from localStorage below); the value
+  // itself isn't read anywhere yet, so we don't bind it to an unused name.
+  const [, setLeaveHistory] = useState<LeaveRequest[]>([]);
 
   const [newMessage, setNewMessage] = useState({
     receiver: '',
@@ -218,11 +220,6 @@ const ManagerDashboard = () => {
     { id: 'SE-T-2044', title: 'Add CI smoke tests', assignee: 'Sneha Pillai', priority: 'Medium', status: 'Completed', dueDate: '2026-05-30', project: 'Atlas Core' },
     { id: 'SE-T-2045', title: 'Resolve K8s pod restart loop', assignee: 'Devansh Kapoor', priority: 'Critical', status: 'Blocked', dueDate: '2026-06-04', project: 'Infra' },
     { id: 'SE-T-2046', title: 'Quarterly OKR planning', assignee: 'Vikram Shah', priority: 'High', status: 'In Progress', dueDate: '2026-06-12', project: 'Leadership' }
-  ];
-
-  const leaveRequests: LeaveRequest[] = [
-    { id: 'LV-001', employee: 'Ishita Roy', type: 'Casual', period: '2026-06-12', fromDate: '2026-06-12', toDate: '2026-06-12', reason: 'Personal errand', status: 'Pending', submittedAt: '2026-06-10T10:00:00Z' },
-    { id: 'LV-002', employee: 'Karan Singh', type: 'Sick', period: '2026-06-04 - 2026-06-05', fromDate: '2026-06-04', toDate: '2026-06-05', reason: 'Flu recovery', status: 'Pending', submittedAt: '2026-06-03T08:30:00Z' }
   ];
 
   const projectTeams: ProjectTeam[] = [
