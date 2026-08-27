@@ -41,6 +41,7 @@ import { HolidaysTab } from './holidays/HolidaysTab';
 import { AnnouncementsTab } from './announcements/AnnouncementsTab';
 import { QueriesTab } from './queries/QueriesTab';
 import { ComposeMessageModal } from './queries/ComposeMessageModal';
+import ChatWindow from '../../Chat/ChatWindow';
 // import { PayslipsTab } from './payslips/PayslipsTab';
 import { LeaveRequestModal } from './modals/LeaveRequestModal';
 import { SuccessMessage } from './shared/SuccessMessage';
@@ -678,6 +679,7 @@ const HRDashboard = () => {
     if (path === '/dashboard/holidays') return 'holidays';
     if (path === '/dashboard/announcements') return 'announcements';
     if (path === '/dashboard/queries') return 'queries';
+    if (path === '/dashboard/messages') return 'messages';
     if (path === '/dashboard/leave') return 'leave';
     if (path === '/dashboard/payslips') return 'payslips';
     return 'overview';
@@ -886,6 +888,8 @@ const HRDashboard = () => {
             />
           </>
         );
+      case 'messages':
+        return <ChatWindow theme={theme} />;
       case 'leave':
         return (
           <MyLeaveTab

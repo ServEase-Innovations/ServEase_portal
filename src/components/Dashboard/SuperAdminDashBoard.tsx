@@ -48,6 +48,7 @@ import {
   ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import OnboardNewHireModal from '../../pages/CreateAccountPage';
+import ChatWindow from '../Chat/ChatWindow';
 import moment from 'moment';
 
 // Types
@@ -421,6 +422,7 @@ const SuperAdminDashboard = () => {
     if (path === '/dashboard/payroll') return 'payroll';
     if (path === '/dashboard/analytics') return 'analytics';
     if (path === '/dashboard/queries') return 'queries';
+    if (path === '/dashboard/messages') return 'messages';
     if (path === '/dashboard/leave') return 'leave';
     if (path === '/dashboard/payslips') return 'payslips';
     return 'overview';
@@ -3223,6 +3225,7 @@ const SuperAdminDashboard = () => {
       case 'payroll': return renderPayroll();
       case 'analytics': return renderAnalytics();
       case 'queries': return renderQueries();
+      case 'messages': return <ChatWindow theme={theme} />;
       case 'leave': return renderLeave();
       case 'payslips': return renderPayslips();
       default: return renderOverview();

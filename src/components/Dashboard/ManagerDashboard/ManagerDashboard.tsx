@@ -23,6 +23,7 @@ import LeaveApprovalsTab from './leave/LeaveApprovalsTab';
 import PerformanceTab from './performance/PerformanceTab';
 import ReportsTab from './reports/ReportsTab';
 import QueriesTab from './messages/QueriesTab';
+import ChatWindow from '../../Chat/ChatWindow';
 import LeaveTab from './leave/LeaveTab';
 import LeaveModal from './leave/LeaveModal';
 import PayslipsTab from './payslips/PayslipsTab';
@@ -265,6 +266,7 @@ const ManagerDashboard = () => {
     if (path === '/dashboard/performance') return 'performance';
     if (path === '/dashboard/reports') return 'reports';
     if (path === '/dashboard/queries') return 'queries';
+    if (path === '/dashboard/messages') return 'messages';
     if (path === '/dashboard/leave') return 'leave';
     if (path === '/dashboard/payslips') return 'payslips';
     if (path === '/dashboard/generate-payslip') return 'generate-payslip';
@@ -632,6 +634,8 @@ const ManagerDashboard = () => {
         return 'Generate Payslip';
       case 'payslips':
         return 'Payslips';
+      case 'messages':
+        return 'Messages';
       default:
         return 'Platform Team Overview';
     }
@@ -643,6 +647,8 @@ const ManagerDashboard = () => {
         return 'Generate payslip for an employee for a specific period';
       case 'payslips':
         return 'View and download your payslips';
+      case 'messages':
+        return 'Chat with anyone in the company';
       default:
         return 'Led by Priya Nair - 14 engineers - 6 active projects';
     }
@@ -765,6 +771,8 @@ const ManagerDashboard = () => {
             replyToMessage={replyToMessage}
           />
         );
+      case 'messages':
+        return <ChatWindow theme={theme} />;
       case 'leave':
         return (
           <LeaveTab
