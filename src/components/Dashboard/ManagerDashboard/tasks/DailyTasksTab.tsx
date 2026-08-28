@@ -41,6 +41,9 @@ interface DailyTasksTabProps {
   updateJiraLink?: (index: number, field: 'label' | 'url', value: string) => void;
   handleTaskImageUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleSubmitTask?: () => void;
+  // ✅ ADDED: Status filter props
+  taskStatusFilter?: 'Pending' | 'Completed' | '';
+  setTaskStatusFilter?: (status: 'Pending' | 'Completed' | '') => void;
 }
 
 interface JiraLink {
@@ -76,10 +79,17 @@ interface DailyTask {
   employee?: any;
 }
 
+// Returns the browser's LOCAL calendar date as YYYY-MM-DD.
+const getLocalDateString = (date: Date = new Date()): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const DailyTasksTab: React.FC<DailyTasksTabProps> = ({ 
   tc, 
   isAuthenticated,
-  // ManagerDashboard props (optional)
   taskStatus: externalTaskStatus,
   setTaskStatus: externalSetTaskStatus,
   jiraLinks: externalJiraLinks,
@@ -107,16 +117,21 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
   updateJiraLink: externalUpdateJiraLink,
   handleTaskImageUpload: externalHandleTaskImageUpload,
   handleSubmitTask: externalHandleSubmitTask,
+  // ✅ ADDED: Status filter props
+  taskStatusFilter: externalTaskStatusFilter,
+  setTaskStatusFilter: externalSetTaskStatusFilter,
 }) => {
   console.log('🎨 [DailyTasksTab] Component function executing', {
     isAuthenticated,
-    hasExternalTaskStatus: externalTaskStatus !== undefined
+    hasExternalTaskStatus: externalTaskStatus !== undefined,
+    hasExternalTaskStatusFilter: externalTaskStatusFilter !== undefined,
+    hasExternalTaskHistory: externalTaskHistory !== undefined,
+    externalTaskHistoryLength: externalTaskHistory?.length || 0
   });
 
-  // Determine if using external props
   const isUsingExternalProps = externalTaskStatus !== undefined;
   
-  // Internal state (used when not using external props)
+  // Internal state
   const [internalTaskStatus, setInternalTaskStatus] = useState<'Pending' | 'Completed'>('Pending');
   const [internalJiraLinks, setInternalJiraLinks] = useState<JiraLink[]>([{ url: '' }]);
   const [internalWorkDescription, setInternalWorkDescription] = useState('');
@@ -126,14 +141,13 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
   const [internalFilePreviews, setInternalFilePreviews] = useState<string[]>([]);
   const [internalTaskImagePreview, setInternalTaskImagePreview] = useState<string | null>(null);
   
-  // UI state
   const [showSuccess, setShowSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fetchingHistory, setFetchingHistory] = useState(false);
   
-  // History state (internal)
   const [internalTaskHistory, setInternalTaskHistory] = useState<DailyTask[]>([]);
-  const [internalSelectedDate, setInternalSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [internalSelectedDate, setInternalSelectedDate] = useState<string>(getLocalDateString());
+  const [internalTaskStatusFilter, setInternalTaskStatusFilter] = useState<'Pending' | 'Completed' | ''>('');
 
   // Determine which state to use
   const taskStatus = isUsingExternalProps ? externalTaskStatus! : internalTaskStatus;
@@ -147,16 +161,26 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
   const additionalInfo = isUsingExternalProps ? externalAdditionalInfo! : internalAdditionalInfo;
   const setAdditionalInfo = isUsingExternalProps ? externalSetAdditionalInfo! : setInternalAdditionalInfo;
   const setTaskImagePreview = isUsingExternalProps ? externalSetTaskImagePreview! : setInternalTaskImagePreview;
-  const taskHistory = isUsingExternalProps && externalTaskHistory ? externalTaskHistory : internalTaskHistory;
+  
+  // ✅ FIXED: Use external task history directly, with fallback to internal
+  const currentTaskHistory = isUsingExternalProps ? (externalTaskHistory || []) : internalTaskHistory;
+  const isLoading = isUsingExternalProps ? (externalFetchingHistory || false) : fetchingHistory;
+  
   const selectedDate = isUsingExternalProps && externalSelectedDate ? externalSelectedDate : internalSelectedDate;
   const setSelectedDate = isUsingExternalProps && externalSetSelectedDate ? externalSetSelectedDate : setInternalSelectedDate;
-  const tasksFetching = isUsingExternalProps && externalFetchingHistory !== undefined ? externalFetchingHistory : fetchingHistory;
   const taskSuccess = isUsingExternalProps && externalShowTaskSuccess !== undefined ? externalShowTaskSuccess : showSuccess;
   const taskSubmitting = isUsingExternalProps && externalIsSubmittingTask !== undefined ? externalIsSubmittingTask : loading;
+  
+  // Status filter state
+  const taskStatusFilter = isUsingExternalProps && externalTaskStatusFilter !== undefined 
+    ? externalTaskStatusFilter 
+    : internalTaskStatusFilter;
+  const setTaskStatusFilter = isUsingExternalProps && externalSetTaskStatusFilter !== undefined
+    ? externalSetTaskStatusFilter
+    : setInternalTaskStatusFilter;
 
-  // Fetch daily tasks for the current user (internal API integration)
+  // ✅ FIXED: Fetch daily tasks - use external if provided, otherwise internal
   const fetchMyTasks = async (date?: string) => {
-    // Use external fetchMyTasks if provided (from ManagerDashboard)
     if (isUsingExternalProps && externalFetchMyTasks) {
       console.log('📞 Using external fetchMyTasks from ManagerDashboard');
       await externalFetchMyTasks(date);
@@ -175,14 +199,21 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
       if (date) {
         params.date = date;
       }
+      if (taskStatusFilter) {
+        params.status = taskStatusFilter;
+      }
       
       const response = await dailyTaskService.getMyTasks(params) as any;
-      console.log('Fetched tasks:', response);
+      console.log('📥 Fetched tasks response:', response);
 
-      const fetchedTasks = Array.isArray(response)
-        ? response
-        : response?.dailyTasks ?? [];
+      let fetchedTasks = [];
+      if (response && response.dailyTasks) {
+        fetchedTasks = response.dailyTasks;
+      } else if (Array.isArray(response)) {
+        fetchedTasks = response;
+      }
 
+      console.log('✅ Setting internal task history with', fetchedTasks.length, 'tasks');
       setInternalTaskHistory(fetchedTasks);
     } catch (error: any) {
       console.error('Failed to fetch tasks:', error);
@@ -192,26 +223,26 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
     }
   };
 
-  // Load tasks on mount and when date changes
+  // ✅ FIXED: Load tasks on mount and when dependencies change
   useEffect(() => {
     console.log('🔄 [DailyTasksTab] useEffect triggered', { 
       isAuthenticated,
       isUsingExternalProps,
       selectedDate,
+      taskStatusFilter,
       hasExternalFetch: !!externalFetchMyTasks,
-      taskHistoryLength: taskHistory?.length || 0
+      currentTaskHistoryLength: currentTaskHistory?.length || 0
     });
     
     if (isAuthenticated) {
       console.log('🔄 [DailyTasksTab] Calling fetchMyTasks with date:', selectedDate);
-      // Always call fetchMyTasks (will use external or internal)
       fetchMyTasks(selectedDate);
     } else {
       console.log('⚠️ [DailyTasksTab] User not authenticated, skipping fetch');
     }
-  }, [isAuthenticated, selectedDate]);
+  }, [isAuthenticated, selectedDate, taskStatusFilter]);
 
-  // Jira Links handlers (internal)
+  // Jira Links handlers
   const internalAddJiraLink = () => {
     if (jiraLinks.length < 25) {
       setJiraLinks([...jiraLinks, { url: '' }]);
@@ -231,13 +262,12 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
     setJiraLinks(newLinks);
   };
 
-  // File handlers (internal)
+  // File handlers
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const fileList = e.target.files;
     if (fileList) {
       const newFiles = Array.from(fileList);
       
-      // Check file limit
       if (internalFiles.length + newFiles.length > 10) {
         toast.error('Maximum 10 files allowed');
         return;
@@ -245,7 +275,6 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
       
       setInternalFiles([...internalFiles, ...newFiles]);
       
-      // Create previews for new files
       newFiles.forEach(file => {
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -263,7 +292,7 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
     setInternalFilePreviews(newPreviews);
   };
 
-  // Delete attachment handler (internal)
+  // Delete attachment handler
   const handleDeleteAttachment = async (taskId: string, attachmentId: string) => {
     if (!confirm('Delete this attachment?')) return;
     
@@ -276,9 +305,8 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
     }
   };
 
-  // Submit task handler (internal)
+  // Submit task handler
   const internalHandleSubmitTask = async () => {
-    // Validate required fields
     const filteredLinks = jiraLinks.filter(link => link.url.trim() !== '');
     
     if (!workDescription.trim()) {
@@ -286,7 +314,6 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
       return;
     }
 
-    // Validate Jira URLs
     for (const link of filteredLinks) {
       try {
         new URL(link.url);
@@ -299,7 +326,6 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
     setLoading(true);
 
     try {
-      // Step 1: Create the daily task
       const taskData = {
         workDescription: workDescription.trim(),
         status: taskStatus,
@@ -310,28 +336,26 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
         }))
       };
 
-      console.log('Creating task with data:', taskData);
+      console.log('📤 Creating task with data:', taskData);
       const createResponse = await dailyTaskService.create(taskData);
-      console.log('Task created:', createResponse);
+      console.log('📥 Task created response:', createResponse);
 
-      if (!createResponse || !createResponse.dailyTaskSubmissionId) {
+      if (!createResponse || !createResponse.dailyTask) {
         throw new Error('Failed to create task');
       }
 
-      const taskId = createResponse.dailyTaskSubmissionId;
+      const taskId = createResponse.dailyTask.dailyTaskSubmissionId;
 
-      // Step 2: Upload attachments if any
       if (internalFiles.length > 0) {
         const formData = new FormData();
         internalFiles.forEach(file => {
           formData.append('files', file);
         });
 
-        console.log('Uploading attachments for task:', taskId);
+        console.log('📤 Uploading attachments for task:', taskId);
         await dailyTaskService.uploadAttachments(taskId, formData);
       }
 
-      // Success!
       setShowSuccess(true);
       toast.success('Task submitted successfully!');
       
@@ -344,26 +368,25 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
       setInternalFilePreviews([]);
       setTaskStatus('Pending');
       
-      // Refresh task history
+      // ✅ FIXED: Refresh task history after submission
+      console.log('🔄 [DailyTasksTab] Refreshing task history for date:', selectedDate);
       await fetchMyTasks(selectedDate);
       
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (error: any) {
-      console.error('Error submitting task:', error);
+      console.error('❌ Error submitting task:', error);
       toast.error(error.message || 'Failed to submit task');
     } finally {
       setLoading(false);
     }
   };
 
-  // Use external handlers if provided, otherwise use internal ones
   const addJiraLinkHandler = externalAddJiraLink || internalAddJiraLink;
   const removeJiraLinkHandler = externalRemoveJiraLink || internalRemoveJiraLink;
   const updateJiraLinkHandler = externalUpdateJiraLink || internalUpdateJiraLink;
   const handleTaskImageUploadHandler = externalHandleTaskImageUpload || handleFileUpload;
   const handleSubmitTaskHandler = externalHandleSubmitTask || internalHandleSubmitTask;
 
-  // Helper functions
   const getStatusColor = (status: string) => {
     switch(status) {
       case 'Completed': return tc.statusActive;
@@ -390,7 +413,6 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
     }
   };
 
-  // Get file icon for internal file uploads
   const getInternalFileIcon = (file: File) => {
     if (file.type?.includes('pdf')) return '📄';
     if (file.type?.includes('video')) return '🎬';
@@ -398,19 +420,17 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
     return '📎';
   };
 
-  // Determine if we should show loading based on context
-  const isLoading = tasksFetching;
-  const currentTaskHistory = taskHistory;
-
+  // ✅ FIXED: Debug log for render
   console.log('📊 [DailyTasksTab] Render state:', {
     isLoading,
-    taskHistoryLength: currentTaskHistory?.length || 0,
-    taskHistory: currentTaskHistory,
+    currentTaskHistoryLength: currentTaskHistory?.length || 0,
+    currentTaskHistory: currentTaskHistory,
     isUsingExternalProps,
-    selectedDate
+    selectedDate,
+    taskStatusFilter,
+    hasExternalTaskHistory: !!externalTaskHistory
   });
 
-  // Render task history content
   const renderTaskHistoryContent = () => {
     if (isLoading) {
       return (
@@ -421,10 +441,12 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
       );
     }
 
-    if (currentTaskHistory.length === 0) {
+    // ✅ FIXED: Check if we have tasks to display
+    if (!currentTaskHistory || currentTaskHistory.length === 0) {
       return (
         <div className={`text-center py-8 ${tc.textSecondary}`}>
           <p>No tasks submitted for this date</p>
+          <p className="text-xs mt-2">Try selecting a different date or submitting a new task</p>
         </div>
       );
     }
@@ -436,10 +458,10 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className={`text-xs font-medium text-indigo-400`}>
-                  #{task.dailyTaskSubmissionId.slice(0, 8)}
+                  #{task.dailyTaskSubmissionId ? task.dailyTaskSubmissionId.slice(0, 8) : 'N/A'}
                 </span>
                 <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-xs font-medium ${getStatusColor(task.status)}`}>
-                  {task.status}
+                  {task.status || 'Pending'}
                 </span>
                 {task.jiraLinks && task.jiraLinks.length > 0 && (
                   <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-xs font-medium ${tc.textMuted} bg-gray-500/10`}>
@@ -453,12 +475,11 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
                 )}
               </div>
               <span className={`text-[10px] sm:text-xs ${tc.textMuted}`}>
-                {formatDate(task.submittedAt)}
+                {task.submittedAt ? formatDate(task.submittedAt) : 'Unknown date'}
               </span>
             </div>
             
             <div className="mt-2 space-y-1.5">
-              {/* Jira Links */}
               {task.jiraLinks && task.jiraLinks.length > 0 && (
                 <div className="space-y-0.5">
                   {task.jiraLinks.map((link, idx) => (
@@ -480,10 +501,8 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
                 </div>
               )}
               
-              {/* Work Description */}
-              <p className={`text-xs sm:text-sm ${tc.text}`}>{task.workDescription}</p>
+              <p className={`text-xs sm:text-sm ${tc.text}`}>{task.workDescription || 'No description'}</p>
               
-              {/* New Ideas */}
               {task.newIdeas && (
                 <div className="flex items-start gap-2 text-xs">
                   <LightBulbIcon className={`w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5`} />
@@ -491,7 +510,6 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
                 </div>
               )}
               
-              {/* Attachments */}
               {task.attachments && task.attachments.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-2">
                   {task.attachments.map((attachment) => (
@@ -526,7 +544,6 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
     );
   };
 
-  // Render file preview item
   const renderFilePreview = (preview: string, index: number) => {
     const file = internalFiles[index];
     const fileIcon = file ? getInternalFileIcon(file) : '📎';
@@ -559,7 +576,6 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Success Notification */}
       {showSuccess && (
         <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-3 sm:p-4 rounded-xl flex items-center gap-2 animate-fadeIn">
           <CheckIcon className="w-5 h-5" />
@@ -567,13 +583,11 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
         </div>
       )}
 
-      {/* Submit Task Form */}
       <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
         <h3 className={`font-semibold ${tc.text} mb-1 sm:mb-2 text-base sm:text-lg`}>Today's Work Submission</h3>
         <p className={`text-sm ${tc.textSecondary} mb-4 sm:mb-6`}>Submit your daily work report with Jira links and attachments</p>
         
         <div className="space-y-4">
-          {/* Jira Links */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className={`block text-sm font-medium ${tc.text} flex items-center gap-2`}>
@@ -637,7 +651,6 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
             </div>
           </div>
 
-          {/* Work Description */}
           <div>
             <label className={`block text-sm font-medium ${tc.text} mb-2 flex items-center gap-2`}>
               <DocumentTextIcon className="w-4 h-4 text-indigo-400" />
@@ -652,7 +665,6 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
             />
           </div>
 
-          {/* Task Status */}
           <div>
             <label className={`block text-sm font-medium ${tc.text} mb-2 flex items-center gap-2`}>
               <ClipboardDocumentCheckIcon className="w-4 h-4 text-indigo-400" />
@@ -676,7 +688,6 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
             </div>
           </div>
 
-          {/* New Ideas */}
           <div>
             <label className={`block text-sm font-medium ${tc.text} mb-2 flex items-center gap-2`}>
               <LightBulbIcon className="w-4 h-4 text-amber-400" />
@@ -691,7 +702,6 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
             />
           </div>
 
-          {/* Additional Information */}
           <div>
             <label className={`block text-sm font-medium ${tc.text} mb-2 flex items-center gap-2`}>
               <ChatBubbleLeftRightIcon className="w-4 h-4 text-blue-400" />
@@ -706,7 +716,6 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
             />
           </div>
 
-          {/* File Uploads - Only show for internal usage */}
           {!isUsingExternalProps && (
             <div>
               <label className={`block text-sm font-medium ${tc.text} mb-2 flex items-center gap-2`}>
@@ -730,7 +739,6 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
                 </span>
               </div>
               
-              {/* File previews */}
               {internalFilePreviews.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-3">
                   {internalFilePreviews.map((preview, index) => renderFilePreview(preview, index))}
@@ -753,14 +761,23 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
         </div>
       </div>
 
-      {/* Task History */}
       <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-3 sm:mb-4">
           <div>
             <h3 className={`font-semibold ${tc.text} text-base sm:text-lg`}>Task History</h3>
             <p className={`text-sm ${tc.textSecondary}`}>Your submitted daily tasks</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* ✅ ADDED: Status filter dropdown */}
+            <select
+              value={taskStatusFilter}
+              onChange={(e) => setTaskStatusFilter(e.target.value as 'Pending' | 'Completed' | '')}
+              className={`px-2 py-1 ${tc.input} rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent outline-none`}
+            >
+              <option value="">All Status</option>
+              <option value="Pending">Pending</option>
+              <option value="Completed">Completed</option>
+            </select>
             <input
               type="date"
               value={selectedDate}

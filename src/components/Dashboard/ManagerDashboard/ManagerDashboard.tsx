@@ -1,4 +1,4 @@
-// ManagerDashboard.tsx - Fully updated with Generate Payslip integration
+// ManagerDashboard.tsx - Complete file with fixed daily task history
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import Sidebar from '../../Layout/Sidebar';
@@ -9,8 +9,9 @@ import { useAttendanceHandlers } from '../../../hooks/useAttendanceHandlers';
 import { useLeaveHandlers } from '../../../hooks/useLeaveHandlers';
 import { useAttendanceTimer } from '../../../hooks/useAttendanceTimer';
 import { useLeave } from '../../../hooks/useLeave';
-import { dailyTaskService } from '../../../services/api'; // Add API service
-import toast from 'react-hot-toast'; // Add toast for notifications
+import { dailyTaskService } from '../../../services/api';
+import { LeaveType } from '../../../services/leave.service';
+import toast from 'react-hot-toast';
 import OverviewTab from './overview/OverviewTab';
 import MyTeamTab from './team/MyTeamTab';
 import ProjectTeamsTab from './team/ProjectTeamsTab';
@@ -47,7 +48,6 @@ const ManagerDashboard = () => {
     user: user ? user.username : 'no user'
   });
   
-  // Get attendance hook for API integration
   const attendance = useAttendance();
   
   console.log('🔷 ManagerDashboard rendered');
@@ -55,15 +55,12 @@ const ManagerDashboard = () => {
   console.log('isClockedIn:', attendance.isClockedIn);
   console.log('isClockedOut:', attendance.isClockedOut);
 
-  // Mobile sidebar state
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
-  // State declarations (all original state)
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Use attendance hook values instead of local state
   const {
     todayAttendance,
     isLoading: attendanceLoading,
@@ -75,7 +72,6 @@ const ManagerDashboard = () => {
     totalHoursToday,
   } = attendance;
   
-  // Use shared timer logic
   const {
     workHours,
     workMinutes,
@@ -83,14 +79,13 @@ const ManagerDashboard = () => {
     startTime,
     workStatus,
     setWorkStatus,
-    previousSessionsHours, // Get previous sessions hours
+    previousSessionsHours,
   } = useAttendanceTimer({
     isClockedIn,
     isClockedOut,
     todayAttendance
   });
   
-  // Get leave hook for API integration
   const { submitLeaveRequest, isLoading: isSubmittingLeave } = useLeave();
   
   const [showLeaveModal, setShowLeaveModal] = useState(false);
@@ -103,19 +98,31 @@ const ManagerDashboard = () => {
     imagePreview: null as string | null,
   });
 
-  const [taskStatus, setTaskStatus] = useState<'Pending' | 'Completed'>('Pending'); // Fix: Use correct status type
-  const [jiraLinks, setJiraLinks] = useState<Array<{ label?: string; url: string }>>([{ url: '' }]); // Fix: Use proper structure
+  // ✅ Task state
+  const [taskStatus, setTaskStatus] = useState<'Pending' | 'Completed'>('Pending');
+  const [jiraLinks, setJiraLinks] = useState<Array<{ label?: string; url: string }>>([{ url: '' }]);
   const [taskDescription, setTaskDescription] = useState('');
   const [newIdea, setNewIdea] = useState('');
   const [stylingAdded, setStylingAdded] = useState(false);
   const [additionalInfo, setAdditionalInfo] = useState('');
   const [taskImageFile, setTaskImageFile] = useState<File | null>(null);
   const [taskImagePreview, setTaskImagePreview] = useState<string | null>(null);
-  const [taskHistory, setTaskHistory] = useState<any[]>([]); // Will be populated from API
+  
+  // ✅ Task history state
+  const [taskHistory, setTaskHistory] = useState<any[]>([]);
   const [showTaskSuccess, setShowTaskSuccess] = useState(false);
-  const [isSubmittingTask, setIsSubmittingTask] = useState(false); // Add loading state
-  const [fetchingTaskHistory, setFetchingTaskHistory] = useState(false); // Add fetching state
-  const [selectedTaskDate, setSelectedTaskDate] = useState<string>(new Date().toISOString().split('T')[0]); // Add date filter
+  const [isSubmittingTask, setIsSubmittingTask] = useState(false);
+  const [fetchingTaskHistory, setFetchingTaskHistory] = useState(false);
+  const [taskStatusFilter, setTaskStatusFilter] = useState<'Pending' | 'Completed' | ''>('');
+  
+  // ✅ Task date state
+  const [selectedTaskDate, setSelectedTaskDate] = useState<string>(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -192,7 +199,7 @@ const ManagerDashboard = () => {
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'unread' | 'read'>('all');
   const [selectedCategory, setSelectedCategory] = useState<Message['category'] | 'all'>('all');
 
-  // Data (all original data)
+  // Data
   const teamMembers: TeamMember[] = [
     { id: 'SE-042', name: 'Priya Nair', role: 'Engineering Manager', status: 'Active', joined: '2021-09-01', initials: 'PN' },
     { id: 'SE-101', name: 'Ishita Roy', role: 'Frontend Engineer', status: 'Working', joined: '2022-06-12', initials: 'IR' },
@@ -245,7 +252,6 @@ const ManagerDashboard = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // All original functions
   const getActiveTab = () => {
     const path = location.pathname;
     if (path === '/dashboard' || path === '/dashboard/overview') return 'overview';
@@ -279,12 +285,13 @@ const ManagerDashboard = () => {
     }
   }, []);
 
-  // Fetch daily task history from API
+  // ✅ FIXED: fetchMyTasks with proper error handling and response parsing
   const fetchMyTasks = async (date?: string) => {
     console.log('📞 [ManagerDashboard] fetchMyTasks called', { 
       isAuthenticated, 
       date,
-      selectedTaskDate 
+      selectedTaskDate,
+      taskStatusFilter
     });
 
     if (!isAuthenticated) {
@@ -298,45 +305,58 @@ const ManagerDashboard = () => {
       if (date) {
         params.date = date;
       }
+      if (taskStatusFilter) {
+        params.status = taskStatusFilter;
+      }
       
       console.log('📤 [ManagerDashboard] Calling dailyTaskService.getMyTasks with params:', params);
       const response = await dailyTaskService.getMyTasks(params);
       console.log('📥 [ManagerDashboard] Fetched tasks response:', response);
       
+      // ✅ FIXED: Handle different response structures
+      let tasks: string | React.SetStateAction<any[]> = [];
       if (response && response.dailyTasks) {
-        console.log('✅ [ManagerDashboard] Setting task history:', response.dailyTasks.length, 'tasks');
-        setTaskHistory(response.dailyTasks);
+        tasks = response.dailyTasks;
+        console.log('✅ [ManagerDashboard] Got tasks from response.dailyTasks:', tasks.length);
+      } else if (response && Array.isArray(response)) {
+        tasks = response;
+        console.log('✅ [ManagerDashboard] Got tasks from response array:', tasks.length);
       } else {
-        console.log('⚠️ [ManagerDashboard] No dailyTasks in response, setting empty array');
-        setTaskHistory([]);
+        console.log('⚠️ [ManagerDashboard] No tasks found in response');
+        tasks = [];
       }
+      
+      setTaskHistory(tasks);
+      console.log('✅ [ManagerDashboard] Task history updated with', tasks.length, 'tasks');
+      
     } catch (error: any) {
       console.error('❌ [ManagerDashboard] Failed to fetch tasks:', error);
       toast.error(error.message || 'Failed to fetch task history');
+      // Keep existing task history on error
     } finally {
       setFetchingTaskHistory(false);
     }
   };
 
-  console.log('💡 [ManagerDashboard] About to define useEffect for fetchMyTasks');
-
-  // Load tasks when component mounts or date changes (only on daily-tasks tab)
+  // ✅ FIXED: useEffect with proper dependencies including taskStatusFilter
   useEffect(() => {
     console.log('🔄 [ManagerDashboard] useEffect triggered', { 
       isAuthenticated, 
       selectedTaskDate,
       activeTab,
-      pathname: location.pathname
+      pathname: location.pathname,
+      taskStatusFilter
     });
+    
     if (isAuthenticated && activeTab === 'daily-tasks') {
       console.log('✅ [ManagerDashboard] Conditions met, calling fetchMyTasks');
       fetchMyTasks(selectedTaskDate);
     } else {
       console.log('⚠️ [ManagerDashboard] Not fetching:', { isAuthenticated, activeTab });
     }
-  }, [isAuthenticated, selectedTaskDate, location.pathname]);
+  }, [isAuthenticated, selectedTaskDate, location.pathname, taskStatusFilter]);
 
-  // Use shared attendance handlers
+  // Attendance handlers
   const {
     handleStartWork,
     handleStopWork,
@@ -351,7 +371,7 @@ const ManagerDashboard = () => {
     totalHoursToday
   });
 
-  // Use shared leave handlers
+  // Leave handlers
   const { handleLeaveImageUpload: handleLeaveImageUploadUtil, validateLeaveRequest } = useLeaveHandlers();
 
   const handleLeaveImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -365,33 +385,30 @@ const ManagerDashboard = () => {
       return;
     }
 
-    // Additional validation for reason length (backend requires min 5 chars)
     if (leaveRequest.reason.trim().length < 5) {
       alert('Reason must be at least 5 characters long');
       return;
     }
 
     try {
-      // Map old leave type format to new LeaveType enum
-      let leaveType: 'Privilege' | 'Casual' | 'Sick' | 'Paternity';
+      let leaveType: LeaveType;
       switch (leaveRequest.type) {
         case 'Earned':
-          leaveType = 'Privilege'; // Map 'Earned' to 'Privilege'
+          leaveType = LeaveType.Privilege;
           break;
         case 'Sick':
-          leaveType = 'Sick';
+          leaveType = LeaveType.Sick;
           break;
         case 'Casual':
-          leaveType = 'Casual';
+          leaveType = LeaveType.Casual;
           break;
         case 'Other':
-          leaveType = 'Casual'; // Map 'Other' to 'Casual' as default
+          leaveType = LeaveType.Casual;
           break;
         default:
-          leaveType = 'Casual';
+          leaveType = LeaveType.Casual;
       }
 
-      // Submit leave request to API
       await submitLeaveRequest({
         leaveType,
         fromDate: leaveRequest.fromDate,
@@ -400,7 +417,6 @@ const ManagerDashboard = () => {
         attachmentUrl: leaveRequest.imagePreview || undefined,
       });
 
-      // Success - update UI state
       const fromDate = moment(leaveRequest.fromDate);
       const toDate = moment(leaveRequest.toDate);
       
@@ -434,19 +450,17 @@ const ManagerDashboard = () => {
     }
   };
 
+  // ✅ FIXED: handleSubmitTask with proper refresh
   const handleSubmitTask = async () => {
     console.log('🚀 Manager handleSubmitTask called');
     
-    // Filter out empty Jira links
     const filteredLinks = jiraLinks.filter(link => link.url.trim() !== '');
     
-    // Fix: Only require task description, Jira links are optional
     if (!taskDescription.trim()) {
       toast.error('Please provide a task description');
       return;
     }
 
-    // Validate Jira URLs
     for (const link of filteredLinks) {
       try {
         new URL(link.url);
@@ -459,7 +473,6 @@ const ManagerDashboard = () => {
     setIsSubmittingTask(true);
 
     try {
-      // Step 1: Create the daily task via API
       const taskData = {
         workDescription: taskDescription.trim(),
         status: taskStatus,
@@ -480,7 +493,6 @@ const ManagerDashboard = () => {
 
       const taskId = createResponse.dailyTask.dailyTaskSubmissionId;
 
-      // Step 2: Upload task image if provided
       if (taskImageFile) {
         const formData = new FormData();
         formData.append('files', taskImageFile);
@@ -489,7 +501,6 @@ const ManagerDashboard = () => {
         await dailyTaskService.uploadAttachments(taskId, formData);
       }
 
-      // Success!
       setShowTaskSuccess(true);
       toast.success('Task submitted successfully!');
       
@@ -503,7 +514,8 @@ const ManagerDashboard = () => {
       setTaskImagePreview(null);
       setTaskStatus('Pending');
       
-      // Refresh task history
+      // ✅ IMPORTANT: Refresh task history after submission
+      console.log('🔄 [ManagerDashboard] Refreshing task history for date:', selectedTaskDate);
       await fetchMyTasks(selectedTaskDate);
       
       setTimeout(() => setShowTaskSuccess(false), 3000);
@@ -562,7 +574,6 @@ const ManagerDashboard = () => {
     setShowCompose(true);
   };
 
-  // Enhanced Payslip Functions - keep generatePayslipData but remove downloadPayslip
   const generatePayslipData = (employeeName?: string, month?: string, year?: string) => {
     const baseSalary = 145390;
     const hra = Math.round(baseSalary * 0.4);
@@ -615,7 +626,6 @@ const ManagerDashboard = () => {
     return readFilter && categoryFilter;
   });
 
-  // Determine header title and subtitle based on active tab
   const getHeaderTitle = () => {
     switch (activeTab) {
       case 'generate-payslip':
@@ -698,11 +708,15 @@ const ManagerDashboard = () => {
             taskImagePreview={taskImagePreview}
             setTaskImagePreview={setTaskImagePreview}
             setTaskImageFile={setTaskImageFile}
-            taskHistory={taskHistory} // Pass API response directly
+            taskHistory={taskHistory}
             fetchingHistory={fetchingTaskHistory}
             selectedDate={selectedTaskDate}
             setSelectedDate={setSelectedTaskDate}
             fetchMyTasks={fetchMyTasks}
+            showTaskSuccess={showTaskSuccess}
+            isSubmittingTask={isSubmittingTask}
+            taskStatusFilter={taskStatusFilter}
+            setTaskStatusFilter={setTaskStatusFilter}
             addJiraLink={() => {
               if (jiraLinks.length < 25) {
                 setJiraLinks([...jiraLinks, { url: '' }]);
@@ -755,8 +769,6 @@ const ManagerDashboard = () => {
         return (
           <LeaveTab
             tc={tc}
-            leaveHistory={leaveHistory}
-            leaveRequests={leaveRequests}
             setShowLeaveModal={setShowLeaveModal}
           />
         );
@@ -804,7 +816,6 @@ const ManagerDashboard = () => {
     }
   };
 
-  // Toggle sidebar functions
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed);
   };
