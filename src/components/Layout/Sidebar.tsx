@@ -160,7 +160,8 @@ const Sidebar: React.FC<SidebarProps> = ({
         {
           title: 'Queries',
           items: [
-            { icon: EnvelopeIcon, label: 'Queries', path: '/dashboard/queries', description: 'Send & receive messages' }
+            { icon: EnvelopeIcon, label: 'Queries', path: '/dashboard/queries', description: 'Send & receive messages' },
+            { icon: ChatBubbleLeftRightIcon, label: 'Messages', path: '/dashboard/messages', description: 'Chat with anyone' }
           ]
         }
       ],
@@ -186,7 +187,8 @@ const Sidebar: React.FC<SidebarProps> = ({
         {
           title: 'Queries',
           items: [
-            { icon: EnvelopeIcon, label: 'Queries', path: '/dashboard/queries', description: 'Send & receive messages' }
+            { icon: EnvelopeIcon, label: 'Queries', path: '/dashboard/queries', description: 'Send & receive messages' },
+            { icon: ChatBubbleLeftRightIcon, label: 'Messages', path: '/dashboard/messages', description: 'Chat with anyone' }
           ]
         }
       ],
@@ -226,7 +228,8 @@ const Sidebar: React.FC<SidebarProps> = ({
         {
           title: 'Queries',
           items: [
-            { icon: EnvelopeIcon, label: 'Queries', path: '/dashboard/queries', description: 'View & respond to messages' }
+            { icon: EnvelopeIcon, label: 'Queries', path: '/dashboard/queries', description: 'View & respond to messages' },
+            { icon: ChatBubbleLeftRightIcon, label: 'Messages', path: '/dashboard/messages', description: 'Chat with anyone' }
           ]
         },
         {
