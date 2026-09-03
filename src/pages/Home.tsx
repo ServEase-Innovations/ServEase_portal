@@ -68,9 +68,18 @@ const Home = () => {
     const supportsFineHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
     if (prefersReducedMotion || !supportsFineHover) return;
 
-    const size = window.innerWidth < 640 ? 180 : window.innerWidth < 1024 ? 240 : 320;
-    const target = { x: -size, y: -size };
-    const current = { x: -size, y: -size };
+    // Determine glow size based on viewport width
+    let glowSize: number;
+    if (window.innerWidth < 640) {
+      glowSize = 180;
+    } else if (window.innerWidth < 1024) {
+      glowSize = 240;
+    } else {
+      glowSize = 320;
+    }
+
+    const target = { x: -glowSize, y: -glowSize };
+    const current = { x: -glowSize, y: -glowSize };
     let prevX = current.x;
     let prevY = current.y;
     let rafId: number;
@@ -93,7 +102,7 @@ const Home = () => {
 
       const dx = current.x - prevX;
       const dy = current.y - prevY;
-      const speed = Math.min(Math.sqrt(dx * dx + dy * dy), 50);
+      const speed = Math.min(Math.hypot(dx, dy), 50);
       const stretch = 1 + speed * 0.026;
       const squish = 1 - speed * 0.015;
       prevX = current.x;
@@ -102,7 +111,7 @@ const Home = () => {
       if (cursorGlowRef.current && hasMoved) {
         cursorGlowRef.current.style.opacity = '1';
         cursorGlowRef.current.style.transform =
-          `translate3d(${current.x - size / 2}px, ${current.y - size / 2}px, 0) scale(${stretch}, ${squish})`;
+          `translate3d(${current.x - glowSize / 2}px, ${current.y - glowSize / 2}px, 0) scale(${stretch}, ${squish})`;
       }
       rafId = requestAnimationFrame(animate);
     };

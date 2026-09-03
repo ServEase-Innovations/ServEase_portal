@@ -32,6 +32,141 @@ const formatTime = (epochMs: string) => {
   return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 };
 
+// Helper component for conversation list items
+const ConversationListItem: React.FC<{
+  conversation: any;
+  display: any;
+  isActive: boolean;
+  myEmployeeId: string | null;
+  onSelect: (id: string) => void;
+  tc: any;
+}> = ({ conversation, display, isActive, myEmployeeId, onSelect, tc }) => {
+  const handleClick = () => onSelect(conversation.conversation.conversationId);
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onSelect(conversation.conversation.conversationId);
+    }
+  };
+
+  // Extract last message text
+  const getLastMessageText = () => {
+    if (!conversation.lastMessage) return display.subtitle;
+    const sender = conversation.lastMessage.senderId === myEmployeeId ? 'You: ' : '';
+    return `${sender}${conversation.lastMessage.content}`;
+  };
+
+  return (
+    <div
+      className={`p-3 sm:p-4 cursor-pointer transition-all duration-200 border-b ${tc.border} ${tc.bgCardHover} ${
+        isActive ? 'bg-indigo-500/10' : ''
+      }`}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
+      aria-selected={isActive}
+    >
+      <div className="flex items-center gap-3">
+        <div className="relative flex-shrink-0">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-semibold text-xs sm:text-sm">
+            {initials(display.name)}
+          </div>
+          {!display.isGroup && display.online && (
+            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between">
+            <h4 className={`font-medium ${tc.text} truncate text-sm sm:text-base`}>{display.name}</h4>
+            {conversation.lastMessage && (
+              <span className={`text-[10px] sm:text-xs ${tc.textMuted} flex-shrink-0 ml-2`}>
+                {formatTime(conversation.lastMessage.createdAt)}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <p className={`text-xs sm:text-sm ${tc.textSecondary} truncate`}>
+              {getLastMessageText()}
+            </p>
+            {conversation.unreadCount > 0 && (
+              <span className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-indigo-500 text-white text-[8px] sm:text-xs flex items-center justify-center font-medium flex-shrink-0">
+                {conversation.unreadCount}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Helper component for new chat result items
+const NewChatResultItem: React.FC<{
+  employee: ChatParticipant;
+  onStart: (id: string) => void;
+  tc: any;
+  theme: 'light' | 'dark';
+}> = ({ employee, onStart, tc, theme }) => {
+  const handleClick = () => onStart(employee.employeeId);
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onStart(employee.employeeId);
+    }
+  };
+
+  return (
+    <div
+      className={`px-3 sm:px-4 py-2.5 cursor-pointer flex items-center gap-3 ${tc.bgCardHover}`}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
+    >
+      <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+        {initials(employee.fullName)}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm font-medium truncate ${tc.text}`}>{employee.fullName}</p>
+        <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${getRoleBadgeClasses(employee.assignedRole, theme)}`}>
+          {employee.assignedRole}
+        </span>
+      </div>
+      <PlusIcon className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+    </div>
+  );
+};
+
+// Helper component for message items
+const MessageItem: React.FC<{
+  message: any;
+  isMine: boolean;
+  isGroup: boolean;
+  senderName: string;
+  tc: any;
+}> = ({ message, isMine, isGroup, senderName, tc }) => {
+  return (
+    <div className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+      <div
+        className={`max-w-[80%] sm:max-w-[70%] p-2.5 sm:p-3 rounded-xl ${
+          isMine ? tc.messageSent : `${tc.messageReceived} border ${tc.border}`
+        }`}
+      >
+        {!isMine && isGroup && (
+          <p className={`text-[10px] sm:text-xs font-medium ${tc.textMuted} mb-1`}>
+            {senderName}
+          </p>
+        )}
+        <p className="text-xs sm:text-sm break-words whitespace-pre-wrap">{message.content}</p>
+        <p className={`text-[8px] sm:text-xs mt-1 ${isMine ? 'text-white/70' : tc.textMuted}`}>
+          {formatTime(message.createdAt)}
+        </p>
+      </div>
+    </div>
+  );
+};
+
 const ChatWindow: React.FC<ChatWindowProps> = ({ theme }) => {
   const {
     myEmployeeId,
@@ -156,6 +291,70 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ theme }) => {
     }, 1500);
   };
 
+  // Helper function to get the status text for the chat header
+  const getStatusText = () => {
+    if (typingNames.length > 0) return 'typing…';
+    if (!activeDisplay) return '';
+    if (activeDisplay.isGroup) return activeDisplay.subtitle;
+    return activeDisplay.online ? 'Online' : activeDisplay.subtitle;
+  };
+
+  // Helper to render the messages section
+  const renderMessages = () => {
+    if (messagesLoading) {
+      return <div className={`text-center text-sm ${tc.textMuted}`}>Loading messages…</div>;
+    }
+    
+    if (messages.length === 0) {
+      return <div className={`text-center text-sm ${tc.textMuted}`}>No messages yet. Say hello 👋</div>;
+    }
+
+    return messages.map((msg) => {
+      const isMine = msg.senderId === myEmployeeId;
+      return (
+        <MessageItem
+          key={msg.messageId}
+          message={msg}
+          isMine={isMine}
+          isGroup={activeDisplay?.isGroup || false}
+          senderName={msg.sender.fullName}
+          tc={tc}
+        />
+      );
+    });
+  };
+
+  // Helper to render the conversation list
+  const renderConversationList = () => {
+    if (conversationsLoading) {
+      return <div className={`p-6 text-center text-sm ${tc.textMuted}`}>Loading conversations…</div>;
+    }
+
+    if (filteredConversations.length === 0 && !showNewChatResults) {
+      return (
+        <div className={`p-6 text-center text-sm ${tc.textMuted}`}>
+          No conversations yet. Search above for anyone in the company to start chatting.
+        </div>
+      );
+    }
+
+    return filteredConversations.map((c) => {
+      const d = displayFor(c);
+      const isActive = c.conversation.conversationId === activeConversationId;
+      return (
+        <ConversationListItem
+          key={c.conversation.conversationId}
+          conversation={c}
+          display={d}
+          isActive={isActive}
+          myEmployeeId={myEmployeeId}
+          onSelect={handleSelectConversation}
+          tc={tc}
+        />
+      );
+    });
+  };
+
   return (
     <div className="flex flex-col h-[calc(100vh-250px)] sm:h-[calc(100vh-200px)] min-h-[400px] sm:min-h-[500px]">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 flex-1 min-h-0">
@@ -174,6 +373,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ theme }) => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className={`w-full pl-9 sm:pl-10 pr-9 sm:pr-10 py-1.5 sm:py-2 ${tc.input} border rounded-xl focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent outline-none transition-all text-sm`}
+                aria-label="Search conversations"
               />
               {searchQuery && (
                 <button
@@ -196,25 +396,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ theme }) => {
                   {searching ? 'Searching…' : `People (${newChatResults.length})`}
                 </p>
                 {newChatResults.map((emp) => (
-                  <div
+                  <NewChatResultItem
                     key={emp.employeeId}
-                    onClick={() => handleStartNewChat(emp.employeeId)}
-                    className={`px-3 sm:px-4 py-2.5 cursor-pointer flex items-center gap-3 ${tc.bgCardHover}`}
-                    role="button"
-                    tabIndex={0}
-                    onKeyPress={(e) => e.key === 'Enter' && handleStartNewChat(emp.employeeId)}
-                  >
-                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
-                      {initials(emp.fullName)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-medium truncate ${tc.text}`}>{emp.fullName}</p>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${getRoleBadgeClasses(emp.assignedRole, theme)}`}>
-                        {emp.assignedRole}
-                      </span>
-                    </div>
-                    <PlusIcon className="w-4 h-4 text-indigo-400 flex-shrink-0" />
-                  </div>
+                    employee={emp}
+                    onStart={handleStartNewChat}
+                    tc={tc}
+                    theme={theme}
+                  />
                 ))}
                 {!searching && newChatResults.length === 0 && (
                   <p className={`px-4 pb-3 text-xs ${tc.textMuted}`}>No matching employees</p>
@@ -222,63 +410,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ theme }) => {
               </div>
             )}
 
-            {conversationsLoading ? (
-              <div className={`p-6 text-center text-sm ${tc.textMuted}`}>Loading conversations…</div>
-            ) : filteredConversations.length === 0 && !showNewChatResults ? (
-              <div className={`p-6 text-center text-sm ${tc.textMuted}`}>
-                No conversations yet. Search above for anyone in the company to start chatting.
-              </div>
-            ) : (
-              filteredConversations.map((c) => {
-                const d = displayFor(c);
-                const isActive = c.conversation.conversationId === activeConversationId;
-                return (
-                  <div
-                    key={c.conversation.conversationId}
-                    onClick={() => handleSelectConversation(c.conversation.conversationId)}
-                    className={`p-3 sm:p-4 cursor-pointer transition-all duration-200 border-b ${tc.border} ${tc.bgCardHover} ${
-                      isActive ? 'bg-indigo-500/10' : ''
-                    }`}
-                    role="button"
-                    tabIndex={0}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSelectConversation(c.conversation.conversationId)}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="relative flex-shrink-0">
-                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-semibold text-xs sm:text-sm">
-                          {initials(d.name)}
-                        </div>
-                        {!d.isGroup && d.online && (
-                          <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <h4 className={`font-medium ${tc.text} truncate text-sm sm:text-base`}>{d.name}</h4>
-                          {c.lastMessage && (
-                            <span className={`text-[10px] sm:text-xs ${tc.textMuted} flex-shrink-0 ml-2`}>
-                              {formatTime(c.lastMessage.createdAt)}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center justify-between gap-2">
-                          <p className={`text-xs sm:text-sm ${tc.textSecondary} truncate`}>
-                            {c.lastMessage
-                              ? `${c.lastMessage.senderId === myEmployeeId ? 'You: ' : ''}${c.lastMessage.content}`
-                              : d.subtitle}
-                          </p>
-                          {c.unreadCount > 0 && (
-                            <span className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-indigo-500 text-white text-[8px] sm:text-xs flex items-center justify-center font-medium flex-shrink-0">
-                              {c.unreadCount}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
+            {renderConversationList()}
           </div>
         </div>
 
@@ -292,6 +424,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ theme }) => {
             <>
               <div className={`p-3 sm:p-4 border-b ${tc.border} flex items-center gap-3`}>
                 <button
+                  type="button"
                   onClick={() => setIsMobileChatView(false)}
                   className="md:hidden p-1.5 rounded-lg hover:bg-black/5 text-indigo-400"
                   aria-label="Back to contacts"
@@ -312,48 +445,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ theme }) => {
                 <div className="flex-1 min-w-0">
                   <h4 className={`font-medium ${tc.text} text-sm sm:text-base truncate`}>{activeDisplay.name}</h4>
                   <p className={`text-[10px] sm:text-xs ${tc.textMuted} truncate`}>
-                    {typingNames.length > 0
-                      ? 'typing…'
-                      : activeDisplay.isGroup
-                      ? activeDisplay.subtitle
-                      : activeDisplay.online
-                      ? 'Online'
-                      : activeDisplay.subtitle}
+                    {getStatusText()}
                   </p>
                 </div>
               </div>
 
               <div className="flex-1 overflow-y-auto p-3 sm:p-4 scrollbar-thin space-y-3">
-                {messagesLoading ? (
-                  <div className={`text-center text-sm ${tc.textMuted}`}>Loading messages…</div>
-                ) : messages.length === 0 ? (
-                  <div className={`text-center text-sm ${tc.textMuted}`}>
-                    No messages yet. Say hello 👋
-                  </div>
-                ) : (
-                  messages.map((msg) => {
-                    const isMine = msg.senderId === myEmployeeId;
-                    return (
-                      <div key={msg.messageId} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-                        <div
-                          className={`max-w-[80%] sm:max-w-[70%] p-2.5 sm:p-3 rounded-xl ${
-                            isMine ? tc.messageSent : `${tc.messageReceived} border ${tc.border}`
-                          }`}
-                        >
-                          {!isMine && activeDisplay.isGroup && (
-                            <p className={`text-[10px] sm:text-xs font-medium ${tc.textMuted} mb-1`}>
-                              {msg.sender.fullName}
-                            </p>
-                          )}
-                          <p className="text-xs sm:text-sm break-words whitespace-pre-wrap">{msg.content}</p>
-                          <p className={`text-[8px] sm:text-xs mt-1 ${isMine ? 'text-white/70' : tc.textMuted}`}>
-                            {formatTime(msg.createdAt)}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
+                {renderMessages()}
                 <div ref={messagesEndRef} />
               </div>
 
@@ -366,8 +464,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ theme }) => {
                     onChange={(e) => handleDraftChange(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                     className={`flex-1 px-3 sm:px-4 py-1.5 sm:py-2 ${tc.input} border rounded-xl focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent outline-none transition-all text-sm min-w-0`}
+                    aria-label="Type a message"
                   />
                   <button
+                    type="button"
                     onClick={handleSend}
                     disabled={!draft.trim()}
                     className={`p-1.5 sm:p-2 rounded-xl flex-shrink-0 ${

@@ -4,7 +4,7 @@ import ChatWindow from '../../Chat/ChatWindow';
 
 interface MessagesTabProps {
   theme: 'light' | 'dark';
-  attendance?: any;
+  // attendance?: any;
 }
 
 // Thin wrapper: all the real logic (conversations, sockets, presence,

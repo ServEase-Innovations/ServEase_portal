@@ -269,6 +269,22 @@ const Header: React.FC<HeaderProps> = ({
     setNotificationItems((items) => items.map((item) => ({ ...item, unread: false })));
   };
 
+  // Handler for clicking on a search result
+  const handleSearchResultClick = useCallback((employee: EmployeeSearchResult) => {
+    // No dedicated employee-detail route exists yet in this app; for now selecting just closes the dropdown.
+    // Wire up navigation here once a route like /dashboard/employees/:id is added.
+    setIsSearchOpen(false);
+    setIsMobileSearchOpen(false);
+  }, []);
+
+  // Handler for keyboard events on search results
+  const handleSearchResultKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>, employee: EmployeeSearchResult) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleSearchResultClick(employee);
+    }
+  }, [handleSearchResultClick]);
+
   const getThemeClasses = () => {
     if (theme === 'dark') {
       return {
@@ -427,19 +443,23 @@ const Header: React.FC<HeaderProps> = ({
               >
                 <div
                   className={`absolute right-0 sm:left-0 mt-2 w-72 sm:w-80 ${themeClasses.dropdownBg} rounded-2xl shadow-2xl border ${themeClasses.dropdownBorder} py-1 z-50 overflow-hidden max-h-96 overflow-y-auto origin-top`}
+                  role="listbox"
+                  aria-label="Search results"
                 >
                   {isSearching && (
                     <div className={`px-4 py-4 text-sm ${themeClasses.textSecondary} flex items-center gap-2`}>
-                      <span className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                      <span className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" aria-hidden="true" />
                       Searching...
                     </div>
                   )}
 
                   {!isSearching && searchError && (
-                    <div className="px-4 py-4 text-sm text-red-400">{searchError}</div>
+                    <div className="px-4 py-4 text-sm text-red-400" role="alert">
+                      {searchError}
+                    </div>
                   )}
 
-                  {!isSearching && !searchError && searchResults.length === 0 && (
+                  {!isSearching && !searchError && searchResults.length === 0 && searchQuery.trim() && (
                     <div className={`px-4 py-4 text-sm ${themeClasses.textSecondary}`}>
                       No employees found for &ldquo;{searchQuery.trim()}&rdquo;
                     </div>
@@ -450,17 +470,15 @@ const Header: React.FC<HeaderProps> = ({
                     searchResults.map((emp) => (
                       <div
                         key={emp.employeeId}
+                        role="option"
+                        tabIndex={0}
+                        aria-selected="false"
                         className={clsx(
-                          'flex items-center gap-3 px-4 py-2.5 sm:py-3 cursor-pointer transition-colors',
+                          'flex items-center gap-3 px-4 py-2.5 sm:py-3 cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/50',
                           themeClasses.dropdownHover
                         )}
-                        onClick={() => {
-                          // No dedicated employee-detail route exists yet in
-                          // this app; for now selecting just closes the
-                          // dropdown. Wire up navigation here once a route
-                          // like /dashboard/employees/:id is added.
-                          setIsSearchOpen(false);
-                        }}
+                        onClick={() => handleSearchResultClick(emp)}
+                        onKeyDown={(e) => handleSearchResultKeyDown(e, emp)}
                       >
                         <img
                           src={`https://ui-avatars.com/api/?name=${encodeURIComponent(emp.fullName)}&background=6366f1&color=fff&size=40&bold=true`}
@@ -802,15 +820,23 @@ const Header: React.FC<HeaderProps> = ({
           </div>
 
           {searchQuery.trim() && (
-            <div className={`mt-2 ${themeClasses.dropdownBg} rounded-2xl shadow-2xl border ${themeClasses.dropdownBorder} py-1 overflow-hidden max-h-80 overflow-y-auto`}>
+            <div 
+              className={`mt-2 ${themeClasses.dropdownBg} rounded-2xl shadow-2xl border ${themeClasses.dropdownBorder} py-1 overflow-hidden max-h-80 overflow-y-auto`}
+              role="listbox"
+              aria-label="Search results"
+            >
               {isSearching && (
                 <div className={`px-4 py-4 text-sm ${themeClasses.textSecondary} flex items-center gap-2`}>
-                  <span className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                  <span className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" aria-hidden="true" />
                   Searching...
                 </div>
               )}
-              {!isSearching && searchError && <div className="px-4 py-4 text-sm text-red-400">{searchError}</div>}
-              {!isSearching && !searchError && searchResults.length === 0 && (
+              {!isSearching && searchError && (
+                <div className="px-4 py-4 text-sm text-red-400" role="alert">
+                  {searchError}
+                </div>
+              )}
+              {!isSearching && !searchError && searchResults.length === 0 && searchQuery.trim() && (
                 <div className={`px-4 py-4 text-sm ${themeClasses.textSecondary}`}>
                   No employees found for &ldquo;{searchQuery.trim()}&rdquo;
                 </div>
@@ -820,8 +846,15 @@ const Header: React.FC<HeaderProps> = ({
                 searchResults.map((emp) => (
                   <div
                     key={emp.employeeId}
-                    className={clsx('flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors', themeClasses.dropdownHover)}
-                    onClick={() => setIsMobileSearchOpen(false)}
+                    role="option"
+                    tabIndex={0}
+                    aria-selected="false"
+                    className={clsx(
+                      'flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/50',
+                      themeClasses.dropdownHover
+                    )}
+                    onClick={() => handleSearchResultClick(emp)}
+                    onKeyDown={(e) => handleSearchResultKeyDown(e, emp)}
                   >
                     <img
                       src={`https://ui-avatars.com/api/?name=${encodeURIComponent(emp.fullName)}&background=6366f1&color=fff&size=40&bold=true`}
