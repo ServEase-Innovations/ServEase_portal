@@ -73,10 +73,40 @@ const getLocalDateString = (date: Date = new Date()): string => {
   return `${year}-${month}-${day}`;
 };
 
+// ✅ Extracted helper: centralizes the repeated "401 vs generic error" handling
+// that previously showed up as duplicated if/else branches in multiple
+// functions. This removes branching from the callers and cuts their
+// cognitive complexity.
+const handleApiError = (error: any, defaultMessage: string) => {
+  if (error?.response?.status === 401) {
+    toast.error('Session expired. Please login again.');
+  } else {
+    toast.error(error?.message || defaultMessage);
+  }
+};
+
+// ✅ Extracted helper: pulls the URL-validation loop (for + try/catch) out of
+// handleSubmitTask, which was the main contributor to its cognitive
+// complexity.
+const validateJiraLinkUrls = (links: JiraLink[]): boolean => {
+  for (const link of links) {
+    try {
+      // eslint-disable-next-line no-new
+      new URL(link.url);
+    } catch {
+      toast.error(`Invalid URL: ${link.url}`);
+      return false;
+    }
+  }
+  return true;
+};
+
 const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
   const tc = getThemeClasses(theme);
-  const { user, token, isAuthenticated } = useAuth();
-  
+  // ✅ Only destructure what's actually used — `user` and `token` were
+  // assigned but never referenced anywhere in this component.
+  const { isAuthenticated } = useAuth();
+
   const [taskStatus, setTaskStatus] = useState<'Pending' | 'Completed'>('Pending');
   const [jiraLinks, setJiraLinks] = useState<JiraLink[]>([{ url: '' }]);
   const [workDescription, setWorkDescription] = useState('');
@@ -88,7 +118,7 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fetchingHistory, setFetchingHistory] = useState(false);
-  
+
   // ✅ CHANGE: Set initial date to empty string to show all history
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'Pending' | 'Completed' | ''>('');
@@ -96,7 +126,6 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
   // ✅ FIXED: Fetch daily tasks - handles both date filter and all history
   const fetchMyTasks = async (date?: string) => {
     if (!isAuthenticated) {
-      console.error('User not authenticated');
       toast.error('Please login to view your tasks');
       return;
     }
@@ -104,32 +133,21 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
     setFetchingHistory(true);
     try {
       const params: any = {};
-      
+
       // ✅ Only add date param if a specific date is selected
       if (date && date.trim() !== '') {
         params.date = date;
       }
-      
+
       if (statusFilter) {
         params.status = statusFilter;
       }
-      
-      console.log('📤 Fetching tasks with params:', params);
+
       const response = await dailyTaskService.getMyTasks(params);
-      console.log('📥 Fetched tasks response:', response);
-      
-      if (response && response.dailyTasks) {
-        setTaskHistory(response.dailyTasks);
-      } else {
-        setTaskHistory([]);
-      }
+      setTaskHistory(response?.dailyTasks ?? []);
     } catch (error: any) {
       console.error('Failed to fetch tasks:', error);
-      if (error.response?.status === 401) {
-        toast.error('Session expired. Please login again.');
-      } else {
-        toast.error(error.message || 'Failed to fetch task history');
-      }
+      handleApiError(error, 'Failed to fetch task history');
     } finally {
       setFetchingHistory(false);
     }
@@ -141,6 +159,7 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
       // ✅ Pass the selected date (or empty for all history)
       fetchMyTasks(selectedDate);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, selectedDate, statusFilter]);
 
   const addJiraLink = () => {
@@ -167,7 +186,7 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
     if (fileList) {
       const newFiles = Array.from(fileList);
       setFiles([...files, ...newFiles]);
-      
+
       newFiles.forEach(file => {
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -185,28 +204,23 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
     setFilePreviews(newPreviews);
   };
 
+  // ✅ REFACTORED: cognitive complexity reduced by delegating URL validation
+  // to validateJiraLinkUrls() and error branching to handleApiError().
   const handleSubmitTask = async () => {
-    console.log('🚀 handleSubmitTask called');
-    
     if (!isAuthenticated) {
       toast.error('Please login to submit a task');
       return;
     }
 
     const filteredLinks = jiraLinks.filter(link => link.url.trim() !== '');
-    
+
     if (!workDescription.trim()) {
       toast.error('Please provide a task description');
       return;
     }
 
-    for (const link of filteredLinks) {
-      try {
-        new URL(link.url);
-      } catch {
-        toast.error(`Invalid URL: ${link.url}`);
-        return;
-      }
+    if (!validateJiraLinkUrls(filteredLinks)) {
+      return;
     }
 
     setLoading(true);
@@ -222,11 +236,9 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
         }))
       };
 
-      console.log('📤 Creating task with data:', taskData);
       const createResponse = await dailyTaskService.create(taskData);
-      console.log('📥 Task created response:', createResponse);
 
-      if (!createResponse || !createResponse.dailyTask) {
+      if (!createResponse?.dailyTask) {
         throw new Error('Failed to create task');
       }
 
@@ -237,14 +249,12 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
         files.forEach(file => {
           formData.append('files', file);
         });
-
-        console.log('📤 Uploading attachments for task:', taskId);
         await dailyTaskService.uploadAttachments(taskId, formData);
       }
 
       setShowSuccess(true);
       toast.success('Task submitted successfully!');
-      
+
       setWorkDescription('');
       setNewIdeas('');
       setAdditionalInfo('');
@@ -252,18 +262,14 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
       setFiles([]);
       setFilePreviews([]);
       setTaskStatus('Pending');
-      
+
       // ✅ Refresh task history (keeps current filter)
       await fetchMyTasks(selectedDate);
-      
+
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (error: any) {
       console.error('Error submitting task:', error);
-      if (error.response?.status === 401) {
-        toast.error('Session expired. Please login again.');
-      } else {
-        toast.error(error.message || 'Failed to submit task');
-      }
+      handleApiError(error, 'Failed to submit task');
     } finally {
       setLoading(false);
     }
@@ -271,13 +277,13 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
 
   const handleDeleteAttachment = async (taskId: string, attachmentId: string) => {
     if (!confirm('Delete this attachment?')) return;
-    
+
     try {
       await dailyTaskService.deleteAttachment(taskId, attachmentId);
       toast.success('Attachment deleted');
       await fetchMyTasks(selectedDate);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to delete attachment');
+      handleApiError(error, 'Failed to delete attachment');
     }
   };
 
@@ -335,7 +341,7 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
       <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
         <h3 className={`font-semibold ${tc.text} mb-1 sm:mb-2 text-base sm:text-lg`}>Today's Work Submission</h3>
         <p className={`text-sm ${tc.textSecondary} mb-4 sm:mb-6`}>Submit your daily work report with Jira links and attachments</p>
-        
+
         <div className="space-y-4">
           {/* Jira Links */}
           <div>
@@ -360,7 +366,7 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
                 )}
               </div>
             </div>
-            
+
             <div className="space-y-2">
               {jiraLinks.map((link, index) => (
                 <div key={index} className="flex items-center gap-2">
@@ -393,7 +399,7 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
                 </div>
               ))}
             </div>
-            
+
             <div className={`mt-1.5 text-[10px] sm:text-xs ${tc.textMuted}`}>
               Add up to 25 Jira tickets with optional labels
             </div>
@@ -490,7 +496,7 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
                 Max 10 files, up to 100MB each
               </span>
             </div>
-            
+
             {/* File previews */}
             {filePreviews.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-3">
@@ -501,7 +507,7 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
                         <img src={preview} alt={`File ${index + 1}`} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-2xl">
-                          {files[index]?.type?.includes('pdf') ? '📄' : 
+                          {files[index]?.type?.includes('pdf') ? '📄' :
                            files[index]?.type?.includes('video') ? '🎬' : '📎'}
                         </div>
                       )}
@@ -522,7 +528,7 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
             )}
           </div>
 
-          <button 
+          <button
             type="button"
             onClick={handleSubmitTask}
             disabled={loading || !isAuthenticated}
@@ -555,7 +561,7 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
               <option value="Pending">Pending</option>
               <option value="Completed">Completed</option>
             </select>
-            
+
             {/* ✅ Date filter with clear button */}
             <div className="flex items-center gap-1">
               <input
@@ -574,7 +580,7 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
                 </button>
               )}
             </div>
-            
+
             <button
               onClick={() => fetchMyTasks(selectedDate)}
               className={`p-1.5 rounded-lg ${tc.btnBg} transition-all hover:scale-105`}
@@ -586,7 +592,7 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
             </button>
           </div>
         </div>
-        
+
         {fetchingHistory ? (
           <div className="text-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mx-auto"></div>
@@ -633,7 +639,7 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
                     {formatDate(task.submittedAt)}
                   </span>
                 </div>
-                
+
                 <div className="mt-2 space-y-1.5">
                   {/* Jira Links */}
                   {task.jiraLinks.length > 0 && (
@@ -644,10 +650,10 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
                           {link.label && (
                             <span className={`${tc.textSecondary} font-medium`}>[{link.label}]</span>
                           )}
-                          <a 
-                            href={link.url} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
+                          <a
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
                             className="text-indigo-400 hover:text-indigo-300 truncate"
                           >
                             {link.url}
@@ -656,10 +662,10 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
                       ))}
                     </div>
                   )}
-                  
+
                   {/* Work Description */}
                   <p className={`text-xs sm:text-sm ${tc.text}`}>{task.workDescription}</p>
-                  
+
                   {/* New Ideas */}
                   {task.newIdeas && (
                     <div className="flex items-start gap-2 text-xs">
@@ -667,16 +673,16 @@ const TasksTab: React.FC<TasksTabProps> = ({ theme, attendance }) => {
                       <span className={`${tc.textSecondary}`}>{task.newIdeas}</span>
                     </div>
                   )}
-                  
+
                   {/* Attachments */}
                   {task.attachments.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-2">
                       {task.attachments.map((attachment) => (
                         <div key={attachment.dailyTaskAttachmentId} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-700/20 border ${tc.border}">
                           <span className="text-sm">{getFileIcon(attachment.fileType)}</span>
-                          <a 
-                            href={attachment.fileUrl} 
-                            target="_blank" 
+                          <a
+                            href={attachment.fileUrl}
+                            target="_blank"
                             rel="noopener noreferrer"
                             className="text-xs text-indigo-400 hover:text-indigo-300 truncate max-w-[100px]"
                           >

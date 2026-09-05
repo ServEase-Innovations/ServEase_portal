@@ -340,7 +340,7 @@ const DailyTasksTab: React.FC<DailyTasksTabProps> = ({
       const createResponse = await dailyTaskService.create(taskData);
       console.log('📥 Task created response:', createResponse);
 
-      if (!createResponse || !createResponse.dailyTask) {
+      if (!createResponse?.dailyTask) {
         throw new Error('Failed to create task');
       }
 
