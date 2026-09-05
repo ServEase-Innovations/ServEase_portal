@@ -432,24 +432,24 @@ const Home = () => {
                       People, performance & payroll — unified
                     </span>
                   </div>
-                  <h1 className={`text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-4 sm:mb-6 leading-tight transition-all duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
-                    People, performance & payroll —{' '}
-                    <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent animate-gradient-x">
-                      beautifully unified.
+                  <h1 className={`text-2xl sm:text-3xl md:text-4xl lg:text-6xl font-bold mb-4 sm:mb-6 leading-tight transition-all duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                    Your Complete Workforce Platform{' '}
+                    <span className="block mt-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                      Built for Modern Teams
                     </span>
                   </h1>
                   <p className={`text-base sm:text-lg md:text-xl ${isDarkMode ? 'text-slate-300' : 'text-gray-600'} mb-6 sm:mb-10 max-w-3xl mx-auto leading-relaxed transition-all duration-300 px-2`}>
-                    The ServEase portal brings attendance, tasks, leaves, performance and payroll into one premium workspace —
-                    engineered for Super Admins, Managers and Employees alike.
+                    Transform how your team works with an all-in-one platform for attendance, task management, 
+                    payroll, and real-time collaboration. Designed for enterprises, loved by employees.
                   </p>
-                  <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
+                  <div className="flex flex-wrap justify-center gap-3 sm:gap-4 mb-8 sm:mb-10">
                     <button
                       onClick={openLogin}
                       className="jelly-hover relative group bg-gradient-to-r from-blue-600 to-indigo-700 text-white px-5 sm:px-8 py-3 sm:py-4 rounded-2xl font-medium text-sm sm:text-base transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/30 inline-flex items-center overflow-hidden"
                     >
                       <span className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-blue-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
                       <span className="relative flex items-center">
-                        Try the demo portal
+                        Try Demo Portal - No Signup
                         <ArrowRightIcon className="w-4 h-4 sm:w-5 sm:h-5 ml-1 sm:ml-2 group-hover:translate-x-1 transition-all duration-300" />
                       </span>
                       <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent"></span>
@@ -462,9 +462,25 @@ const Home = () => {
                           : 'border-sky-200 text-blue-600 hover:bg-sky-50/50 hover:border-sky-300'
                       }`}
                     >
-                      <span className="relative">Explore features</span>
+                      <span className="relative">Explore Features</span>
                       <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-300 group-hover:w-full"></span>
                     </a>
+                  </div>
+
+                  {/* Trust indicators */}
+                  <div className={`flex flex-wrap justify-center items-center gap-4 sm:gap-6 text-xs sm:text-sm ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>
+                    <div className="flex items-center gap-2">
+                      <CheckCircleIcon className="w-4 h-4 text-green-500" />
+                      <span>Free Demo Access</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <ShieldCheckIcon className="w-4 h-4 text-blue-500" />
+                      <span>Enterprise Security</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <UsersIcon className="w-4 h-4 text-purple-500" />
+                      <span>12K+ Users</span>
+                    </div>
                   </div>
 
                   {/* Feature Tags - Mobile Responsive */}
@@ -591,10 +607,11 @@ const Home = () => {
                       <span className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-purple-400' : 'text-purple-600'}`}>Platform</span>
                     </div>
                     <h2 className={`text-2xl sm:text-3xl md:text-4xl font-bold mb-3 sm:mb-4 transition-all duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
-                      Every workflow your workforce needs.
+                      Everything Your Team Needs, All in One Place
                     </h2>
                     <p className={`text-base sm:text-lg transition-all duration-300 ${isDarkMode ? 'text-slate-300' : 'text-gray-600'} px-2`}>
-                      One portal for daily standups, attendance, leaves, payroll and analytics — without the friction.
+                      From attendance tracking to payroll automation, we've got you covered with features 
+                      that make work easier for everyone.
                     </p>
                   </div>
 
@@ -638,11 +655,11 @@ const Home = () => {
                       <span className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-indigo-400' : 'text-indigo-600'}`}>Why ServEase</span>
                     </div>
                     <h2 className={`text-2xl sm:text-3xl md:text-4xl font-bold mb-3 sm:mb-4 transition-all duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
-                      An enterprise portal that actually feels modern.
+                      Why Leading Companies Choose ServEase
                     </h2>
                     <p className={`text-base sm:text-lg ${isDarkMode ? 'text-slate-300' : 'text-gray-600'} mb-8 sm:mb-12 max-w-2xl mx-auto leading-relaxed transition-all duration-300 px-2`}>
-                      Designed for organisations that care about speed, clarity and craft.
-                      From the boardroom to the engineering pod, every screen is built to delight.
+                      Built with enterprise-grade security and designed for modern workforces. 
+                      Experience the difference that thoughtful design makes.
                     </p>
                   </div>
 
@@ -737,28 +754,76 @@ const Home = () => {
 
                   {/* CTA Section - Mobile Responsive */}
                   <div className="mt-8 sm:mt-12 md:mt-16 max-w-3xl mx-auto">
-                    <div className={`p-6 sm:p-8 md:p-10 rounded-3xl shadow-xl border backdrop-blur-xl text-center transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 ${
+                    <div className={`p-6 sm:p-8 md:p-10 rounded-3xl shadow-xl border backdrop-blur-xl text-center transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 relative overflow-hidden ${
                       isDarkMode 
                         ? 'bg-gradient-to-br from-slate-800/90 to-slate-700/90 border-slate-600 hover:from-slate-800 hover:to-slate-700' 
                         : 'bg-gradient-to-br from-sky-100/60 via-blue-50/80 to-indigo-50/60 border-sky-200/50 shadow-sky-200/20 hover:bg-gradient-to-br hover:from-sky-100 hover:via-blue-50 hover:to-indigo-50'
                     }`}>
-                      <h3 className={`text-xl sm:text-2xl font-bold mb-2 sm:mb-3 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
-                        Step into your employee portal.
-                      </h3>
-                      <p className={`text-sm sm:text-base transition-colors duration-300 ${isDarkMode ? 'text-slate-300' : 'text-gray-600'} mb-4 sm:mb-6`}>
-                        Try the live demo — no signup needed.
-                      </p>
-                      <button
-                        onClick={openLogin}
-                        className="jelly-hover relative group inline-flex items-center px-5 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-2xl font-medium text-sm sm:text-base transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/30 overflow-hidden"
-                      >
-                        <span className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-blue-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
-                        <span className="relative flex items-center">
-                          Open Demo Portal
-                          <ArrowRightIcon className="w-4 h-4 sm:w-5 sm:h-5 ml-1 sm:ml-2 group-hover:translate-x-1 transition-all duration-300" />
-                        </span>
-                        <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent"></span>
-                      </button>
+                      {/* Decorative elements */}
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-full blur-3xl" />
+                      <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-indigo-500/10 to-pink-500/10 rounded-full blur-3xl" />
+                      
+                      <div className="relative z-10">
+                        <div className={`jelly-hover inline-flex items-center gap-2 px-4 py-2 rounded-full mb-4 border backdrop-blur-sm ${
+                          isDarkMode 
+                            ? 'bg-blue-900/20 border-blue-800' 
+                            : 'bg-white/70 border-blue-200/50'
+                        }`}>
+                          <SparklesIcon className="w-4 h-4 text-blue-500 animate-pulse" />
+                          <span className={`text-sm font-medium ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>
+                            Ready to transform your workplace?
+                          </span>
+                        </div>
+                        
+                        <h3 className={`text-2xl sm:text-3xl font-bold mb-3 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                          Experience the Future of Work Management
+                        </h3>
+                        <p className={`text-sm sm:text-base transition-colors duration-300 ${isDarkMode ? 'text-slate-300' : 'text-gray-600'} mb-6 max-w-2xl mx-auto`}>
+                          Join thousands of companies already using ServEase to streamline their operations.
+                          Try our interactive demo - no signup, no credit card required.
+                        </p>
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
+                          <button
+                            onClick={openLogin}
+                            className="jelly-hover relative group inline-flex items-center px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-2xl font-medium text-sm sm:text-base transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/30 overflow-hidden w-full sm:w-auto justify-center"
+                          >
+                            <span className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-blue-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+                            <span className="relative flex items-center">
+                              Launch Demo Portal
+                              <ArrowRightIcon className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-all duration-300" />
+                            </span>
+                            <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent"></span>
+                          </button>
+                          <a
+                            href="#features"
+                            className={`jelly-hover inline-flex items-center px-6 sm:px-8 py-3 sm:py-4 rounded-2xl font-medium text-sm sm:text-base transition-all duration-300 w-full sm:w-auto justify-center ${
+                              isDarkMode 
+                                ? 'bg-slate-700/50 text-slate-300 hover:bg-slate-700' 
+                                : 'bg-white/80 text-gray-700 hover:bg-white'
+                            }`}
+                          >
+                            Learn More
+                          </a>
+                        </div>
+                        
+                        {/* Trust badges */}
+                        <div className="mt-6 pt-6 border-t border-gray-300/20">
+                          <div className="flex flex-wrap justify-center items-center gap-4 sm:gap-6 text-xs">
+                            <div className="flex items-center gap-2">
+                              <CheckCircleIcon className="w-4 h-4 text-green-500" />
+                              <span className={isDarkMode ? 'text-slate-400' : 'text-gray-600'}>Instant Access</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <ShieldCheckIcon className="w-4 h-4 text-blue-500" />
+                              <span className={isDarkMode ? 'text-slate-400' : 'text-gray-600'}>Bank-Grade Security</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <UsersIcon className="w-4 h-4 text-purple-500" />
+                              <span className={isDarkMode ? 'text-slate-400' : 'text-gray-600'}>Trusted by 47 Companies</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
