@@ -118,8 +118,8 @@ interface UpdateUserData {
 }
 
 export const userService = {
-  getAll: async (): Promise<User[]> => {
-    const response = await api.get<User[]>('/employees');
+  getAll: async (): Promise<any> => {
+    const response = await api.get('/employees');
     return response.data;
   },
 

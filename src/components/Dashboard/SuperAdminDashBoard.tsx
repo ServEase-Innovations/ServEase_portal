@@ -522,19 +522,65 @@ const SuperAdminDashboard = () => {
     { label: 'Payroll (MTD)', value: '₹4.8Cr', icon: BanknotesIcon, subtitle: 'Cycle closes 30 Jun', color: 'orange' }
   ];
 
-  // Employees data
-  const employees: Employee[] = [
-    { id: 'SE-001', name: 'Aarav Mehta', role: 'Super Admin', team: 'Leadership', salary: '₹2,85,000', status: 'Active', email: 'aarav@servease.com', designation: 'Super Admin' },
-    { id: 'SE-042', name: 'Priya Nair', role: 'Manager', team: 'Platform', salary: '₹1,95,000', status: 'Active', email: 'priya@servease.com', designation: 'Engineering Manager' },
-    { id: 'SE-058', name: 'Vikram Shah', role: 'Manager', team: 'Product', salary: '₹1,75,000', status: 'Active', email: 'vikram@servease.com', designation: 'Product Manager' },
-    { id: 'SE-101', name: 'Ishita Roy', role: 'Employee', team: 'Platform', salary: '₹95,000', status: 'Active', email: 'ishita@servease.com', designation: 'Frontend Engineer' },
-    { id: 'SE-118', name: 'Karan Singh', role: 'Employee', team: 'Platform', salary: '₹1,02,000', status: 'Active', email: 'karan@servease.com', designation: 'Backend Engineer' },
-    { id: 'SE-152', name: 'Ananya Iyer', role: 'Employee', team: 'Design', salary: '₹88,000', status: 'On Leave', email: 'ananya@servease.com', designation: 'Product Designer' },
-    { id: 'SE-187', name: 'Rohan Verma', role: 'Employee', team: 'Platform', salary: '₹1,24,000', status: 'Active', email: 'rohan@servease.com', designation: 'Senior Software Engineer' },
-    { id: 'SE-204', name: 'Sneha Pillai', role: 'Employee', team: 'QA', salary: '₹1,10,000', status: 'Active', email: 'sneha@servease.com', designation: 'QA Lead' },
-    { id: 'SE-219', name: 'Devansh Kapoor', role: 'Employee', team: 'DevOps', salary: '₹1,18,000', status: 'Suspended', email: 'devansh@servease.com', designation: 'DevOps Engineer' },
-    { id: 'SE-232', name: 'Meera Joshi', role: 'Employee', team: 'Product', salary: '₹78,000', status: 'Active', email: 'meera@servease.com', designation: 'Product Analyst' }
-  ];
+  // State for real employees data
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [isLoadingEmployees, setIsLoadingEmployees] = useState(true);
+  const [employeesError, setEmployeesError] = useState<string | null>(null);
+
+  // Fetch employees from API
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        setIsLoadingEmployees(true);
+        setEmployeesError(null);
+        
+        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:50001/'}employees`, {
+          credentials: 'include',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('servease_token')}`
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch employees');
+        }
+        
+        const data = await response.json();
+        
+        // Transform backend data to match frontend Employee interface
+        const transformedEmployees = data.employees.map((emp: any) => ({
+          id: `SE-${String(emp.employeeId).padStart(3, '0')}`,
+          name: emp.fullName,
+          role: emp.assignedRole,
+          team: emp.assignedDepartment,
+          salary: `₹${Math.round(Number(emp.baseSalary)).toLocaleString('en-IN')}`,
+          status: emp.isActive ? 'Active' : 'Suspended',
+          email: emp.emailAddress,
+          designation: emp.assignedRole,
+        }));
+        
+        setEmployees(transformedEmployees);
+      } catch (error) {
+        console.error('Error fetching employees:', error);
+        setEmployeesError('Failed to load employees');
+        // Keep empty array on error
+        setEmployees([]);
+      } finally {
+        setIsLoadingEmployees(false);
+      }
+    };
+
+    fetchEmployees();
+  }, []);
+
+  // Filter employees based on search
+  const filteredEmployees = employees.filter(emp =>
+    emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    emp.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    emp.team.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    emp.designation.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    emp.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   // Attendance Data
   const attendanceRecords: AttendanceRecord[] = [
@@ -1831,6 +1877,30 @@ const SuperAdminDashboard = () => {
           </div>
         </div>
         <div className="overflow-x-auto">
+          {isLoadingEmployees ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="flex flex-col items-center gap-3">
+                <ArrowPathIcon className="w-8 h-8 text-indigo-500 animate-spin" />
+                <p className={`text-sm ${tc.textSecondary}`}>Loading employees...</p>
+              </div>
+            </div>
+          ) : employeesError ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="flex flex-col items-center gap-3">
+                <XCircleIcon className="w-8 h-8 text-red-500" />
+                <p className={`text-sm text-red-500`}>{employeesError}</p>
+              </div>
+            </div>
+          ) : filteredEmployees.length === 0 ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="flex flex-col items-center gap-3">
+                <UsersIcon className="w-8 h-8 text-gray-400" />
+                <p className={`text-sm ${tc.textSecondary}`}>
+                  {searchQuery ? 'No employees found matching your search' : 'No employees found'}
+                </p>
+              </div>
+            </div>
+          ) : (
           <table className="w-full">
             <thead>
               <tr className={`text-left text-xs ${tc.tableHeader} ${tc.border} border-b ${tc.tableHeader}`}>
@@ -1844,7 +1914,7 @@ const SuperAdminDashboard = () => {
               </tr>
             </thead>
             <tbody>
-              {employees.map((emp) => (
+              {filteredEmployees.map((emp) => (
                 <tr key={emp.id} className={`${tc.border} border-b last:border-0 ${tc.bgTableHover} transition-colors`}>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
@@ -1888,6 +1958,7 @@ const SuperAdminDashboard = () => {
               ))}
             </tbody>
           </table>
+          )}
         </div>
       </div>
     </div>
