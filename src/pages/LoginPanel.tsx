@@ -9,10 +9,10 @@ import {
   LockClosedIcon,
   EyeIcon,
   EyeSlashIcon,
-  CheckCircleIcon,
   ArrowRightIcon,
   SparklesIcon
 } from '@heroicons/react/24/outline';
+import { CheckCircleIcon } from '@heroicons/react/24/solid';
 
 interface LoginPanelProps {
   isOpen: boolean;
@@ -153,11 +153,11 @@ const LoginPanel: React.FC<LoginPanelProps> = ({ isOpen, onClose, isDarkMode, is
 
               <div className="space-y-2">
                 <div className="flex items-center space-x-3">
-                  <CheckCircleIcon className="w-4 h-4 text-blue-300 flex-shrink-0" />
+                  <CheckCircleIcon className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                   <span className="text-sm text-blue-100">Secure authentication</span>
                 </div>
                 <div className="flex items-center space-x-3">
-                  <CheckCircleIcon className="w-4 h-4 text-blue-300 flex-shrink-0" />
+                  <CheckCircleIcon className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                   <span className="text-sm text-blue-100">Access your workspace</span>
                 </div>
               </div>
@@ -433,8 +433,7 @@ const LoginPanel: React.FC<LoginPanelProps> = ({ isOpen, onClose, isDarkMode, is
                       style={{ animationDelay: `${index * 100}ms` }}
                     >
                       <div className="relative">
-                        <CheckCircleIcon className="w-4 h-4 text-blue-300 flex-shrink-0" />
-                        <div className="absolute inset-0 bg-blue-400/20 rounded-full animate-ping"></div>
+                        <CheckCircleIcon className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                       </div>
                       <span className="text-sm text-blue-100">{text}</span>
                     </div>
