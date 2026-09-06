@@ -3435,7 +3435,7 @@ const SuperAdminDashboard = () => {
             // Refresh departments list
             window.location.reload();
           }}
-          isDarkMode={isDarkMode}
+          isDarkMode={theme === 'dark'}
         />
       )}
     </div>
