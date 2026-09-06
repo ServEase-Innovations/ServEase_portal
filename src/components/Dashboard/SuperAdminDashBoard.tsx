@@ -534,36 +534,56 @@ const SuperAdminDashboard = () => {
         setIsLoadingEmployees(true);
         setEmployeesError(null);
         
-        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:50001/'}employees`, {
+        // Use the API service that's already configured
+        const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:50001/';
+        const token = localStorage.getItem('servease_token');
+        
+        console.log('Fetching employees from:', apiUrl + 'employees');
+        console.log('Token exists:', !!token);
+        
+        const response = await fetch(apiUrl + 'employees', {
+          method: 'GET',
           credentials: 'include',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('servease_token')}`
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` })
           }
         });
         
+        console.log('Response status:', response.status);
+        
         if (!response.ok) {
-          throw new Error('Failed to fetch employees');
+          const errorText = await response.text();
+          console.error('API Error:', response.status, errorText);
+          throw new Error(`Failed to fetch employees: ${response.status}`);
         }
         
         const data = await response.json();
+        console.log('API Response:', data);
+        
+        // Check if response has employees array
+        if (!data.employees || !Array.isArray(data.employees)) {
+          console.error('Invalid response structure:', data);
+          throw new Error('Invalid response from server');
+        }
         
         // Transform backend data to match frontend Employee interface
         const transformedEmployees = data.employees.map((emp: any) => ({
           id: `SE-${String(emp.employeeId).padStart(3, '0')}`,
           name: emp.fullName,
           role: emp.assignedRole,
-          team: emp.assignedDepartment,
-          salary: `₹${Math.round(Number(emp.baseSalary)).toLocaleString('en-IN')}`,
+          team: emp.assignedDepartment || 'N/A',
+          salary: `₹${Math.round(Number(emp.baseSalary || 0)).toLocaleString('en-IN')}`,
           status: emp.isActive ? 'Active' : 'Suspended',
           email: emp.emailAddress,
           designation: emp.assignedRole,
         }));
         
+        console.log('Transformed employees:', transformedEmployees.length);
         setEmployees(transformedEmployees);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching employees:', error);
-        setEmployeesError('Failed to load employees');
-        // Keep empty array on error
+        setEmployeesError(error.message || 'Failed to load employees');
         setEmployees([]);
       } finally {
         setIsLoadingEmployees(false);
