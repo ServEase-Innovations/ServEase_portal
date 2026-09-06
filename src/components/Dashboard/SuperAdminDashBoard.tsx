@@ -561,14 +561,18 @@ const SuperAdminDashboard = () => {
         const data = await response.json();
         console.log('API Response:', data);
         
-        // Check if response has employees array
-        if (!data.employees || !Array.isArray(data.employees)) {
+        // Backend returns array directly, not wrapped in {employees: []}
+        const employeesArray = Array.isArray(data) ? data : (data.employees || []);
+        
+        if (!Array.isArray(employeesArray)) {
           console.error('Invalid response structure:', data);
           throw new Error('Invalid response from server');
         }
         
+        console.log('Employees array length:', employeesArray.length);
+        
         // Transform backend data to match frontend Employee interface
-        const transformedEmployees = data.employees.map((emp: any) => ({
+        const transformedEmployees = employeesArray.map((emp: any) => ({
           id: `SE-${String(emp.employeeId).padStart(3, '0')}`,
           name: emp.fullName,
           role: emp.assignedRole,
