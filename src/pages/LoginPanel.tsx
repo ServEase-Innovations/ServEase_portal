@@ -145,21 +145,20 @@ const LoginPanel: React.FC<LoginPanelProps> = ({ isOpen, onClose, isDarkMode, is
               </div>
 
               <h2 className="text-xl font-bold mb-1 flex items-center gap-2">
-                Welcome back.
-                <SparklesIcon className="w-4 h-4 text-yellow-400 animate-pulse" />
+                Sign In
               </h2>
               <p className="text-blue-200 text-sm mb-4">
-                Sign in to your account to manage your work efficiently.
+                Enter your credentials to access the portal
               </p>
 
               <div className="space-y-2">
                 <div className="flex items-center space-x-3">
                   <CheckCircleIcon className="w-4 h-4 text-blue-300 flex-shrink-0" />
-                  <span className="text-sm text-blue-100">Username & password sign-in</span>
+                  <span className="text-sm text-blue-100">Secure authentication</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <CheckCircleIcon className="w-4 h-4 text-blue-300 flex-shrink-0" />
-                  <span className="text-sm text-blue-100">Role-based dashboards</span>
+                  <span className="text-sm text-blue-100">Access your workspace</span>
                 </div>
               </div>
             </div>
@@ -413,31 +412,20 @@ const LoginPanel: React.FC<LoginPanelProps> = ({ isOpen, onClose, isDarkMode, is
               {/* Welcome Text with Fade Animation */}
               <div className="space-y-1 animate-fadeIn">
                 <h2 className="text-2xl font-bold mb-1 flex items-center gap-2">
-                  Welcome back.
-                  <SparklesIcon className="w-5 h-5 text-yellow-400 animate-pulse" />
+                  Sign In
                 </h2>
                 <p className="text-blue-200 text-sm mb-4">
-                  Sign in to your account to manage your work efficiently.
+                  Enter your credentials to access the portal
                 </p>
               </div>
 
               {/* Features List with Stagger Animation */}
               <div className="space-y-2">
-                <h3 className="text-xs font-semibold text-blue-300 uppercase tracking-wider">
-                  WELCOME TO
-                </h3>
-                <p className="text-sm font-medium text-white">
-                  The ServEase employee portal.
-                </p>
-                <p className="text-sm text-blue-200">
-                  Sign in to your account to get started.
-                </p>
-
                 <div className="space-y-2 mt-3">
                   {[
-                    'Username & password sign-in',
-                    'Role-based dashboards',
-                    'Secure & reliable'
+                    'Secure authentication',
+                    'Access your workspace',
+                    'Manage attendance & tasks'
                   ].map((text, index) => (
                     <div 
                       key={index}
