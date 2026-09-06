@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import Sidebar from '../Layout/Sidebar';
 import Header from '../Layout/Header';
+import AddDepartmentModal from '../Modals/AddDepartmentModal';
 import {
   UsersIcon,
   BriefcaseIcon,
@@ -801,14 +802,58 @@ const SuperAdminDashboard = () => {
   ];
 
   // Departments data
-  const departments: Department[] = [
-    { id: 'D-ENG', name: 'Engineering', code: 'D-ENG', head: 'Priya Nair', budget: '₹2.4 Cr', employees: 45 },
-    { id: 'D-QA', name: 'Quality Assurance', code: 'D-QA', head: 'Sneha Pillai', budget: '₹61 L', employees: 12 },
-    { id: 'D-PRD', name: 'Product', code: 'D-PRD', head: 'Vikram Shah', budget: '₹95 L', employees: 18 },
-    { id: 'D-OPS', name: 'DevOps & SRE', code: 'D-OPS', head: 'Devansh Kapoor', budget: '₹48 L', employees: 8 },
-    { id: 'D-DSG', name: 'Design', code: 'D-DSG', head: 'Ananya Iyer', budget: '₹52 L', employees: 10 },
-    { id: 'D-HR', name: 'People & Culture', code: 'D-HR', head: 'Sanya Kapoor', budget: '₹38 L', employees: 6 }
-  ];
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [isLoadingDepartments, setIsLoadingDepartments] = useState(true);
+  const [departmentsError, setDepartmentsError] = useState<string | null>(null);
+  const [showAddDepartmentModal, setShowAddDepartmentModal] = useState(false);
+
+  // Fetch departments from API
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        setIsLoadingDepartments(true);
+        setDepartmentsError(null);
+        
+        const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:50001/';
+        const token = localStorage.getItem('servease_token');
+        
+        const response = await fetch(apiUrl + 'departments', {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` })
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch departments: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // Transform backend data to frontend format
+        const transformedDepartments = data.map((dept: any) => ({
+          id: dept.departmentId,
+          name: dept.name,
+          code: dept.code,
+          head: dept.headEmployee?.fullName || 'Not Assigned',
+          budget: dept.budget ? `₹${(dept.budget / 100000).toFixed(1)} L` : 'Not Set',
+          employees: dept.employeeCount || 0,
+        }));
+        
+        setDepartments(transformedDepartments);
+      } catch (error: any) {
+        console.error('Error fetching departments:', error);
+        setDepartmentsError(error.message || 'Failed to load departments');
+        setDepartments([]);
+      } finally {
+        setIsLoadingDepartments(false);
+      }
+    };
+
+    fetchDepartments();
+  }, []);
 
   // Teams data
   const teams: Team[] = [
@@ -1997,6 +2042,7 @@ const SuperAdminDashboard = () => {
           <p className={`text-sm ${tc.textSecondary}`}>Create and govern company departments</p>
         </div>
         <button 
+          onClick={() => setShowAddDepartmentModal(true)}
           className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2"
           aria-label="Add new department"
           title="Add new department"
@@ -2005,26 +2051,56 @@ const SuperAdminDashboard = () => {
           Add Department
         </button>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {departments.map((dept) => (
-          <div key={dept.id} className={`${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow} hover:${tc.bgCardHover} transition-all duration-300 group cursor-pointer`}>
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h3 className={`font-semibold ${tc.text}`}>{dept.name}</h3>
-                <p className={`text-xs ${tc.textMuted}`}>{dept.code}</p>
-              </div>
-              <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                <BuildingOfficeIcon className="w-5 h-5 text-indigo-400" />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <p className={`text-sm ${tc.textSecondary}`}>Head: <span className={`font-medium ${tc.text}`}>{dept.head}</span></p>
-              <p className={`text-sm ${tc.textSecondary}`}>Budget: <span className={`font-medium ${tc.text}`}>{dept.budget}</span></p>
-              <p className={`text-sm ${tc.textSecondary}`}>Employees: <span className={`font-medium ${tc.text}`}>{dept.employees}</span></p>
-            </div>
+
+      {isLoadingDepartments ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="flex flex-col items-center gap-3">
+            <ArrowPathIcon className="w-8 h-8 text-indigo-500 animate-spin" />
+            <p className={`text-sm ${tc.textSecondary}`}>Loading departments...</p>
           </div>
-        ))}
-      </div>
+        </div>
+      ) : departmentsError ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="flex flex-col items-center gap-3">
+            <XCircleIcon className="w-8 h-8 text-red-500" />
+            <p className={`text-sm text-red-500`}>{departmentsError}</p>
+          </div>
+        </div>
+      ) : departments.length === 0 ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="flex flex-col items-center gap-3">
+            <BuildingOfficeIcon className="w-8 h-8 text-gray-400" />
+            <p className={`text-sm ${tc.textSecondary}`}>No departments found</p>
+            <button 
+              onClick={() => setShowAddDepartmentModal(true)}
+              className="mt-2 px-4 py-2 bg-indigo-500 text-white rounded-lg text-sm hover:bg-indigo-600 transition-colors"
+            >
+              Create First Department
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {departments.map((dept) => (
+            <div key={dept.id} className={`${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow} hover:${tc.bgCardHover} transition-all duration-300 group cursor-pointer`}>
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h3 className={`font-semibold ${tc.text}`}>{dept.name}</h3>
+                  <p className={`text-xs ${tc.textMuted}`}>{dept.code}</p>
+                </div>
+                <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <BuildingOfficeIcon className="w-5 h-5 text-indigo-400" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <p className={`text-sm ${tc.textSecondary}`}>Head: <span className={`font-medium ${tc.text}`}>{dept.head}</span></p>
+                <p className={`text-sm ${tc.textSecondary}`}>Budget: <span className={`font-medium ${tc.text}`}>{dept.budget}</span></p>
+                <p className={`text-sm ${tc.textSecondary}`}>Employees: <span className={`font-medium ${tc.text}`}>{dept.employees}</span></p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 
@@ -3349,6 +3425,19 @@ const SuperAdminDashboard = () => {
         onSuccess={handleOnboardSuccess}
         theme={theme}
       />
+
+      {/* Add Department Modal */}
+      {showAddDepartmentModal && (
+        <AddDepartmentModal
+          isOpen={showAddDepartmentModal}
+          onClose={() => setShowAddDepartmentModal(false)}
+          onSuccess={() => {
+            // Refresh departments list
+            window.location.reload();
+          }}
+          isDarkMode={isDarkMode}
+        />
+      )}
     </div>
   );
 };
