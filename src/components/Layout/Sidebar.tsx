@@ -137,6 +137,53 @@ const Sidebar: React.FC<SidebarProps> = ({
           ]
         }
       ],
+      'ceo': [
+        {
+          title: 'Operations',
+          items: [
+            { icon: HomeIcon, label: 'Dashboard', path: '/dashboard', description: 'Overview' },
+            { icon: UsersIcon, label: 'Employees', path: '/dashboard/employees', description: 'All employees' },
+            { icon: BuildingOfficeIcon, label: 'Departments', path: '/dashboard/departments', description: 'Manage departments' },
+            { icon: UserGroupIcon, label: 'Teams', path: '/dashboard/teams', description: 'Manage teams' },
+            { icon: ShieldCheckIcon, label: 'Roles', path: '/dashboard/roles', description: 'Manage roles & permissions' },
+            { icon: QueueListIcon, label: 'Tasks', path: '/dashboard/tasks', description: 'All tasks' },
+            { icon: CalendarDaysIcon, label: 'My Leave', path: '/dashboard/leave', description: 'Apply for leave' },
+            { icon: CreditCardIcon, label: 'Payslips', path: '/dashboard/payslips', description: 'Salary payslips' },
+            { icon: UserPlusIcon, label: 'Generate Payslip', path: '/dashboard/generate-payslip', description: 'Generate payslip for employee' }
+          ]
+        },
+        {
+          title: 'People',
+          items: [
+            { icon: UserGroupIcon, label: 'Attendance', path: '/dashboard/attendance', description: 'Track attendance' },
+            { icon: ClipboardDocumentCheckIcon, label: 'Leave Approvals', path: '/dashboard/leave-approvals', description: 'Approve leaves' },
+            { icon: CalendarIcon, label: 'Holidays', path: '/dashboard/holidays', description: 'Company holidays' },
+            { icon: BellIcon, label: 'Announcements', path: '/dashboard/announcements', description: 'Make announcements' },
+            { icon: BookOpenIcon, label: 'Activity Logs', path: '/dashboard/activity-logs', description: 'View activity logs' }
+          ]
+        },
+        {
+          title: 'Insights',
+          items: [
+            { icon: ChartBarIcon, label: 'Performance', path: '/dashboard/performance', description: 'Performance metrics' },
+            { icon: BanknotesIcon, label: 'Payroll', path: '/dashboard/payroll', description: 'Payroll management' },
+            { icon: ChartPieIcon, label: 'Analytics', path: '/dashboard/analytics', description: 'Analytics & insights' }
+          ]
+        },
+        {
+          title: 'Queries',
+          items: [
+            { icon: EnvelopeIcon, label: 'Queries', path: '/dashboard/queries', description: 'View & respond to messages' },
+            { icon: ChatBubbleLeftRightIcon, label: 'Messages', path: '/dashboard/messages', description: 'Chat with anyone' }
+          ]
+        },
+        {
+          title: 'System',
+          items: [
+            { icon: Cog6ToothIcon, label: 'Settings', path: '/dashboard/settings', description: 'System settings' }
+          ]
+        }
+      ],
       'hr-partner': [
         {
           title: 'People Ops',
@@ -634,7 +681,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             >
               <CreditCardIcon className="w-5 h-5 mx-auto group-hover:scale-110 transition-transform" />
             </button>
-            {(role === 'manager' || role === 'super-admin') && (
+            {(role === 'ceo' || role === 'manager' || role === 'super-admin') && (
               <button 
                 type="button"
                 onClick={() => navigate('/dashboard/generate-payslip')}
