@@ -5,6 +5,7 @@ import Sidebar from '../Layout/Sidebar';
 import Header from '../Layout/Header';
 import AddDepartmentModal from '../Modals/AddDepartmentModal';
 import AddTeamModal from '../Modals/AddTeamModal';
+import AddRoleModal from '../Modals/AddRoleModal';
 import {
   UsersIcon,
   BriefcaseIcon,
@@ -47,7 +48,8 @@ import {
   CalendarDaysIcon,
   CheckIcon,
   CreditCardIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 import OnboardNewHireModal from '../../pages/CreateAccountPage';
 import ChatWindow from '../Chat/ChatWindow';
@@ -403,6 +405,7 @@ const SuperAdminDashboard = () => {
     if (path === '/dashboard/employees') return 'employees';
     if (path === '/dashboard/departments') return 'departments';
     if (path === '/dashboard/teams') return 'teams';
+    if (path === '/dashboard/roles') return 'roles';
     if (path === '/dashboard/tasks') return 'tasks';
     if (path === '/dashboard/attendance') return 'attendance';
     if (path === '/dashboard/leave-approvals') return 'leave-approvals';
@@ -797,6 +800,13 @@ const SuperAdminDashboard = () => {
   const [departmentsError, setDepartmentsError] = useState<string | null>(null);
   const [showAddDepartmentModal, setShowAddDepartmentModal] = useState(false);
 
+  // Roles data
+  const [roles, setRoles] = useState<any[]>([]);
+  const [isLoadingRoles, setIsLoadingRoles] = useState(true);
+  const [rolesError, setRolesError] = useState<string | null>(null);
+  const [showAddRoleModal, setShowAddRoleModal] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<any>(null);
+
   // Fetch departments from API
   useEffect(() => {
     const fetchDepartments = async () => {
@@ -843,6 +853,43 @@ const SuperAdminDashboard = () => {
     };
 
     fetchDepartments();
+  }, []);
+
+  // Fetch roles from API
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        setIsLoadingRoles(true);
+        setRolesError(null);
+        
+        const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000/';
+        const token = localStorage.getItem('servease_token');
+        
+        const response = await fetch(apiUrl + 'roles', {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` })
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch roles: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        setRoles(data);
+      } catch (error: any) {
+        console.error('Error fetching roles:', error);
+        setRolesError(error.message || 'Failed to load roles');
+        setRoles([]);
+      } finally {
+        setIsLoadingRoles(false);
+      }
+    };
+
+    fetchRoles();
   }, []);
 
   // Teams data
@@ -2205,6 +2252,117 @@ const SuperAdminDashboard = () => {
     </div>
   );
 
+  // Render Roles Tab
+  const renderRoles = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className={`text-xl font-bold ${tc.text}`}>Roles & Permissions</h2>
+          <p className={`text-sm ${tc.textSecondary}`}>Manage user roles and their privileges</p>
+        </div>
+        <button 
+          onClick={() => {
+            setSelectedRole(null);
+            setShowAddRoleModal(true);
+          }}
+          className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2"
+          aria-label="Create new role"
+          title="Create new role"
+        >
+          <ShieldCheckIcon className="w-4 h-4" />
+          Create Role
+        </button>
+      </div>
+
+      {isLoadingRoles ? (
+        <div className={`${tc.bgCard} p-12 rounded-2xl ${tc.border} ${tc.shadow} text-center`}>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
+          <p className={`${tc.textSecondary}`}>Loading roles...</p>
+        </div>
+      ) : rolesError ? (
+        <div className={`${tc.bgCard} p-12 rounded-2xl ${tc.border} ${tc.shadow} text-center`}>
+          <XCircleIcon className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <p className={`${tc.text} font-semibold mb-2`}>Failed to load roles</p>
+          <p className={`text-sm ${tc.textSecondary}`}>{rolesError}</p>
+        </div>
+      ) : roles.length === 0 ? (
+        <div className={`${tc.bgCard} p-12 rounded-2xl ${tc.border} ${tc.shadow} text-center`}>
+          <ShieldCheckIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <p className={`${tc.text} font-semibold mb-2`}>No roles yet</p>
+          <p className={`text-sm ${tc.textSecondary} mb-4`}>Create your first role to get started</p>
+          <button 
+            onClick={() => setShowAddRoleModal(true)}
+            className="px-6 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25"
+          >
+            Create Role
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {roles.map((role) => {
+            const privilegeCount = Object.values(role.privileges || {}).filter((v: any) => v === true).length;
+            const totalPrivileges = Object.keys(role.privileges || {}).length;
+            
+            return (
+              <div key={role.roleId} className={`${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow} hover:${tc.bgCardHover} transition-all duration-300 group cursor-pointer`}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-12 h-12 ${role.isSystemRole ? 'bg-gradient-to-br from-amber-500 to-orange-600' : 'bg-gradient-to-br from-indigo-500 to-purple-600'} rounded-xl flex items-center justify-center text-white text-xl font-bold shadow-lg ${role.isSystemRole ? 'shadow-amber-500/25' : 'shadow-indigo-500/25'} group-hover:scale-110 transition-transform`}>
+                      <ShieldCheckIcon className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className={`font-semibold ${tc.text}`}>{role.displayName}</h3>
+                      <p className={`text-xs ${tc.textMuted}`}>{role.roleName}</p>
+                    </div>
+                  </div>
+                  {role.isSystemRole && (
+                    <span className="px-2 py-1 bg-amber-500/20 text-amber-400 rounded-full text-xs font-medium">
+                      System
+                    </span>
+                  )}
+                </div>
+                
+                <p className={`text-sm ${tc.textSecondary} mb-4 line-clamp-2`}>
+                  {role.description || 'No description'}
+                </p>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs ${tc.textMuted}`}>Privileges</span>
+                    <span className={`text-xs font-medium ${tc.text}`}>{privilegeCount} / {totalPrivileges}</span>
+                  </div>
+                  <div className="w-full bg-gray-200/20 rounded-full h-2">
+                    <div 
+                      className="h-2 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 transition-all duration-500"
+                      style={{ width: `${totalPrivileges > 0 ? (privilegeCount / totalPrivileges) * 100 : 0}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className={`mt-4 pt-4 ${tc.border} border-t flex items-center justify-between`}>
+                  <span className={`text-xs ${role.isActive ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {role.isActive ? '● Active' : '● Inactive'}
+                  </span>
+                  <button 
+                    onClick={() => {
+                      setSelectedRole(role);
+                      setShowAddRoleModal(true);
+                    }}
+                    className="text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors"
+                    aria-label={`Edit ${role.displayName}`}
+                    title={`Edit ${role.displayName}`}
+                  >
+                    Edit →
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
   // Render Tasks Tab
   const renderTasks = () => (
     <div className="space-y-6">
@@ -3322,6 +3480,7 @@ const SuperAdminDashboard = () => {
       case 'employees': return renderEmployees();
       case 'departments': return renderDepartments();
       case 'teams': return renderTeams();
+      case 'roles': return renderRoles();
       case 'tasks': return renderTasks();
       case 'attendance': return renderAttendance();
       case 'leave-approvals': return renderLeaveApprovals();
@@ -3385,6 +3544,22 @@ const SuperAdminDashboard = () => {
             window.location.reload();
           }}
           theme={theme}
+        />
+      )}
+
+      {/* Add/Edit Role Modal */}
+      {showAddRoleModal && (
+        <AddRoleModal
+          isOpen={showAddRoleModal}
+          onClose={() => {
+            setShowAddRoleModal(false);
+            setSelectedRole(null);
+          }}
+          onSuccess={() => {
+            // Refresh roles list
+            window.location.reload();
+          }}
+          role={selectedRole}
         />
       )}
     </div>

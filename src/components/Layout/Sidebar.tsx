@@ -199,6 +199,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             { icon: UsersIcon, label: 'Employees', path: '/dashboard/employees', description: 'All employees' },
             { icon: BuildingOfficeIcon, label: 'Departments', path: '/dashboard/departments', description: 'Manage departments' },
             { icon: UserGroupIcon, label: 'Teams', path: '/dashboard/teams', description: 'Manage teams' },
+            { icon: ShieldCheckIcon, label: 'Roles', path: '/dashboard/roles', description: 'Manage roles & permissions' },
             { icon: QueueListIcon, label: 'Tasks', path: '/dashboard/tasks', description: 'All tasks' },
             { icon: CalendarDaysIcon, label: 'My Leave', path: '/dashboard/leave', description: 'Apply for leave' },
             { icon: CreditCardIcon, label: 'Payslips', path: '/dashboard/payslips', description: 'Salary payslips' },
