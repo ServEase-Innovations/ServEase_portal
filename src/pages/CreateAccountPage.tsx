@@ -135,6 +135,11 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
   const [roles, setRoles] = useState<any[]>([]);
   const [isLoadingRoles, setIsLoadingRoles] = useState(true);
 
+  // Managers state
+  const [managers, setManagers] = useState<any[]>([]);
+  const [isLoadingManagers, setIsLoadingManagers] = useState(true);
+  const [selectedManager, setSelectedManager] = useState<string>(''); // Manager employee ID
+
   // Refs for debounce
   const emailTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -224,6 +229,43 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
 
     if (isOpen) {
       fetchRoles();
+    }
+  }, [isOpen]);
+
+  // Fetch managers from API
+  useEffect(() => {
+    const fetchManagers = async () => {
+      try {
+        setIsLoadingManagers(true);
+        const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000/';
+        const token = localStorage.getItem('servease_token');
+        
+        const response = await fetch(apiUrl + 'employees/managers', {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` })
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch managers');
+        }
+        
+        const data = await response.json();
+        setManagers(data);
+      } catch (error) {
+        console.error('Error fetching managers:', error);
+        toast.error('Failed to load managers');
+        setManagers([]);
+      } finally {
+        setIsLoadingManagers(false);
+      }
+    };
+
+    if (isOpen) {
+      fetchManagers();
     }
   }, [isOpen]);
 
@@ -386,6 +428,7 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
         baseSalary: parseFloat(baseSalary) || 0,
         allowances: parseFloat(allowances) || 0,
         deductions: parseFloat(deductions) || 0,
+        managerId: selectedManager || undefined, // Add manager ID
       };
 
       console.log('Onboarding payload:', payload);
@@ -404,6 +447,7 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
       setConfirmPassword('');
       setSelectedRole(roles.length > 0 ? roles[0].roleName : '');
       setSelectedDepartment(departments.length > 0 ? departments[0].name : '');
+      setSelectedManager('');
       setBaseSalary('60000');
       setAllowances('5000');
       setDeductions('1000');
@@ -690,6 +734,43 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
                 )}
               </select>
             </div>
+          </div>
+
+          {/* Reports To (Manager) */}
+          <div>
+            <label htmlFor="manager" className={`block text-xs sm:text-sm font-medium mb-1 sm:mb-1.5 ${tc.textSecondary}`}>
+              Reports To (Manager)
+              <span className={`ml-1 text-xs ${tc.textMuted}`}>(Optional)</span>
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <UserIcon className={`h-4 w-4 sm:h-5 sm:w-5 ${tc.textMuted}`} aria-hidden="true" />
+              </div>
+              <select
+                id="manager"
+                value={selectedManager}
+                onChange={(e) => setSelectedManager(e.target.value)}
+                className={`w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all duration-200 text-sm sm:text-base ${tc.input}`}
+                disabled={onboardLoading || isLoadingManagers}
+                aria-label="Select manager"
+              >
+                <option value="">-- No Manager --</option>
+                {isLoadingManagers ? (
+                  <option disabled>Loading managers...</option>
+                ) : managers.length === 0 ? (
+                  <option disabled>No managers available</option>
+                ) : (
+                  managers.map((manager) => (
+                    <option key={manager.employeeId} value={manager.employeeId}>
+                      {manager.fullName} - {manager.assignedRole} ({manager.assignedDepartment})
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+            <p className={`text-[10px] sm:text-xs ${tc.textMuted} mt-1`}>
+              Select the manager this employee will report to
+            </p>
           </div>
 
           {/* Salary Details */}
