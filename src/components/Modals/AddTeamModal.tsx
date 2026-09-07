@@ -26,7 +26,7 @@ const AddTeamModal: React.FC<AddTeamModalProps> = ({ isOpen, onClose, onTeamCrea
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!teamName.trim() || !projectTitle.trim() || !milestoneDeadline) {
+    if (!teamName.trim() || !projectTitle.trim()) {
       alert('Please fill in all required fields');
       return;
     }
@@ -37,6 +37,19 @@ const AddTeamModal: React.FC<AddTeamModalProps> = ({ isOpen, onClose, onTeamCrea
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000/';
       const token = localStorage.getItem('servease_token');
       
+      const payload: any = {
+        teamName: teamName.trim(),
+        projectTitle: projectTitle.trim(),
+      };
+
+      if (projectSummary.trim()) {
+        payload.projectSummary = projectSummary.trim();
+      }
+
+      if (milestoneDeadline) {
+        payload.milestoneDeadline = new Date(milestoneDeadline).toISOString();
+      }
+      
       const response = await fetch(apiUrl + 'teams', {
         method: 'POST',
         credentials: 'include',
@@ -44,12 +57,7 @@ const AddTeamModal: React.FC<AddTeamModalProps> = ({ isOpen, onClose, onTeamCrea
           'Content-Type': 'application/json',
           ...(token && { 'Authorization': `Bearer ${token}` })
         },
-        body: JSON.stringify({
-          teamName: teamName.trim(),
-          projectTitle: projectTitle.trim(),
-          projectSummary: projectSummary.trim() || undefined,
-          milestoneDeadline: new Date(milestoneDeadline).toISOString(),
-        })
+        body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
@@ -141,7 +149,7 @@ const AddTeamModal: React.FC<AddTeamModalProps> = ({ isOpen, onClose, onTeamCrea
 
           <div>
             <label htmlFor="milestoneDeadline" className={`block text-sm font-medium ${tc.text} mb-2`}>
-              Milestone Deadline <span className="text-red-500">*</span>
+              Milestone Deadline
             </label>
             <input
               type="date"
@@ -149,7 +157,6 @@ const AddTeamModal: React.FC<AddTeamModalProps> = ({ isOpen, onClose, onTeamCrea
               value={milestoneDeadline}
               onChange={(e) => setMilestoneDeadline(e.target.value)}
               className={`w-full px-4 py-2 ${tc.input} border rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all`}
-              required
             />
           </div>
 
