@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import Sidebar from '../Layout/Sidebar';
 import Header from '../Layout/Header';
 import AddDepartmentModal from '../Modals/AddDepartmentModal';
+import AddTeamModal from '../Modals/AddTeamModal';
 import {
   UsersIcon,
   BriefcaseIcon,
@@ -536,7 +537,7 @@ const SuperAdminDashboard = () => {
         setEmployeesError(null);
         
         // Use the API service that's already configured
-        const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:50001/';
+        const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000/';
         const token = localStorage.getItem('servease_token');
         
         console.log('Fetching employees from:', apiUrl + 'employees');
@@ -814,7 +815,7 @@ const SuperAdminDashboard = () => {
         setIsLoadingDepartments(true);
         setDepartmentsError(null);
         
-        const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:50001/';
+        const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000/';
         const token = localStorage.getItem('servease_token');
         
         const response = await fetch(apiUrl + 'departments', {
@@ -856,13 +857,57 @@ const SuperAdminDashboard = () => {
   }, []);
 
   // Teams data
-  const teams: Team[] = [
-    { id: 'T-001', name: 'Platform', manager: 'Priya Nair', members: 14, projects: 6 },
-    { id: 'T-002', name: 'Product', manager: 'Vikram Shah', members: 8, projects: 4 },
-    { id: 'T-003', name: 'Design', manager: 'Ananya Iyer', members: 5, projects: 3 },
-    { id: 'T-004', name: 'QA', manager: 'Sneha Pillai', members: 7, projects: 5 },
-    { id: 'T-005', name: 'DevOps', manager: 'Devansh Kapoor', members: 4, projects: 2 }
-  ];
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [isLoadingTeams, setIsLoadingTeams] = useState(true);
+  const [teamsError, setTeamsError] = useState<string | null>(null);
+  const [showAddTeamModal, setShowAddTeamModal] = useState(false);
+
+  // Fetch teams from API
+  useEffect(() => {
+    const fetchTeams = async () => {
+      try {
+        setIsLoadingTeams(true);
+        setTeamsError(null);
+        
+        const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000/';
+        const token = localStorage.getItem('servease_token');
+        
+        const response = await fetch(apiUrl + 'teams', {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` })
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch teams: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // Transform backend data to frontend format
+        const transformedTeams = data.map((team: any) => ({
+          id: team.teamId,
+          name: team.teamName,
+          manager: 'Not Assigned', // Backend doesn't have manager field yet
+          members: team.employees?.length || 0,
+          projects: 1, // Each team has one project
+        }));
+        
+        setTeams(transformedTeams);
+      } catch (error: any) {
+        console.error('Error fetching teams:', error);
+        setTeamsError(error.message || 'Failed to load teams');
+        setTeams([]);
+      } finally {
+        setIsLoadingTeams(false);
+      }
+    };
+
+    fetchTeams();
+  }, []);
 
   // Project Teams data
   const projectTeams: ProjectTeam[] = [
@@ -2114,6 +2159,7 @@ const SuperAdminDashboard = () => {
         </div>
         <button 
           className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2"
+          onClick={() => setShowAddTeamModal(true)}
           aria-label="Create new team"
           title="Create new team"
         >
@@ -2121,33 +2167,59 @@ const SuperAdminDashboard = () => {
           Create Team
         </button>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {teams.map((team) => (
-          <div key={team.id} className={`${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow} hover:${tc.bgCardHover} transition-all duration-300 group cursor-pointer`}>
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-indigo-500/25 group-hover:scale-110 transition-transform">
-                {team.name.charAt(0)}
+
+      {isLoadingTeams ? (
+        <div className={`${tc.bgCard} p-12 rounded-2xl ${tc.border} ${tc.shadow} text-center`}>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
+          <p className={`${tc.textSecondary}`}>Loading teams...</p>
+        </div>
+      ) : teamsError ? (
+        <div className={`${tc.bgCard} p-12 rounded-2xl ${tc.border} ${tc.shadow} text-center`}>
+          <XCircleIcon className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <p className={`${tc.text} font-semibold mb-2`}>Failed to load teams</p>
+          <p className={`text-sm ${tc.textSecondary}`}>{teamsError}</p>
+        </div>
+      ) : teams.length === 0 ? (
+        <div className={`${tc.bgCard} p-12 rounded-2xl ${tc.border} ${tc.shadow} text-center`}>
+          <UserGroupIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <p className={`${tc.text} font-semibold mb-2`}>No teams yet</p>
+          <p className={`text-sm ${tc.textSecondary} mb-4`}>Create your first team to get started</p>
+          <button 
+            onClick={() => setShowAddTeamModal(true)}
+            className="px-6 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25"
+          >
+            Create Team
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {teams.map((team) => (
+            <div key={team.id} className={`${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow} hover:${tc.bgCardHover} transition-all duration-300 group cursor-pointer`}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-indigo-500/25 group-hover:scale-110 transition-transform">
+                  {team.name.charAt(0)}
+                </div>
+                <span className={`text-xs ${tc.textMuted}`}>{team.id.substring(0, 8)}</span>
               </div>
-              <span className={`text-xs ${tc.textMuted}`}>{team.id}</span>
-            </div>
-            <h3 className={`font-semibold ${tc.text}`}>{team.name}</h3>
-            <p className={`text-sm ${tc.textSecondary}`}>Manager: {team.manager}</p>
-            <div className={`mt-3 pt-3 ${tc.border} border-t flex items-center justify-between`}>
-              <div>
-                <p className={`text-sm font-medium ${tc.text}`}>{team.members} Members</p>
-                <p className={`text-xs ${tc.textMuted}`}>{team.projects} Projects</p>
+              <h3 className={`font-semibold ${tc.text}`}>{team.name}</h3>
+              <p className={`text-sm ${tc.textSecondary}`}>Manager: {team.manager}</p>
+              <div className={`mt-3 pt-3 ${tc.border} border-t flex items-center justify-between`}>
+                <div>
+                  <p className={`text-sm font-medium ${tc.text}`}>{team.members} Members</p>
+                  <p className={`text-xs ${tc.textMuted}`}>{team.projects} Projects</p>
+                </div>
+                <button 
+                  className="text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors"
+                  aria-label={`Manage ${team.name} team`}
+                  title={`Manage ${team.name} team`}
+                >
+                  Manage →
+                </button>
               </div>
-              <button 
-                className="text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors"
-                aria-label={`Manage ${team.name} team`}
-                title={`Manage ${team.name} team`}
-              >
-                Manage →
-              </button>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 
@@ -3436,6 +3508,19 @@ const SuperAdminDashboard = () => {
             window.location.reload();
           }}
           isDarkMode={theme === 'dark'}
+        />
+      )}
+
+      {/* Add Team Modal */}
+      {showAddTeamModal && (
+        <AddTeamModal
+          isOpen={showAddTeamModal}
+          onClose={() => setShowAddTeamModal(false)}
+          onTeamCreated={() => {
+            // Refresh teams list
+            window.location.reload();
+          }}
+          theme={theme}
         />
       )}
     </div>

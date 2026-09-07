@@ -35,7 +35,7 @@ const AddDepartmentModal: React.FC<AddDepartmentModalProps> = ({
     setLoading(true);
 
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:50001/';
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000/';
       const token = localStorage.getItem('servease_token');
 
       const response = await fetch(apiUrl + 'departments', {
