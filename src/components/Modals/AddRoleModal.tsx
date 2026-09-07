@@ -42,7 +42,6 @@ const privilegeCategories = [
       { key: 'canViewRoles', label: 'View Roles' },
       { key: 'canCreateRoles', label: 'Create Roles' },
       { key: 'canEditRoles', label: 'Edit Roles' },
-      { key: 'canDeleteRoles', label: 'Delete Roles' },
     ]
   },
   {
