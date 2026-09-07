@@ -82,15 +82,6 @@ interface Team {
   projects: number;
 }
 
-interface ProjectTeam {
-  id: string;
-  name: string;
-  project: string;
-  manager: string;
-  members: number;
-  created: string;
-}
-
 interface Task {
   id: string;
   title: string;
@@ -221,7 +212,6 @@ const SuperAdminDashboard = () => {
   const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
-  const [showCreateTeam, setShowCreateTeam] = useState(false);
   const [attendanceView, setAttendanceView] = useState<'weekly' | 'monthly'>('weekly');
   const [selectedMonth, setSelectedMonth] = useState('June 2026');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
@@ -413,7 +403,6 @@ const SuperAdminDashboard = () => {
     if (path === '/dashboard/employees') return 'employees';
     if (path === '/dashboard/departments') return 'departments';
     if (path === '/dashboard/teams') return 'teams';
-    if (path === '/dashboard/project-teams') return 'project-teams';
     if (path === '/dashboard/tasks') return 'tasks';
     if (path === '/dashboard/attendance') return 'attendance';
     if (path === '/dashboard/leave-approvals') return 'leave-approvals';
@@ -908,13 +897,6 @@ const SuperAdminDashboard = () => {
 
     fetchTeams();
   }, []);
-
-  // Project Teams data
-  const projectTeams: ProjectTeam[] = [
-    { id: 'PT-ATLAS', name: 'Atlas Auth Migration', project: 'Atlas Core', manager: 'Priya Nair', members: 4, created: '2026-05-20' },
-    { id: 'PT-ORION', name: 'Orion HR Launch', project: 'Orion HR', manager: 'Vikram Shah', members: 3, created: '2026-05-12' },
-    { id: 'PT-INFRA', name: 'Infrastructure Optimization', project: 'Infra', manager: 'Devansh Kapoor', members: 3, created: '2026-06-10' }
-  ];
 
   // Tasks data
   const tasks: Task[] = [
@@ -2223,123 +2205,6 @@ const SuperAdminDashboard = () => {
     </div>
   );
 
-  // Render Project Teams Tab
-  const renderProjectTeams = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className={`text-xl font-bold ${tc.text}`}>Project Teams</h2>
-          <p className={`text-sm ${tc.textSecondary}`}>Spin up cross-functional squads, assign a manager and pick members from the directory</p>
-        </div>
-        <button 
-          className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2"
-          onClick={() => setShowCreateTeam(true)}
-          aria-label="Create new project team"
-          title="Create new project team"
-        >
-          <PlusIcon className="w-4 h-4" />
-          Create Team
-        </button>
-      </div>
-      {showCreateTeam && (
-        <div className={`${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
-          <h3 className={`font-semibold ${tc.text} mb-4`}>Create Project Team</h3>
-          <p className={`text-sm ${tc.textSecondary} mb-4`}>Pick a project name and select employees from the directory</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className={`block text-sm ${tc.textSecondary} mb-1`}>Team Name</label>
-              <input
-                type="text"
-                placeholder="e.g. Orion Web Revamp"
-                className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
-                aria-label="Team name"
-              />
-            </div>
-            <div>
-              <label htmlFor="assign-manager" className={`block text-sm ${tc.textSecondary} mb-1`}>Assign Manager</label>
-              <select
-                id="assign-manager"
-                className={`w-full px-3 py-2 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all`}
-                aria-label="Assign manager"
-                title="Select manager"
-              >
-                <option>Select manager</option>
-                {employees.filter(e => e.role === 'Manager' || e.role === 'Super Admin').map(e => (
-                  <option key={e.id} value={e.id}>{e.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="mt-4">
-            <label className={`block text-sm ${tc.textSecondary} mb-1`}>Members</label>
-            <div className={`${tc.border} rounded-xl p-3`}>
-              <input
-                type="text"
-                placeholder="Search employees..."
-                className={`w-full px-3 py-1.5 ${tc.input} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all mb-2`}
-                aria-label="Search employees to add"
-              />
-              <div className="space-y-1">
-                {employees.slice(3, 7).map(emp => (
-                  <div key={emp.id} className={`flex items-center gap-2 p-2 ${tc.bgTableHover} rounded-xl`}>
-                    <input type="checkbox" className="rounded border-gray-300 dark:border-white/10" aria-label={`Select ${emp.name}`} />
-                    <span className={`text-sm ${tc.text}`}>{emp.name}</span>
-                    <span className={`text-xs ${tc.textMuted}`}>• {emp.team}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div className="mt-4 flex items-center justify-end gap-3">
-            <button 
-              className={`px-4 py-2 ${tc.border} ${tc.textSecondary} rounded-xl text-sm font-medium ${tc.bgTableHover} transition-colors`}
-              onClick={() => setShowCreateTeam(false)}
-              aria-label="Cancel creating team"
-              title="Cancel creating team"
-            >
-              Cancel
-            </button>
-            <button 
-              className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-indigo-500/25"
-              aria-label="Create project team"
-              title="Create project team"
-            >
-              Create Team
-            </button>
-          </div>
-        </div>
-      )}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {projectTeams.map((team) => (
-          <div key={team.id} className={`${tc.bgCard} p-6 rounded-2xl ${tc.border} ${tc.shadow} hover:${tc.bgCardHover} transition-all duration-300 group cursor-pointer`}>
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-emerald-500/25 group-hover:scale-110 transition-transform">
-                {team.name.charAt(0)}
-              </div>
-              <span className={`text-xs ${tc.textMuted}`}>{team.created}</span>
-            </div>
-            <h3 className={`font-semibold ${tc.text}`}>{team.name}</h3>
-            <p className={`text-sm ${tc.textSecondary}`}>Project - {team.project}</p>
-            <div className={`mt-2 space-y-1 text-sm ${tc.textSecondary}`}>
-              <p>Assigned Manager: <span className={`font-medium ${tc.text}`}>{team.manager}</span></p>
-              <p>{team.members} members</p>
-            </div>
-            <div className={`mt-3 pt-3 ${tc.border} border-t flex items-center justify-between`}>
-              <span className={`text-xs ${tc.textMuted}`}>{team.id}</span>
-              <button 
-                className="text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors"
-                aria-label={`Manage ${team.name}`}
-                title={`Manage ${team.name}`}
-              >
-                Manage →
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
   // Render Tasks Tab
   const renderTasks = () => (
     <div className="space-y-6">
@@ -3457,7 +3322,6 @@ const SuperAdminDashboard = () => {
       case 'employees': return renderEmployees();
       case 'departments': return renderDepartments();
       case 'teams': return renderTeams();
-      case 'project-teams': return renderProjectTeams();
       case 'tasks': return renderTasks();
       case 'attendance': return renderAttendance();
       case 'leave-approvals': return renderLeaveApprovals();
