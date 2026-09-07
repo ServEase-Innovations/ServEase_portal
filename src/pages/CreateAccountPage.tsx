@@ -29,21 +29,11 @@ interface OnboardNewHireModalProps {
   theme: 'light' | 'dark';
 }
 
-// Department options matching backend
-const departments = [
-  'Engineering',
-  'Product',
-  'Design',
-  'Marketing',
-  'Sales',
-  'Human Resources',
-  'Finance',
-  'DevOps',
-  'Quality Assurance',
-  'Operations',
-  'Legal',
-  'Administration'
-];
+interface Department {
+  departmentId: number;
+  name: string;
+  code: string;
+}
 
 // Role options mapping to backend roles - ALL roles available for onboarding
 const employeeRoleOptions: Record<string, { label: string; description: string; icon: React.ReactNode; backendRole: BackendRole }> = {
@@ -128,7 +118,7 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string>('Developer');
-  const [selectedDepartment, setSelectedDepartment] = useState('Engineering');
+  const [selectedDepartment, setSelectedDepartment] = useState('');
   const [baseSalary, setBaseSalary] = useState('60000');
   const [allowances, setAllowances] = useState('5000');
   const [deductions, setDeductions] = useState('1000');
@@ -137,10 +127,57 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
   const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null);
   const [onboardLoading, setOnboardLoading] = useState(false);
 
+  // Departments state
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [isLoadingDepartments, setIsLoadingDepartments] = useState(true);
+
   // Refs for debounce
   const emailTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { createAccount } = useAuth();
+
+  // Fetch departments from API
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        setIsLoadingDepartments(true);
+        const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000/';
+        const token = localStorage.getItem('servease_token');
+        
+        const response = await fetch(apiUrl + 'departments', {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` })
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch departments');
+        }
+        
+        const data = await response.json();
+        setDepartments(data);
+        
+        // Set first department as default if available
+        if (data.length > 0 && !selectedDepartment) {
+          setSelectedDepartment(data[0].name);
+        }
+      } catch (error) {
+        console.error('Error fetching departments:', error);
+        toast.error('Failed to load departments');
+        // Fallback to empty array
+        setDepartments([]);
+      } finally {
+        setIsLoadingDepartments(false);
+      }
+    };
+
+    if (isOpen) {
+      fetchDepartments();
+    }
+  }, [isOpen]);
 
   // Theme-aware class helpers
   const getThemeClasses = () => {
@@ -315,7 +352,7 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
       setPassword('');
       setConfirmPassword('');
       setSelectedRole('Developer');
-      setSelectedDepartment('Engineering');
+      setSelectedDepartment(departments.length > 0 ? departments[0].name : '');
       setBaseSalary('60000');
       setAllowances('5000');
       setDeductions('1000');
@@ -607,14 +644,20 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
                 onChange={(e) => setSelectedDepartment(e.target.value)}
                 className={`w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all duration-200 text-sm sm:text-base ${tc.input}`}
                 required
-                disabled={onboardLoading}
+                disabled={onboardLoading || isLoadingDepartments}
                 aria-label="Select department"
               >
-                {departments.map((dept) => (
-                  <option key={dept} value={dept}>
-                    {dept}
-                  </option>
-                ))}
+                {isLoadingDepartments ? (
+                  <option>Loading departments...</option>
+                ) : departments.length === 0 ? (
+                  <option>No departments available</option>
+                ) : (
+                  departments.map((dept) => (
+                    <option key={dept.departmentId} value={dept.name}>
+                      {dept.name} ({dept.code})
+                    </option>
+                  ))
+                )}
               </select>
             </div>
           </div>
