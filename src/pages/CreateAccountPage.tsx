@@ -140,60 +140,6 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
 
   const { createAccount } = useAuth();
 
-  // Helper function to get icon for a role
-  const getRoleIcon = (roleName: string) => {
-    const iconMap: Record<string, React.ReactNode> = {
-      'SuperAdmin': <ShieldCheckIcon className="w-4 h-4 sm:w-5 sm:h-5" />,
-      'HR': <BuildingOfficeIcon className="w-4 h-4 sm:w-5 sm:h-5" />,
-      'Manager': <BriefcaseIcon className="w-4 h-4 sm:w-5 sm:h-5" />,
-      'Employee': <UserGroupIcon className="w-4 h-4 sm:w-5 sm:h-5" />,
-      'Developer': <UserGroupIcon className="w-4 h-4 sm:w-5 sm:h-5" />,
-      'Marketing': <ChartBarIcon className="w-4 h-4 sm:w-5 sm:h-5" />,
-      'CustomStaff': <BuildingOffice2Icon className="w-4 h-4 sm:w-5 sm:h-5" />,
-    };
-    return iconMap[roleName] || <UserIcon className="w-4 h-4 sm:w-5 sm:h-5" />;
-  };
-
-  // Helper function to get gradient colors for roles
-  const getRoleGradient = (roleName: string) => {
-    const gradientMap: Record<string, string> = {
-      'SuperAdmin': 'from-indigo-100 to-indigo-200 dark:from-indigo-900/30 dark:to-indigo-800/20',
-      'HR': 'from-cyan-100 to-cyan-200 dark:from-cyan-900/30 dark:to-cyan-800/20',
-      'Manager': 'from-emerald-100 to-emerald-200 dark:from-emerald-900/30 dark:to-emerald-800/20',
-      'Employee': 'from-slate-100 to-slate-200 dark:from-slate-900/30 dark:to-slate-800/20',
-      'Developer': 'from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/20',
-      'Marketing': 'from-amber-100 to-amber-200 dark:from-amber-900/30 dark:to-amber-800/20',
-      'CustomStaff': 'from-purple-100 to-purple-200 dark:from-purple-900/30 dark:to-purple-800/20',
-    };
-    return gradientMap[roleName] || 'from-gray-100 to-gray-200 dark:from-gray-900/30 dark:to-gray-800/20';
-  };
-
-  const getRoleBgColor = (roleName: string) => {
-    const bgMap: Record<string, string> = {
-      'SuperAdmin': 'bg-indigo-50 dark:bg-indigo-900/20',
-      'HR': 'bg-cyan-50 dark:bg-cyan-900/20',
-      'Manager': 'bg-emerald-50 dark:bg-emerald-900/20',
-      'Employee': 'bg-slate-50 dark:bg-slate-900/20',
-      'Developer': 'bg-blue-50 dark:bg-blue-900/20',
-      'Marketing': 'bg-amber-50 dark:bg-amber-900/20',
-      'CustomStaff': 'bg-purple-50 dark:bg-purple-900/20',
-    };
-    return bgMap[roleName] || 'bg-gray-50 dark:bg-gray-900/20';
-  };
-
-  const getRoleSelectedBg = (roleName: string) => {
-    const selectedMap: Record<string, string> = {
-      'SuperAdmin': 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-200/50 dark:shadow-indigo-900/30',
-      'HR': 'bg-gradient-to-r from-cyan-500 to-cyan-600 text-white border-cyan-600 shadow-lg shadow-cyan-200/50 dark:shadow-cyan-900/30',
-      'Manager': 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-200/50 dark:shadow-emerald-900/30',
-      'Employee': 'bg-gradient-to-r from-slate-500 to-slate-600 text-white border-slate-600 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/30',
-      'Developer': 'bg-gradient-to-r from-blue-500 to-blue-600 text-white border-blue-600 shadow-lg shadow-blue-200/50 dark:shadow-blue-900/30',
-      'Marketing': 'bg-gradient-to-r from-amber-500 to-amber-600 text-white border-amber-600 shadow-lg shadow-amber-200/50 dark:shadow-amber-900/30',
-      'CustomStaff': 'bg-gradient-to-r from-purple-500 to-purple-600 text-white border-purple-600 shadow-lg shadow-purple-200/50 dark:shadow-purple-900/30',
-    };
-    return selectedMap[roleName] || 'bg-gradient-to-r from-gray-500 to-gray-600 text-white border-gray-600 shadow-lg shadow-gray-200/50 dark:shadow-gray-900/30';
-  };
-
   // Fetch departments from API
   useEffect(() => {
     const fetchDepartments = async () => {
@@ -681,73 +627,36 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
           </div>
 
           {/* Role Selection */}
-          <div className="space-y-2 sm:space-y-3">
-            <label className={`block text-xs sm:text-sm font-medium mb-1 sm:mb-1.5 ${tc.textSecondary}`}>
+          <div>
+            <label htmlFor="role" className={`block text-xs sm:text-sm font-medium mb-1 sm:mb-1.5 ${tc.textSecondary}`}>
               Select role <span className="text-red-500">*</span>
             </label>
-            {isLoadingRoles ? (
-              <div className="flex items-center justify-center py-8 text-sm text-gray-500">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-500 mr-3"></div>
-                Loading roles...
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <ShieldCheckIcon className={`h-4 w-4 sm:h-5 sm:w-5 ${tc.textMuted}`} aria-hidden="true" />
               </div>
-            ) : roles.length === 0 ? (
-              <div className="text-center py-8 text-sm text-gray-500">
-                No roles available. Please contact administrator.
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
-                {roles.map((role) => {
-                  const isSelected = selectedRole === role.roleName;
-                  return (
-                    <button
-                      key={role.roleId}
-                      type="button"
-                      onClick={() => setSelectedRole(role.roleName)}
-                      className={`relative p-2 sm:p-3 border-2 rounded-xl transition-all duration-300 text-left ${
-                        isSelected
-                          ? getRoleSelectedBg(role.roleName)
-                          : `border-gray-200 dark:border-gray-700 ${tc.bgTableHover}`
-                      }`}
-                      disabled={onboardLoading}
-                      aria-label={`Select ${role.displayName} role`}
-                      title={`Select ${role.displayName} role`}
-                    >
-                      <div className="flex items-center space-x-2 sm:space-x-3">
-                        <div className={`p-1.5 sm:p-2 rounded-lg transition-all duration-300 ${
-                          isSelected 
-                            ? 'bg-white/20 text-white' 
-                            : `bg-gradient-to-br ${getRoleGradient(role.roleName)} ${getRoleBgColor(role.roleName)}`
-                        }`}>
-                          {getRoleIcon(role.roleName)}
-                        </div>
-                        <div className="min-w-0">
-                          <div className={`text-xs sm:text-sm font-semibold ${
-                            isSelected ? 'text-white' : tc.text
-                          } truncate`}>
-                            {role.displayName}
-                          </div>
-                          <div className={`text-[8px] sm:text-xs ${
-                            isSelected ? 'text-white/80' : tc.textMuted
-                          } truncate`}>
-                            {role.description || role.roleName}
-                          </div>
-                        </div>
-                      </div>
-                      {isSelected && (
-                        <div className="absolute top-1 right-1 sm:top-2 sm:right-2">
-                          <CheckCircleIcon className="w-3 h-3 sm:w-4 sm:h-4 text-white drop-shadow-md" aria-hidden="true" />
-                        </div>
-                      )}
-                      {role.isSystemRole && (
-                        <div className="absolute bottom-1 right-1">
-                          <span className="text-[8px] px-1.5 py-0.5 bg-amber-500/20 text-amber-400 rounded">System</span>
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+              <select
+                id="role"
+                value={selectedRole}
+                onChange={(e) => setSelectedRole(e.target.value)}
+                className={`w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all duration-200 text-sm sm:text-base ${tc.input}`}
+                required
+                disabled={onboardLoading || isLoadingRoles}
+                aria-label="Select role"
+              >
+                {isLoadingRoles ? (
+                  <option>Loading roles...</option>
+                ) : roles.length === 0 ? (
+                  <option>No roles available</option>
+                ) : (
+                  roles.map((role) => (
+                    <option key={role.roleId} value={role.roleName}>
+                      {role.displayName} {role.isSystemRole ? '(System)' : ''}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
           </div>
 
           {/* Department */}
