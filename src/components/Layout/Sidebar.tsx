@@ -171,7 +171,6 @@ const Sidebar: React.FC<SidebarProps> = ({
           items: [
             { icon: HomeIcon, label: 'Overview', path: '/dashboard', description: 'Team overview' },
             { icon: UsersIcon, label: 'My Team', path: '/dashboard/team', description: 'Team members' },
-            { icon: ViewColumnsIcon, label: 'Project Teams', path: '/dashboard/project-teams', description: 'Project teams' },
             { icon: PencilSquareIcon, label: 'Assign Tasks', path: '/dashboard/assign-tasks', description: 'Assign tasks' },
             { icon: QueueListIcon, label: 'Tasks Board', path: '/dashboard/tasks-board', description: 'Task management' },
             { icon: ClipboardDocumentCheckIcon, label: 'Daily Tasks', path: '/dashboard/daily-tasks', description: 'Submit daily tasks' },
@@ -200,7 +199,6 @@ const Sidebar: React.FC<SidebarProps> = ({
             { icon: UsersIcon, label: 'Employees', path: '/dashboard/employees', description: 'All employees' },
             { icon: BuildingOfficeIcon, label: 'Departments', path: '/dashboard/departments', description: 'Manage departments' },
             { icon: UserGroupIcon, label: 'Teams', path: '/dashboard/teams', description: 'Manage teams' },
-            { icon: ViewColumnsIcon, label: 'Project Teams', path: '/dashboard/project-teams', description: 'Project teams' },
             { icon: QueueListIcon, label: 'Tasks', path: '/dashboard/tasks', description: 'All tasks' },
             { icon: CalendarDaysIcon, label: 'My Leave', path: '/dashboard/leave', description: 'Apply for leave' },
             { icon: CreditCardIcon, label: 'Payslips', path: '/dashboard/payslips', description: 'Salary payslips' },
