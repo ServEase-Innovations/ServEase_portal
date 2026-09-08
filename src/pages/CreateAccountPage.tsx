@@ -1,11 +1,11 @@
 // src/components/HR/OnboardNewHireModal.tsx - Responsive version with First Name & Last Name
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  UserIcon, 
-  DevicePhoneMobileIcon, 
-  EnvelopeIcon, 
-  LockClosedIcon, 
-  EyeIcon, 
+import {
+  UserIcon,
+  DevicePhoneMobileIcon,
+  EnvelopeIcon,
+  LockClosedIcon,
+  EyeIcon,
   EyeSlashIcon,
   CheckCircleIcon,
   XCircleIcon,
@@ -16,7 +16,8 @@ import {
   UserGroupIcon,
   ChartBarIcon,
   BuildingOffice2Icon,
-  CurrencyRupeeIcon
+  CurrencyRupeeIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import { Role, BackendRole } from '../types';
@@ -45,78 +46,68 @@ const departments = [
   'Administration'
 ];
 
-// Role options mapping to backend roles - ALL roles available for onboarding
+// Role options mapping to backend roles - ALL roles available for onboarding.
+// 'CustomStaff' is relabeled "Other" and always ordered last in the dropdown.
 const employeeRoleOptions: Record<string, { label: string; description: string; icon: React.ReactNode; backendRole: BackendRole }> = {
-  'SuperAdmin': { 
-    label: 'Super Admin', 
+  'SuperAdmin': {
+    label: 'Super Admin',
     description: 'Full system access',
     icon: <ShieldCheckIcon className="w-4 h-4 sm:w-5 sm:h-5" />,
     backendRole: 'SuperAdmin'
   },
-  'HR': { 
-    label: 'HR Partner', 
+  'HR': {
+    label: 'HR Partner',
     description: 'HR management',
     icon: <BuildingOfficeIcon className="w-4 h-4 sm:w-5 sm:h-5" />,
     backendRole: 'HR'
   },
-  'Manager': { 
-    label: 'Manager', 
+  'Manager': {
+    label: 'Manager',
     description: 'Team management',
     icon: <BriefcaseIcon className="w-4 h-4 sm:w-5 sm:h-5" />,
     backendRole: 'Manager'
   },
-  'Developer': { 
-    label: 'Developer', 
+  'Developer': {
+    label: 'Developer',
     description: 'Software development',
     icon: <UserGroupIcon className="w-4 h-4 sm:w-5 sm:h-5" />,
     backendRole: 'Developer'
   },
-  'Marketing': { 
-    label: 'Marketing', 
+  'Marketing': {
+    label: 'Marketing',
     description: 'Marketing & Growth',
     icon: <ChartBarIcon className="w-4 h-4 sm:w-5 sm:h-5" />,
     backendRole: 'Marketing'
   },
-  'CustomStaff': { 
-    label: 'Custom Staff', 
-    description: 'Specialized role',
+  'CustomStaff': {
+    label: 'Other',
+    description: 'Specialized / custom role',
     icon: <BuildingOffice2Icon className="w-4 h-4 sm:w-5 sm:h-5" />,
     backendRole: 'CustomStaff'
   },
 };
 
-const roleGradients: Record<string, string> = {
-  'SuperAdmin': 'from-indigo-100 to-indigo-200 dark:from-indigo-900/30 dark:to-indigo-800/20',
-  'HR': 'from-cyan-100 to-cyan-200 dark:from-cyan-900/30 dark:to-cyan-800/20',
-  'Manager': 'from-emerald-100 to-emerald-200 dark:from-emerald-900/30 dark:to-emerald-800/20',
-  'Developer': 'from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/20',
-  'Marketing': 'from-amber-100 to-amber-200 dark:from-amber-900/30 dark:to-amber-800/20',
-  'CustomStaff': 'from-purple-100 to-purple-200 dark:from-purple-900/30 dark:to-purple-800/20',
+// Guarantees "Other" renders last in the <select> regardless of object edits above.
+const ROLE_KEYS_ORDERED = Object.keys(employeeRoleOptions).sort((a, b) => {
+  if (a === 'CustomStaff') return 1;
+  if (b === 'CustomStaff') return -1;
+  return 0;
+});
+
+const roleAccent: Record<string, { chip: string; ring: string }> = {
+  'SuperAdmin': { chip: 'bg-indigo-500', ring: 'focus:ring-indigo-400' },
+  'HR': { chip: 'bg-cyan-500', ring: 'focus:ring-cyan-400' },
+  'Manager': { chip: 'bg-emerald-500', ring: 'focus:ring-emerald-400' },
+  'Developer': { chip: 'bg-blue-500', ring: 'focus:ring-blue-400' },
+  'Marketing': { chip: 'bg-amber-500', ring: 'focus:ring-amber-400' },
+  'CustomStaff': { chip: 'bg-fuchsia-500', ring: 'focus:ring-fuchsia-400' },
 };
 
-const roleBgColors: Record<string, string> = {
-  'SuperAdmin': 'bg-indigo-50 dark:bg-indigo-900/20',
-  'HR': 'bg-cyan-50 dark:bg-cyan-900/20',
-  'Manager': 'bg-emerald-50 dark:bg-emerald-900/20',
-  'Developer': 'bg-blue-50 dark:bg-blue-900/20',
-  'Marketing': 'bg-amber-50 dark:bg-amber-900/20',
-  'CustomStaff': 'bg-purple-50 dark:bg-purple-900/20',
-};
-
-const roleSelectedBg: Record<string, string> = {
-  'SuperAdmin': 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-200/50 dark:shadow-indigo-900/30',
-  'HR': 'bg-gradient-to-r from-cyan-500 to-cyan-600 text-white border-cyan-600 shadow-lg shadow-cyan-200/50 dark:shadow-cyan-900/30',
-  'Manager': 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-200/50 dark:shadow-emerald-900/30',
-  'Developer': 'bg-gradient-to-r from-blue-500 to-blue-600 text-white border-blue-600 shadow-lg shadow-blue-200/50 dark:shadow-blue-900/30',
-  'Marketing': 'bg-gradient-to-r from-amber-500 to-amber-600 text-white border-amber-600 shadow-lg shadow-amber-200/50 dark:shadow-amber-900/30',
-  'CustomStaff': 'bg-gradient-to-r from-purple-500 to-purple-600 text-white border-purple-600 shadow-lg shadow-purple-200/50 dark:shadow-purple-900/30',
-};
-
-const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({ 
-  isOpen, 
-  onClose, 
+const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
+  isOpen,
+  onClose,
   onSuccess,
-  theme 
+  theme
 }) => {
   // Form state - matching backend schema
   const [firstName, setFirstName] = useState('');
@@ -189,10 +180,10 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
     setIsCheckingEmail(true);
     try {
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       const users = JSON.parse(localStorage.getItem('servease_users') || '[]');
       const exists = users.some((user: any) => user.email === trimmedEmail);
-      
+
       setEmailAvailable(!exists);
     } catch (error) {
       setEmailAvailable(null);
@@ -205,11 +196,11 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setEmail(value);
-    
+
     if (emailTimeoutRef.current) {
       clearTimeout(emailTimeoutRef.current);
     }
-    
+
     emailTimeoutRef.current = setTimeout(() => {
       checkEmailUniqueness(value);
     }, 500);
@@ -281,7 +272,7 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
     try {
       // Combine first name and last name to create full name
       const fullName = `${trimmedFirstName} ${trimmedLastName}`.trim();
-      
+
       // Get the backend role from the selected role
       const selectedRoleInfo = employeeRoleOptions[selectedRole];
       const backendRole = selectedRoleInfo.backendRole;
@@ -306,7 +297,7 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
       await createAccount(payload);
 
       toast.success(`${fullName} has been onboarded successfully as ${selectedRoleInfo.label}!`);
-      
+
       // Reset form
       setFirstName('');
       setLastName('');
@@ -321,7 +312,7 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
       setDeductions('1000');
       setAgreeTerms(false);
       setEmailAvailable(null);
-      
+
       if (onSuccess) {
         onSuccess();
       }
@@ -336,30 +327,46 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
 
   if (!isOpen) return null;
 
+  const selectedRoleInfo = employeeRoleOptions[selectedRole];
+  const selectedAccent = roleAccent[selectedRole];
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm">
-      <div className={`w-full max-w-3xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto rounded-2xl sm:rounded-3xl ${tc.bgCard} ${tc.border} ${tc.shadow} p-4 sm:p-6 lg:p-8 transition-colors duration-300 ${tc.scrollbar} scrollbar-thin`}>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-4 sm:mb-6">
-          <div>
-            <h2 className={`text-lg sm:text-xl font-bold ${tc.text}`}>Onboard New Hire</h2>
-            <p className={`text-xs sm:text-sm ${tc.textSecondary}`}>Create a new employee account</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm">
+      <div className={`relative w-full max-w-3xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto rounded-2xl sm:rounded-3xl border-4 border-black ${tc.bgCard} shadow-[10px_10px_0px_0px_rgba(0,0,0,0.85)] p-4 sm:p-6 lg:p-8 transition-colors duration-300 ${tc.scrollbar} scrollbar-thin`}>
+        {/* Decorative blobs */}
+        <div className="pointer-events-none absolute -top-10 -right-10 h-40 w-40 rotate-12 rounded-3xl bg-lime-400/20 blur-2xl" />
+        <div className="pointer-events-none absolute -bottom-10 -left-10 h-32 w-32 -rotate-12 rounded-full bg-fuchsia-500/20 blur-2xl" />
+
+        {/* Header banner */}
+        <div className="relative overflow-hidden rounded-2xl border-4 border-black bg-gradient-to-br from-fuchsia-600 via-violet-600 to-indigo-700 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)] px-4 sm:px-6 py-4 sm:py-5 mb-4 sm:mb-6">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-black/30 px-2.5 py-1 text-[10px] sm:text-xs font-bold text-lime-300">
+                <SparklesIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5" aria-hidden="true" />
+                New account
+              </div>
+              <h2 className="mt-2 text-lg sm:text-2xl font-black tracking-tight text-white drop-shadow-[2px_2px_0px_rgba(0,0,0,0.4)]">
+                Onboard New Hire
+              </h2>
+              <p className="text-xs sm:text-sm text-indigo-100/90">Create a new employee account</p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 sm:p-2 rounded-xl border-2 border-black bg-white/90 hover:bg-white transition-colors flex-shrink-0 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.85)]"
+              aria-label="Close modal"
+            >
+              <XCircleIcon className="w-5 h-5 sm:w-6 sm:h-6 text-black" aria-hidden="true" />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className={`p-1.5 sm:p-2 rounded-xl ${tc.bgTableHover} transition-colors flex-shrink-0`}
-            aria-label="Close modal"
-          >
-            <XCircleIcon className={`w-5 h-5 sm:w-6 sm:h-6 ${tc.textMuted}`} aria-hidden="true" />
-          </button>
         </div>
 
-        <form onSubmit={handleOnboardNewHire} className="space-y-3 sm:space-y-4">
+        <form onSubmit={handleOnboardNewHire} className="space-y-3 sm:space-y-4 relative">
           {/* First Name & Last Name - Grid Layout */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div>
-              <label className={`block text-xs sm:text-sm font-medium mb-1 sm:mb-1.5 ${tc.textSecondary}`}>
-                First name <span className="text-red-500">*</span>
+              <label className={`block text-xs sm:text-sm font-bold mb-1 sm:mb-1.5 ${tc.textSecondary}`}>
+                First name <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -369,7 +376,7 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
                   type="text"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
-                  className={`w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all duration-200 text-sm sm:text-base ${tc.input}`}
+                  className={`w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-3 border-2 border-black rounded-xl focus:ring-2 focus:ring-lime-400 focus:border-black outline-none transition-all duration-200 text-sm sm:text-base shadow-[2px_2px_0px_0px_rgba(0,0,0,0.7)] ${tc.input}`}
                   placeholder="John"
                   required
                   disabled={onboardLoading}
@@ -378,8 +385,8 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
               </div>
             </div>
             <div>
-              <label className={`block text-xs sm:text-sm font-medium mb-1 sm:mb-1.5 ${tc.textSecondary}`}>
-                Last name <span className="text-red-500">*</span>
+              <label className={`block text-xs sm:text-sm font-bold mb-1 sm:mb-1.5 ${tc.textSecondary}`}>
+                Last name <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -389,7 +396,7 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
                   type="text"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  className={`w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all duration-200 text-sm sm:text-base ${tc.input}`}
+                  className={`w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-3 border-2 border-black rounded-xl focus:ring-2 focus:ring-lime-400 focus:border-black outline-none transition-all duration-200 text-sm sm:text-base shadow-[2px_2px_0px_0px_rgba(0,0,0,0.7)] ${tc.input}`}
                   placeholder="Doe"
                   required
                   disabled={onboardLoading}
@@ -401,7 +408,7 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
 
           {/* Mobile Number */}
           <div>
-            <label className={`block text-xs sm:text-sm font-medium mb-1 sm:mb-1.5 ${tc.textSecondary}`}>
+            <label className={`block text-xs sm:text-sm font-bold mb-1 sm:mb-1.5 ${tc.textSecondary}`}>
               Mobile number
             </label>
             <div className="relative">
@@ -412,7 +419,7 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
                 type="tel"
                 value={mobileNumber}
                 onChange={handlePhoneChange}
-                className={`w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all duration-200 text-sm sm:text-base ${tc.input}`}
+                className={`w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-3 border-2 border-black rounded-xl focus:ring-2 focus:ring-lime-400 focus:border-black outline-none transition-all duration-200 text-sm sm:text-base shadow-[2px_2px_0px_0px_rgba(0,0,0,0.7)] ${tc.input}`}
                 placeholder="10-digit number"
                 pattern="[0-9]{10}"
                 maxLength={10}
@@ -424,8 +431,8 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
 
           {/* Email */}
           <div>
-            <label className={`block text-xs sm:text-sm font-medium mb-1 sm:mb-1.5 ${tc.textSecondary}`}>
-              Email <span className="text-red-500">*</span>
+            <label className={`block text-xs sm:text-sm font-bold mb-1 sm:mb-1.5 ${tc.textSecondary}`}>
+              Email <span className="text-rose-500">*</span>
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -435,7 +442,7 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
                 type="email"
                 value={email}
                 onChange={handleEmailChange}
-                className={`w-full pl-9 sm:pl-10 pr-10 sm:pr-12 py-2 sm:py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all duration-200 text-sm sm:text-base ${tc.input} ${emailAvailable === false ? 'border-red-500' : emailAvailable === true ? 'border-green-500' : ''}`}
+                className={`w-full pl-9 sm:pl-10 pr-10 sm:pr-12 py-2 sm:py-3 border-2 rounded-xl focus:ring-2 focus:ring-lime-400 outline-none transition-all duration-200 text-sm sm:text-base shadow-[2px_2px_0px_0px_rgba(0,0,0,0.7)] ${tc.input} ${emailAvailable === false ? 'border-rose-500' : emailAvailable === true ? 'border-emerald-500' : 'border-black'}`}
                 placeholder="you@company.com"
                 required
                 disabled={onboardLoading}
@@ -443,7 +450,7 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
               />
               {isCheckingEmail && (
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                  <svg className="animate-spin h-4 w-4 sm:h-5 sm:w-5 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin h-4 w-4 sm:h-5 sm:w-5 text-fuchsia-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
@@ -451,27 +458,27 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
               )}
               {!isCheckingEmail && emailAvailable === true && email.trim() && (
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                  <CheckCircleIcon className="h-4 w-4 sm:h-5 sm:w-5 text-green-500" aria-hidden="true" />
+                  <CheckCircleIcon className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-500" aria-hidden="true" />
                 </div>
               )}
               {!isCheckingEmail && emailAvailable === false && email.trim() && (
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                  <span className="text-red-500 text-[10px] sm:text-xs font-medium">Email taken</span>
+                  <span className="text-rose-500 text-[10px] sm:text-xs font-bold">Email taken</span>
                 </div>
               )}
             </div>
             {emailAvailable === false && email.trim() && (
-              <p className="text-red-500 text-[10px] sm:text-xs mt-1">This email is already registered</p>
+              <p className="text-rose-500 text-[10px] sm:text-xs mt-1 font-medium">This email is already registered</p>
             )}
             {emailAvailable === true && email.trim() && (
-              <p className="text-green-500 text-[10px] sm:text-xs mt-1">Email is available</p>
+              <p className="text-emerald-500 text-[10px] sm:text-xs mt-1 font-medium">Email is available</p>
             )}
           </div>
 
           {/* Password */}
           <div>
-            <label className={`block text-xs sm:text-sm font-medium mb-1 sm:mb-1.5 ${tc.textSecondary}`}>
-              Password <span className="text-red-500">*</span>
+            <label className={`block text-xs sm:text-sm font-bold mb-1 sm:mb-1.5 ${tc.textSecondary}`}>
+              Password <span className="text-rose-500">*</span>
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -481,7 +488,7 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className={`w-full pl-9 sm:pl-10 pr-10 sm:pr-12 py-2 sm:py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all duration-200 text-sm sm:text-base ${tc.input}`}
+                className={`w-full pl-9 sm:pl-10 pr-10 sm:pr-12 py-2 sm:py-3 border-2 border-black rounded-xl focus:ring-2 focus:ring-lime-400 focus:border-black outline-none transition-all duration-200 text-sm sm:text-base shadow-[2px_2px_0px_0px_rgba(0,0,0,0.7)] ${tc.input}`}
                 placeholder="Min. 6 characters"
                 required
                 minLength={6}
@@ -505,8 +512,8 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
 
           {/* Confirm Password */}
           <div>
-            <label className={`block text-xs sm:text-sm font-medium mb-1 sm:mb-1.5 ${tc.textSecondary}`}>
-              Confirm password <span className="text-red-500">*</span>
+            <label className={`block text-xs sm:text-sm font-bold mb-1 sm:mb-1.5 ${tc.textSecondary}`}>
+              Confirm password <span className="text-rose-500">*</span>
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -516,7 +523,7 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
                 type={showConfirmPassword ? 'text' : 'password'}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className={`w-full pl-9 sm:pl-10 pr-10 sm:pr-12 py-2 sm:py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all duration-200 text-sm sm:text-base ${tc.input}`}
+                className={`w-full pl-9 sm:pl-10 pr-10 sm:pr-12 py-2 sm:py-3 border-2 border-black rounded-xl focus:ring-2 focus:ring-lime-400 focus:border-black outline-none transition-all duration-200 text-sm sm:text-base shadow-[2px_2px_0px_0px_rgba(0,0,0,0.7)] ${tc.input}`}
                 placeholder="Re-enter password"
                 required
                 minLength={6}
@@ -538,64 +545,42 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
             </div>
           </div>
 
-          {/* Role Selection */}
-          <div className="space-y-2 sm:space-y-3">
-            <label className={`block text-xs sm:text-sm font-medium mb-1 sm:mb-1.5 ${tc.textSecondary}`}>
-              Select role <span className="text-red-500">*</span>
+          {/* Role Selection — now a dropdown, "Other" always last */}
+          <div>
+            <label htmlFor="role" className={`block text-xs sm:text-sm font-bold mb-1 sm:mb-1.5 ${tc.textSecondary}`}>
+              Select role <span className="text-rose-500">*</span>
             </label>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
-              {Object.entries(employeeRoleOptions).map(([roleKey, roleInfo]) => {
-                const isSelected = selectedRole === roleKey;
-                return (
-                  <button
-                    key={roleKey}
-                    type="button"
-                    onClick={() => setSelectedRole(roleKey)}
-                    className={`relative p-2 sm:p-3 border-2 rounded-xl transition-all duration-300 text-left ${
-                      isSelected
-                        ? roleSelectedBg[roleKey]
-                        : `border-gray-200 dark:border-gray-700 ${tc.bgTableHover}`
-                    }`}
-                    disabled={onboardLoading}
-                    aria-label={`Select ${roleInfo.label} role`}
-                    title={`Select ${roleInfo.label} role`}
-                  >
-                    <div className="flex items-center space-x-2 sm:space-x-3">
-                      <div className={`p-1.5 sm:p-2 rounded-lg transition-all duration-300 ${
-                        isSelected 
-                          ? 'bg-white/20 text-white' 
-                          : `bg-gradient-to-br ${roleGradients[roleKey]} ${roleBgColors[roleKey]}`
-                      }`}>
-                        {roleInfo.icon}
-                      </div>
-                      <div className="min-w-0">
-                        <div className={`text-xs sm:text-sm font-semibold ${
-                          isSelected ? 'text-white' : tc.text
-                        } truncate`}>
-                          {roleInfo.label}
-                        </div>
-                        <div className={`text-[8px] sm:text-xs ${
-                          isSelected ? 'text-white/80' : tc.textMuted
-                        } truncate`}>
-                          {roleInfo.description}
-                        </div>
-                      </div>
-                    </div>
-                    {isSelected && (
-                      <div className="absolute top-1 right-1 sm:top-2 sm:right-2">
-                        <CheckCircleIcon className="w-3 h-3 sm:w-4 sm:h-4 text-white drop-shadow-md" aria-hidden="true" />
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                {selectedRoleInfo.icon}
+              </div>
+              <select
+                id="role"
+                value={selectedRole}
+                onChange={(e) => setSelectedRole(e.target.value)}
+                className={`w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-3 border-2 border-black rounded-xl outline-none transition-all duration-200 text-sm sm:text-base font-semibold shadow-[2px_2px_0px_0px_rgba(0,0,0,0.7)] cursor-pointer ${tc.input} ${selectedAccent.ring}`}
+                required
+                disabled={onboardLoading}
+                aria-label="Select role"
+              >
+                {ROLE_KEYS_ORDERED.map((roleKey) => (
+                  <option key={roleKey} value={roleKey}>
+                    {employeeRoleOptions[roleKey].label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {/* Live preview chip so the "crazy" color language still shows through */}
+            <div className={`mt-2 inline-flex items-center gap-2 rounded-full border-2 border-black px-3 py-1 text-[10px] sm:text-xs font-bold text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,0.7)] ${selectedAccent.chip}`}>
+              {selectedRoleInfo.icon}
+              {selectedRoleInfo.label} — {selectedRoleInfo.description}
             </div>
           </div>
 
           {/* Department */}
           <div>
-            <label htmlFor="department" className={`block text-xs sm:text-sm font-medium mb-1 sm:mb-1.5 ${tc.textSecondary}`}>
-              Department <span className="text-red-500">*</span>
+            <label htmlFor="department" className={`block text-xs sm:text-sm font-bold mb-1 sm:mb-1.5 ${tc.textSecondary}`}>
+              Department <span className="text-rose-500">*</span>
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -605,7 +590,7 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
                 id="department"
                 value={selectedDepartment}
                 onChange={(e) => setSelectedDepartment(e.target.value)}
-                className={`w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all duration-200 text-sm sm:text-base ${tc.input}`}
+                className={`w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-3 border-2 border-black rounded-xl focus:ring-2 focus:ring-lime-400 focus:border-black outline-none transition-all duration-200 text-sm sm:text-base font-semibold shadow-[2px_2px_0px_0px_rgba(0,0,0,0.7)] cursor-pointer ${tc.input}`}
                 required
                 disabled={onboardLoading}
                 aria-label="Select department"
@@ -622,7 +607,7 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
           {/* Salary Details */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
             <div>
-              <label className={`block text-xs sm:text-sm font-medium mb-1 sm:mb-1.5 ${tc.textSecondary}`}>
+              <label className={`block text-xs sm:text-sm font-bold mb-1 sm:mb-1.5 ${tc.textSecondary}`}>
                 Base Salary
               </label>
               <div className="relative">
@@ -633,7 +618,7 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
                   type="text"
                   value={baseSalary}
                   onChange={(e) => handleSalaryChange(e, setBaseSalary)}
-                  className={`w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all duration-200 text-sm sm:text-base ${tc.input}`}
+                  className={`w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-3 border-2 border-black rounded-xl focus:ring-2 focus:ring-lime-400 focus:border-black outline-none transition-all duration-200 text-sm sm:text-base shadow-[2px_2px_0px_0px_rgba(0,0,0,0.7)] ${tc.input}`}
                   placeholder="60000"
                   disabled={onboardLoading}
                   aria-label="Base salary"
@@ -641,7 +626,7 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
               </div>
             </div>
             <div>
-              <label className={`block text-xs sm:text-sm font-medium mb-1 sm:mb-1.5 ${tc.textSecondary}`}>
+              <label className={`block text-xs sm:text-sm font-bold mb-1 sm:mb-1.5 ${tc.textSecondary}`}>
                 Allowances
               </label>
               <div className="relative">
@@ -652,7 +637,7 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
                   type="text"
                   value={allowances}
                   onChange={(e) => handleSalaryChange(e, setAllowances)}
-                  className={`w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all duration-200 text-sm sm:text-base ${tc.input}`}
+                  className={`w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-3 border-2 border-black rounded-xl focus:ring-2 focus:ring-lime-400 focus:border-black outline-none transition-all duration-200 text-sm sm:text-base shadow-[2px_2px_0px_0px_rgba(0,0,0,0.7)] ${tc.input}`}
                   placeholder="5000"
                   disabled={onboardLoading}
                   aria-label="Allowances"
@@ -660,7 +645,7 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
               </div>
             </div>
             <div>
-              <label className={`block text-xs sm:text-sm font-medium mb-1 sm:mb-1.5 ${tc.textSecondary}`}>
+              <label className={`block text-xs sm:text-sm font-bold mb-1 sm:mb-1.5 ${tc.textSecondary}`}>
                 Deductions
               </label>
               <div className="relative">
@@ -671,7 +656,7 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
                   type="text"
                   value={deductions}
                   onChange={(e) => handleSalaryChange(e, setDeductions)}
-                  className={`w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all duration-200 text-sm sm:text-base ${tc.input}`}
+                  className={`w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-3 border-2 border-black rounded-xl focus:ring-2 focus:ring-lime-400 focus:border-black outline-none transition-all duration-200 text-sm sm:text-base shadow-[2px_2px_0px_0px_rgba(0,0,0,0.7)] ${tc.input}`}
                   placeholder="1000"
                   disabled={onboardLoading}
                   aria-label="Deductions"
@@ -681,22 +666,22 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
           </div>
 
           {/* Terms */}
-          <div className="flex items-start">
+          <div className="flex items-start rounded-xl border-2 border-black bg-amber-300/20 px-3 py-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)]">
             <input
               type="checkbox"
               checked={agreeTerms}
               onChange={(e) => setAgreeTerms(e.target.checked)}
-              className="mt-0.5 sm:mt-1 mr-2 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 flex-shrink-0"
+              className="mt-0.5 sm:mt-1 mr-2 rounded border-2 border-black text-fuchsia-600 focus:ring-fuchsia-500 flex-shrink-0"
               disabled={onboardLoading}
               aria-label="Agree to terms and conditions"
             />
             <label className={`text-[10px] sm:text-xs ${tc.textSecondary}`}>
               I agree to the{' '}
-              <button type="button" className="text-indigo-600 dark:text-indigo-400 hover:underline font-medium">
+              <button type="button" className="text-fuchsia-600 dark:text-fuchsia-400 hover:underline font-bold">
                 Terms of Service
               </button>{' '}
               and{' '}
-              <button type="button" className="text-indigo-600 dark:text-indigo-400 hover:underline font-medium">
+              <button type="button" className="text-fuchsia-600 dark:text-fuchsia-400 hover:underline font-bold">
                 Privacy Policy
               </button>
             </label>
@@ -706,11 +691,11 @@ const OnboardNewHireModal: React.FC<OnboardNewHireModalProps> = ({
           <button
             type="submit"
             disabled={onboardLoading || emailAvailable === false || isCheckingEmail}
-            className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 text-white py-2.5 sm:py-3 rounded-xl font-medium text-sm sm:text-base transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center group hover:shadow-lg hover:shadow-indigo-200/50 dark:hover:shadow-indigo-900/30"
+            className="w-full border-2 border-black bg-gradient-to-r from-lime-400 via-emerald-400 to-cyan-400 text-black py-2.5 sm:py-3 rounded-xl font-black text-sm sm:text-base transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center group shadow-[4px_4px_0px_0px_rgba(0,0,0,0.85)] hover:-translate-y-0.5 hover:-translate-x-0.5 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,0.85)] active:translate-x-0 active:translate-y-0 active:shadow-none"
           >
             {onboardLoading ? (
               <span className="flex items-center justify-center">
-                <svg className="animate-spin -ml-1 mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <svg className="animate-spin -ml-1 mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
