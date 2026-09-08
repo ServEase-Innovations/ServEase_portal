@@ -75,23 +75,7 @@ const MyTeamTab: React.FC<MyTeamTabProps> = ({ theme, attendance }) => {
 
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000/';
 
-      // Fetch all employees to build the hierarchy
-      const employeeResponse = await fetch(apiUrl + 'employees', {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-
-      if (!employeeResponse.ok) {
-        throw new Error('Failed to fetch employee data');
-      }
-
-      const employees: Employee[] = await employeeResponse.json();
-      setAllEmployees(employees);
-
-      // Fetch all teams
+      // Fetch all teams first
       const teamsResponse = await fetch(apiUrl + 'teams', {
         method: 'GET',
         credentials: 'include',
@@ -108,7 +92,18 @@ const MyTeamTab: React.FC<MyTeamTabProps> = ({ theme, attendance }) => {
         if (user?.teamId) {
           const userTeam = teams.find(team => team.teamId === user.teamId);
           setTeamData(userTeam || null);
+          
+          // Use team members as the employee list
+          if (userTeam) {
+            setAllEmployees(userTeam.employees);
+          }
+        } else {
+          // If no team, try to get all employees from all teams
+          const allTeamEmployees = teams.flatMap(team => team.employees);
+          setAllEmployees(allTeamEmployees);
         }
+      } else {
+        throw new Error('Failed to fetch team data. You may not have access to view teams.');
       }
 
     } catch (error: any) {
@@ -159,12 +154,6 @@ const MyTeamTab: React.FC<MyTeamTabProps> = ({ theme, attendance }) => {
   // Get employees to display based on team/department filter
   const getFilteredEmployees = (): Employee[] => {
     let employees = allEmployees;
-
-    // If user has a team, show only team members
-    if (teamData && user?.teamId) {
-      const teamEmployeeIds = new Set(teamData.employees.map(e => e.employeeId));
-      employees = employees.filter(e => teamEmployeeIds.has(e.employeeId));
-    }
 
     // Apply department filter
     if (selectedDepartment !== 'all') {
