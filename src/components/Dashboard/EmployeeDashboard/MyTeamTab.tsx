@@ -115,26 +115,20 @@ const MyTeamTab: React.FC<MyTeamTabProps> = ({ theme, attendance }) => {
   };
 
   // Build hierarchy centered on current user
-  const buildUserCenteredHierarchy = async (): Promise<HierarchyNode[]> => {
-    if (!user?.id) return [];
+  const buildUserCenteredHierarchy = (employees: Employee[]): HierarchyNode[] => {
+    if (!user?.id) return buildHierarchy(employees);
 
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000/';
-      
-      // Fetch the current user's full data
-      const userResponse = await fetch(`${apiUrl}employees/${user.id}`, {
-        credentials: 'include',
-      });
-
-      if (!userResponse.ok) {
-        return buildHierarchy(allEmployees);
-      }
-
-      const userData = await userResponse.json();
-      const currentEmployee = userData.employee || userData;
-
       const hierarchy: HierarchyNode[] = [];
       const employeeMap = new Map<string, HierarchyNode>();
+
+      // Find current user in the employee list
+      const currentEmployee = employees.find(emp => emp.employeeId === user.id);
+      
+      if (!currentEmployee) {
+        // If current user not found, fallback to normal hierarchy
+        return buildHierarchy(employees);
+      }
 
       // Helper to add employee to map
       const addToMap = (emp: Employee, level: number) => {
@@ -145,69 +139,53 @@ const MyTeamTab: React.FC<MyTeamTabProps> = ({ theme, attendance }) => {
             level
           });
         }
+        return employeeMap.get(emp.employeeId)!;
       };
 
-      // 1. Add current user
+      // 1. Add current user at level 0
       addToMap(currentEmployee, 0);
 
-      // 2. Fetch and add manager chain (up to 3 levels)
-      let managerId = currentEmployee.managerId;
+      // 2. Build manager chain (up to 3 levels)
+      let currentManagerId = currentEmployee.managerId;
       let managerLevel = -1;
-      const managerChain: Employee[] = [];
+      const processedManagers = new Set<string>();
 
-      while (managerId && managerLevel >= -3) {
-        try {
-          const managerResponse = await fetch(`${apiUrl}employees/${managerId}`, {
-            credentials: 'include',
-          });
-          
-          if (managerResponse.ok) {
-            const managerData = await managerResponse.json();
-            const manager = managerData.employee || managerData;
-            managerChain.unshift(manager); // Add to beginning
-            addToMap(manager, managerLevel);
-            managerId = manager.managerId;
-            managerLevel--;
-          } else {
-            break;
-          }
-        } catch (error) {
+      while (currentManagerId && managerLevel >= -3 && !processedManagers.has(currentManagerId)) {
+        processedManagers.add(currentManagerId);
+        const manager = employees.find(emp => emp.employeeId === currentManagerId);
+        
+        if (manager) {
+          addToMap(manager, managerLevel);
+          currentManagerId = manager.managerId;
+          managerLevel--;
+        } else {
           break;
         }
       }
 
-      // 3. Fetch current user's direct reports
-      const reportsResponse = await fetch(`${apiUrl}employees`, {
-        credentials: 'include',
-      });
+      // 3. Add current user's direct reports (level 1)
+      const directReports = employees.filter(emp => 
+        emp.managerId && emp.managerId.toString() === currentEmployee.employeeId.toString()
+      );
 
-      if (reportsResponse.ok) {
-        const reportsData = await reportsResponse.json();
-        const allEmployeesList = Array.isArray(reportsData) ? reportsData : (reportsData.employees || []);
+      directReports.forEach(report => {
+        addToMap(report, 1);
         
-        const directReports = allEmployeesList.filter((emp: Employee) => 
-          emp.managerId && emp.managerId.toString() === currentEmployee.employeeId.toString()
+        // 4. Add their direct reports (level 2)
+        const subReports = employees.filter(emp => 
+          emp.managerId && emp.managerId.toString() === report.employeeId.toString()
         );
-
-        directReports.forEach((report: Employee) => {
-          addToMap(report, 1);
-          
-          // Also fetch their reports (2 levels down)
-          const subReports = allEmployeesList.filter((emp: Employee) => 
-            emp.managerId && emp.managerId.toString() === report.employeeId.toString()
-          );
-          subReports.forEach((subReport: Employee) => {
-            addToMap(subReport, 2);
-          });
+        subReports.forEach(subReport => {
+          addToMap(subReport, 2);
         });
-      }
+      });
 
       // Build the tree structure
       employeeMap.forEach((node, id) => {
         if (node.level < 0) {
           // This is a manager above current user
           const directReport = Array.from(employeeMap.values()).find(
-            emp => emp.managerId === id && emp.level === node.level + 1
+            emp => emp.managerId && emp.managerId.toString() === id && emp.level === node.level + 1
           );
           if (directReport) {
             node.reportees.push(directReport);
@@ -215,26 +193,28 @@ const MyTeamTab: React.FC<MyTeamTabProps> = ({ theme, attendance }) => {
         } else if (node.level === 0) {
           // This is the current user - add their direct reports
           const reports = Array.from(employeeMap.values()).filter(
-            emp => emp.managerId === id && emp.level === 1
+            emp => emp.managerId && emp.managerId.toString() === id && emp.level === 1
           );
           node.reportees.push(...reports);
         } else if (node.level === 1) {
           // Direct reports - add their sub-reports
           const subReports = Array.from(employeeMap.values()).filter(
-            emp => emp.managerId === id && emp.level === 2
+            emp => emp.managerId && emp.managerId.toString() === id && emp.level === 2
           );
           node.reportees.push(...subReports);
         }
       });
 
       // Find the root (top-most manager or current user if no manager)
-      const root = Array.from(employeeMap.values()).find(node => node.level === Math.min(...Array.from(employeeMap.values()).map(n => n.level)));
+      const root = Array.from(employeeMap.values()).find(
+        node => node.level === Math.min(...Array.from(employeeMap.values()).map(n => n.level))
+      );
       
-      return root ? [root] : [];
+      return root ? [root] : buildHierarchy(employees);
 
     } catch (error) {
       console.error('Error building user-centered hierarchy:', error);
-      return buildHierarchy(allEmployees);
+      return buildHierarchy(employees);
     }
   };
 
@@ -301,13 +281,9 @@ const MyTeamTab: React.FC<MyTeamTabProps> = ({ theme, attendance }) => {
   const [hierarchy, setHierarchy] = React.useState<HierarchyNode[]>([]);
 
   React.useEffect(() => {
-    const loadHierarchy = async () => {
-      const userHierarchy = await buildUserCenteredHierarchy();
-      setHierarchy(userHierarchy);
-    };
-    
     if (user?.id && allEmployees.length > 0) {
-      loadHierarchy();
+      const userHierarchy = buildUserCenteredHierarchy(allEmployees);
+      setHierarchy(userHierarchy);
     }
   }, [user, allEmployees, searchQuery, selectedDepartment]);
 
