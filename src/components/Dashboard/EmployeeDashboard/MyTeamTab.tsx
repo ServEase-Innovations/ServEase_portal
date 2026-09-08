@@ -66,7 +66,7 @@ const MyTeamTab: React.FC<MyTeamTabProps> = ({ theme, attendance }) => {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000/';
 
       // Fetch all teams
-      const response = await fetch(apiUrl + 'team', {
+      const response = await fetch(apiUrl + 'teams', {
         method: 'GET',
         credentials: 'include',
         headers: {
