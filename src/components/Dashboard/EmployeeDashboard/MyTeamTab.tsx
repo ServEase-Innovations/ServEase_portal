@@ -65,18 +65,18 @@ const MyTeamTab: React.FC<MyTeamTabProps> = ({ theme, attendance }) => {
   const { user } = useAuth();
 
   useEffect(() => {
-    fetchTeamData();
+    fetchHierarchyData();
   }, [user]);
 
-  const fetchTeamData = async () => {
+  const fetchHierarchyData = async () => {
     try {
       setLoading(true);
       setError(null);
 
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000/';
 
-      // Fetch all teams first
-      const teamsResponse = await fetch(apiUrl + 'teams', {
+      // Fetch employee's hierarchy
+      const hierarchyResponse = await fetch(apiUrl + 'hierarchy/my-hierarchy', {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -84,31 +84,45 @@ const MyTeamTab: React.FC<MyTeamTabProps> = ({ theme, attendance }) => {
         }
       });
 
-      if (teamsResponse.ok) {
-        const teams: Team[] = await teamsResponse.json();
-        setAllTeams(teams);
+      if (hierarchyResponse.ok) {
+        const hierarchyData = await hierarchyResponse.json();
+        
+        // Build employee list from hierarchy
+        const employees: Employee[] = [
+          hierarchyData.currentEmployee,
+          ...hierarchyData.managers,
+          ...hierarchyData.directReports,
+          ...hierarchyData.subReports
+        ];
 
-        // Find the team that the current user belongs to
-        if (user?.teamId) {
-          const userTeam = teams.find(team => team.teamId === user.teamId);
-          setTeamData(userTeam || null);
-          
-          // Use team members as the employee list
-          if (userTeam) {
-            setAllEmployees(userTeam.employees);
+        setAllEmployees(employees);
+        
+        // Also try to fetch team data
+        const teamsResponse = await fetch(apiUrl + 'teams', {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
           }
-        } else {
-          // If no team, try to get all employees from all teams
-          const allTeamEmployees = teams.flatMap(team => team.employees);
-          setAllEmployees(allTeamEmployees);
+        });
+
+        if (teamsResponse.ok) {
+          const teams: Team[] = await teamsResponse.json();
+          setAllTeams(teams);
+
+          // Find the team that the current user belongs to
+          if (user?.teamId) {
+            const userTeam = teams.find(team => team.teamId === user.teamId);
+            setTeamData(userTeam || null);
+          }
         }
       } else {
-        throw new Error('Failed to fetch team data. You may not have access to view teams.');
+        throw new Error('Failed to fetch hierarchy data');
       }
 
     } catch (error: any) {
-      console.error('Error fetching team data:', error);
-      setError(error.message || 'Failed to load team data');
+      console.error('Error fetching hierarchy:', error);
+      setError(error.message || 'Failed to load hierarchy data');
     } finally {
       setLoading(false);
     }
@@ -617,7 +631,7 @@ const MyTeamTab: React.FC<MyTeamTabProps> = ({ theme, attendance }) => {
       <div className={`${tc.bgCard} p-6 rounded-2xl ${tc.border} text-center`}>
         <p className="text-red-500 mb-4">{error}</p>
         <button
-          onClick={fetchTeamData}
+          onClick={fetchHierarchyData}
           className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors"
         >
           Retry
