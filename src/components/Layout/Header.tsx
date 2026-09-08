@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { employeeSearchService } from '../../services/api';
+import { employeeSearchService, notificationService, NotificationItem } from '../../services/api';
 import { EmployeeSearchResult } from '../../types';
 import {
   ChevronDownIcon,
@@ -46,55 +46,36 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const SEARCH_DEBOUNCE_MS = 300;
-
-// Placeholder notification feed until a real notifications endpoint exists.
-// Swap this for a live fetch (e.g. notificationService.list()) when the
-// backend supports it - the dropdown UI below is already wired for it.
-interface NotificationItem {
-  id: string;
-  title: string;
-  detail: string;
-  time: string;
-  type: 'success' | 'warning' | 'info';
-  unread: boolean;
-}
-
-const MOCK_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: 'n1',
-    title: 'Leave request approved',
-    detail: 'Your leave for 12–14 Sept was approved by HR.',
-    time: '12m ago',
-    type: 'success',
-    unread: true,
-  },
-  {
-    id: 'n2',
-    title: 'Timesheet reminder',
-    detail: "You haven't submitted last week's timesheet yet.",
-    time: '1h ago',
-    type: 'warning',
-    unread: true,
-  },
-  {
-    id: 'n3',
-    title: 'New policy document',
-    detail: 'The updated WFH policy is now available.',
-    time: 'Yesterday',
-    type: 'info',
-    unread: true,
-  },
-];
+const NOTIFICATION_REFRESH_INTERVAL = 30000; // 30 seconds
 
 const MOCK_MESSAGES = [
   { id: 'm1', from: 'Priya Sharma', preview: 'Can you review the onboarding doc?', time: '9m' },
   { id: 'm2', from: 'Dev Team', preview: 'Deploy went out clean ✅', time: '48m' },
 ];
 
-const NOTIFICATION_ICON: Record<NotificationItem['type'], typeof CheckCircleIcon> = {
-  success: CheckCircleIcon,
-  warning: ExclamationTriangleIcon,
-  info: ClockIcon,
+// Map backend notification types to UI types
+const mapNotificationType = (type: string): 'Success' | 'Warning' | 'Info' | 'Error' => {
+  return type as 'Success' | 'Warning' | 'Info' | 'Error';
+};
+
+// Format time ago from timestamp
+const formatTimeAgo = (timestamp: string): string => {
+  const date = new Date(parseInt(timestamp));
+  const now = new Date();
+  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  
+  if (seconds < 60) return 'Just now';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+  return date.toLocaleDateString();
+};
+
+const NOTIFICATION_ICON: Record<'Success' | 'Warning' | 'Info' | 'Error', typeof CheckCircleIcon> = {
+  Success: CheckCircleIcon,
+  Warning: ExclamationTriangleIcon,
+  Info: ClockIcon,
+  Error: ExclamationTriangleIcon,
 };
 
 const Header: React.FC<HeaderProps> = ({
@@ -111,8 +92,11 @@ const Header: React.FC<HeaderProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
-  const [notificationItems, setNotificationItems] = useState(MOCK_NOTIFICATIONS);
-  const unreadCount = notificationItems.filter((n) => n.unread).length;
+  
+  // Notification state
+  const [notificationItems, setNotificationItems] = useState<NotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
 
   // ---- Employee search state ----
   const [searchResults, setSearchResults] = useState<EmployeeSearchResult[]>([]);
@@ -159,6 +143,32 @@ const Header: React.FC<HeaderProps> = ({
   const isProfilePage = location.pathname.includes('/profile');
   const isSettingsPage = location.pathname.includes('/settings');
   const showSearch = !isProfilePage && !isSettingsPage;
+
+  // Fetch notifications from API
+  const fetchNotifications = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      setIsLoadingNotifications(true);
+      const response = await notificationService.getMyNotifications({ limit: 20 });
+      setNotificationItems(response.notifications);
+      setUnreadCount(response.unreadCount);
+    } catch (error) {
+      console.error('Failed to fetch notifications:', error);
+    } finally {
+      setIsLoadingNotifications(false);
+    }
+  }, [user]);
+
+  // Initial fetch and auto-refresh notifications
+  useEffect(() => {
+    fetchNotifications();
+    
+    // Refresh notifications every 30 seconds
+    const interval = setInterval(fetchNotifications, NOTIFICATION_REFRESH_INTERVAL);
+    
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
 
   // Debounced employee search - fires on every keystroke, only actually
   // calls the API SEARCH_DEBOUNCE_MS after the user stops typing. Backend
@@ -265,8 +275,14 @@ const Header: React.FC<HeaderProps> = ({
     }
   };
 
-  const markAllNotificationsRead = () => {
-    setNotificationItems((items) => items.map((item) => ({ ...item, unread: false })));
+  const markAllNotificationsRead = async () => {
+    try {
+      await notificationService.markAllAsRead();
+      // Refresh notifications after marking all as read
+      await fetchNotifications();
+    } catch (error) {
+      console.error('Failed to mark all notifications as read:', error);
+    }
   };
 
   // Handler for clicking on a search result
@@ -332,10 +348,11 @@ const Header: React.FC<HeaderProps> = ({
 
   const themeClasses = getThemeClasses();
 
-  const notificationTone: Record<NotificationItem['type'], string> = {
-    success: 'text-emerald-500 bg-emerald-500/10',
-    warning: 'text-amber-500 bg-amber-500/10',
-    info: 'text-indigo-500 bg-indigo-500/10',
+  const notificationTone: Record<'Success' | 'Warning' | 'Info' | 'Error', string> = {
+    Success: 'text-emerald-500 bg-emerald-500/10',
+    Warning: 'text-amber-500 bg-amber-500/10',
+    Info: 'text-indigo-500 bg-indigo-500/10',
+    Error: 'text-red-500 bg-red-500/10',
   };
 
   return (
@@ -592,16 +609,42 @@ const Header: React.FC<HeaderProps> = ({
                   )}
                 </div>
                 <div className="max-h-80 overflow-y-auto">
+                  {isLoadingNotifications && notificationItems.length === 0 && (
+                    <div className={`px-4 py-8 text-sm ${themeClasses.textSecondary} flex items-center justify-center gap-2`}>
+                      <span className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                      Loading...
+                    </div>
+                  )}
+                  {!isLoadingNotifications && notificationItems.length === 0 && (
+                    <div className={`px-4 py-8 text-sm ${themeClasses.textSecondary} text-center`}>
+                      No notifications yet
+                    </div>
+                  )}
                   {notificationItems.map((item) => {
                     const Icon = NOTIFICATION_ICON[item.type];
                     return (
-                      <Menu.Item key={item.id}>
+                      <Menu.Item key={item.notificationId}>
                         {({ active }) => (
                           <div
                             className={clsx(
                               'flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors',
                               active && themeClasses.dropdownHover
                             )}
+                            onClick={async () => {
+                              // Mark as read when clicked
+                              if (!item.isRead) {
+                                try {
+                                  await notificationService.markAsRead(item.notificationId);
+                                  await fetchNotifications();
+                                } catch (error) {
+                                  console.error('Failed to mark notification as read:', error);
+                                }
+                              }
+                              // Navigate if actionUrl exists
+                              if (item.actionUrl) {
+                                navigate(item.actionUrl);
+                              }
+                            }}
                           >
                             <span className={`mt-0.5 p-1.5 rounded-lg flex-shrink-0 ${notificationTone[item.type]}`}>
                               <Icon className="w-4 h-4" />
@@ -609,10 +652,10 @@ const Header: React.FC<HeaderProps> = ({
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-1.5">
                                 <p className={`text-sm font-medium ${themeClasses.dropdownText} truncate`}>{item.title}</p>
-                                {item.unread && <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 flex-shrink-0" />}
+                                {!item.isRead && <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 flex-shrink-0" />}
                               </div>
-                              <p className={`text-xs ${themeClasses.textSecondary} truncate`}>{item.detail}</p>
-                              <p className={`text-[11px] ${themeClasses.textMuted} mt-0.5`}>{item.time}</p>
+                              <p className={`text-xs ${themeClasses.textSecondary} line-clamp-2`}>{item.detail}</p>
+                              <p className={`text-[11px] ${themeClasses.textMuted} mt-0.5`}>{formatTimeAgo(item.createdAt)}</p>
                             </div>
                           </div>
                         )}
