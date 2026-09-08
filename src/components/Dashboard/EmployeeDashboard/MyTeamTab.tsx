@@ -114,7 +114,131 @@ const MyTeamTab: React.FC<MyTeamTabProps> = ({ theme, attendance }) => {
     }
   };
 
-  // Build hierarchy from employees
+  // Build hierarchy centered on current user
+  const buildUserCenteredHierarchy = async (): Promise<HierarchyNode[]> => {
+    if (!user?.id) return [];
+
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000/';
+      
+      // Fetch the current user's full data
+      const userResponse = await fetch(`${apiUrl}employees/${user.id}`, {
+        credentials: 'include',
+      });
+
+      if (!userResponse.ok) {
+        return buildHierarchy(allEmployees);
+      }
+
+      const userData = await userResponse.json();
+      const currentEmployee = userData.employee || userData;
+
+      const hierarchy: HierarchyNode[] = [];
+      const employeeMap = new Map<string, HierarchyNode>();
+
+      // Helper to add employee to map
+      const addToMap = (emp: Employee, level: number) => {
+        if (!employeeMap.has(emp.employeeId)) {
+          employeeMap.set(emp.employeeId, {
+            ...emp,
+            reportees: [],
+            level
+          });
+        }
+      };
+
+      // 1. Add current user
+      addToMap(currentEmployee, 0);
+
+      // 2. Fetch and add manager chain (up to 3 levels)
+      let managerId = currentEmployee.managerId;
+      let managerLevel = -1;
+      const managerChain: Employee[] = [];
+
+      while (managerId && managerLevel >= -3) {
+        try {
+          const managerResponse = await fetch(`${apiUrl}employees/${managerId}`, {
+            credentials: 'include',
+          });
+          
+          if (managerResponse.ok) {
+            const managerData = await managerResponse.json();
+            const manager = managerData.employee || managerData;
+            managerChain.unshift(manager); // Add to beginning
+            addToMap(manager, managerLevel);
+            managerId = manager.managerId;
+            managerLevel--;
+          } else {
+            break;
+          }
+        } catch (error) {
+          break;
+        }
+      }
+
+      // 3. Fetch current user's direct reports
+      const reportsResponse = await fetch(`${apiUrl}employees`, {
+        credentials: 'include',
+      });
+
+      if (reportsResponse.ok) {
+        const reportsData = await reportsResponse.json();
+        const allEmployeesList = Array.isArray(reportsData) ? reportsData : (reportsData.employees || []);
+        
+        const directReports = allEmployeesList.filter((emp: Employee) => 
+          emp.managerId && emp.managerId.toString() === currentEmployee.employeeId.toString()
+        );
+
+        directReports.forEach((report: Employee) => {
+          addToMap(report, 1);
+          
+          // Also fetch their reports (2 levels down)
+          const subReports = allEmployeesList.filter((emp: Employee) => 
+            emp.managerId && emp.managerId.toString() === report.employeeId.toString()
+          );
+          subReports.forEach((subReport: Employee) => {
+            addToMap(subReport, 2);
+          });
+        });
+      }
+
+      // Build the tree structure
+      employeeMap.forEach((node, id) => {
+        if (node.level < 0) {
+          // This is a manager above current user
+          const directReport = Array.from(employeeMap.values()).find(
+            emp => emp.managerId === id && emp.level === node.level + 1
+          );
+          if (directReport) {
+            node.reportees.push(directReport);
+          }
+        } else if (node.level === 0) {
+          // This is the current user - add their direct reports
+          const reports = Array.from(employeeMap.values()).filter(
+            emp => emp.managerId === id && emp.level === 1
+          );
+          node.reportees.push(...reports);
+        } else if (node.level === 1) {
+          // Direct reports - add their sub-reports
+          const subReports = Array.from(employeeMap.values()).filter(
+            emp => emp.managerId === id && emp.level === 2
+          );
+          node.reportees.push(...subReports);
+        }
+      });
+
+      // Find the root (top-most manager or current user if no manager)
+      const root = Array.from(employeeMap.values()).find(node => node.level === Math.min(...Array.from(employeeMap.values()).map(n => n.level)));
+      
+      return root ? [root] : [];
+
+    } catch (error) {
+      console.error('Error building user-centered hierarchy:', error);
+      return buildHierarchy(allEmployees);
+    }
+  };
+
+  // Fallback: Build hierarchy from employees
   const buildHierarchy = (employees: Employee[]): HierarchyNode[] => {
     const employeeMap = new Map<string, HierarchyNode>();
     const rootNodes: HierarchyNode[] = [];
@@ -174,7 +298,19 @@ const MyTeamTab: React.FC<MyTeamTabProps> = ({ theme, attendance }) => {
     return employees;
   };
 
-  const hierarchy = buildHierarchy(getFilteredEmployees());
+  const [hierarchy, setHierarchy] = React.useState<HierarchyNode[]>([]);
+
+  React.useEffect(() => {
+    const loadHierarchy = async () => {
+      const userHierarchy = await buildUserCenteredHierarchy();
+      setHierarchy(userHierarchy);
+    };
+    
+    if (user?.id && allEmployees.length > 0) {
+      loadHierarchy();
+    }
+  }, [user, allEmployees, searchQuery, selectedDepartment]);
+
   const allFilteredEmployees = getFilteredEmployees();
   const departments = ['all', ...new Set(allEmployees.map(m => m.assignedDepartment))];
 
@@ -261,16 +397,18 @@ const MyTeamTab: React.FC<MyTeamTabProps> = ({ theme, attendance }) => {
   const HierarchyNodeComponent: React.FC<{ node: HierarchyNode; isLast?: boolean }> = ({ node, isLast = false }) => {
     const isExpanded = expandedNodes.has(node.employeeId);
     const hasReportees = node.reportees.length > 0;
-    const indentLevel = node.level;
+    const indentLevel = Math.max(0, node.level); // Ensure non-negative
+    const isCurrentUser = node.employeeId === user?.id;
+    const isManagerAbove = node.level < 0;
 
     return (
       <div className="relative">
         {/* Connection lines */}
-        {indentLevel > 0 && (
+        {indentLevel > 0 && !isManagerAbove && (
           <>
             {/* Vertical line from parent */}
             <div
-              className={`absolute top-0 w-px bg-gradient-to-b from-indigo-500/30 to-purple-500/30`}
+              className={`absolute top-0 w-px ${isCurrentUser ? 'bg-gradient-to-b from-indigo-500 to-purple-500' : 'bg-gradient-to-b from-indigo-500/30 to-purple-500/30'}`}
               style={{
                 left: `${(indentLevel - 1) * 2.5 + 0.5}rem`,
                 height: '2.5rem'
@@ -278,7 +416,7 @@ const MyTeamTab: React.FC<MyTeamTabProps> = ({ theme, attendance }) => {
             ></div>
             {/* Horizontal line to card */}
             <div
-              className={`absolute top-10 h-px bg-gradient-to-r from-indigo-500/30 to-purple-500/30`}
+              className={`absolute top-10 h-px ${isCurrentUser ? 'bg-gradient-to-r from-indigo-500 to-purple-500' : 'bg-gradient-to-r from-indigo-500/30 to-purple-500/30'}`}
               style={{
                 left: `${(indentLevel - 1) * 2.5 + 0.5}rem`,
                 width: '2rem'
@@ -286,7 +424,7 @@ const MyTeamTab: React.FC<MyTeamTabProps> = ({ theme, attendance }) => {
             ></div>
             {/* Connection dot */}
             <div
-              className="absolute w-2 h-2 rounded-full bg-indigo-500/50 border-2 border-indigo-400/50"
+              className={`absolute w-2 h-2 rounded-full ${isCurrentUser ? 'bg-indigo-500 border-2 border-indigo-400' : 'bg-indigo-500/50 border-2 border-indigo-400/50'}`}
               style={{
                 left: `${(indentLevel - 1) * 2.5 + 0.5}rem`,
                 top: '2.5rem',
@@ -298,16 +436,24 @@ const MyTeamTab: React.FC<MyTeamTabProps> = ({ theme, attendance }) => {
 
         {/* Employee Card with enhanced styling */}
         <div
-          className={`relative ${tc.bgCard} rounded-2xl ${tc.border} ${tc.shadow} mb-4 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-indigo-500/10 group`}
+          className={`relative ${tc.bgCard} rounded-2xl ${tc.border} ${tc.shadow} mb-4 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl group ${
+            isCurrentUser ? 'ring-2 ring-indigo-500 shadow-indigo-500/20 hover:shadow-indigo-500/30' : 
+            isManagerAbove ? 'hover:shadow-blue-500/10' :
+            'hover:shadow-indigo-500/10'
+          }`}
           style={{ 
-            marginLeft: `${indentLevel * 2.5}rem`,
-            background: indentLevel === 0 
-              ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%)'
+            marginLeft: `${Math.max(0, indentLevel) * 2.5}rem`,
+            background: isCurrentUser 
+              ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.1) 100%)'
+              : isManagerAbove
+              ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%)'
               : undefined
           }}
         >
           {/* Role indicator bar */}
           <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl ${
+            isCurrentUser ? 'bg-gradient-to-b from-indigo-500 to-purple-500' :
+            isManagerAbove ? 'bg-gradient-to-b from-blue-500 to-cyan-500' :
             indentLevel === 0 ? 'bg-gradient-to-b from-indigo-500 to-purple-500' :
             indentLevel === 1 ? 'bg-gradient-to-b from-blue-500 to-cyan-500' :
             'bg-gradient-to-b from-emerald-500 to-teal-500'
@@ -335,21 +481,28 @@ const MyTeamTab: React.FC<MyTeamTabProps> = ({ theme, attendance }) => {
                 {/* Avatar with level-based styling */}
                 <div className="relative flex-shrink-0 mt-1">
                   <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl ${
+                    isCurrentUser ? 'bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 ring-4 ring-indigo-500/30' :
+                    isManagerAbove ? 'bg-gradient-to-br from-blue-500 via-cyan-500 to-teal-500' :
                     indentLevel === 0 ? 'bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500' :
                     indentLevel === 1 ? 'bg-gradient-to-br from-blue-500 via-cyan-500 to-teal-500' :
                     'bg-gradient-to-br from-emerald-500 via-green-500 to-lime-500'
                   } flex items-center justify-center text-white font-bold text-lg sm:text-xl shadow-lg ${
-                    indentLevel === 0 ? 'shadow-indigo-500/50' : 'shadow-blue-500/30'
+                    isCurrentUser ? 'shadow-indigo-500/50' : isManagerAbove ? 'shadow-blue-500/30' : 'shadow-blue-500/30'
                   }`}>
                     {node.fullName.split(' ').map(n => n[0]).join('')}
                   </div>
                   <div className="absolute -bottom-1 -right-1 ring-2 ring-white dark:ring-gray-800 rounded-full">
                     {getStatusDot(node.isActive, node.lastLogin)}
                   </div>
-                  {/* Level badge */}
-                  {indentLevel === 0 && (
+                  {/* Level badges */}
+                  {isManagerAbove && (
+                    <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center text-white text-xs font-bold shadow-lg">
+                      ⬆️
+                    </div>
+                  )}
+                  {isCurrentUser && (
                     <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-white text-xs font-bold shadow-lg">
-                      👑
+                      ⭐
                     </div>
                   )}
                 </div>
@@ -360,9 +513,14 @@ const MyTeamTab: React.FC<MyTeamTabProps> = ({ theme, attendance }) => {
                     <h3 className={`font-bold ${tc.text} text-base sm:text-lg truncate`}>
                       {node.fullName}
                     </h3>
-                    {node.employeeId === user?.id && (
-                      <span className="px-2.5 py-1 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 text-indigo-400 text-xs rounded-full border border-indigo-500/30 font-semibold">
-                        You
+                    {isCurrentUser && (
+                      <span className="px-2.5 py-1 bg-gradient-to-r from-indigo-500/30 to-purple-500/30 text-indigo-400 text-xs rounded-full border border-indigo-500/50 font-bold animate-pulse">
+                        YOU
+                      </span>
+                    )}
+                    {isManagerAbove && (
+                      <span className="px-2.5 py-1 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-400 text-xs rounded-full border border-blue-500/30 font-semibold">
+                        Your Manager
                       </span>
                     )}
                     {getStatusBadge(node.isActive, node.lastLogin)}
@@ -450,7 +608,7 @@ const MyTeamTab: React.FC<MyTeamTabProps> = ({ theme, attendance }) => {
             <div
               className={`absolute top-0 w-px bg-gradient-to-b from-indigo-500/30 to-transparent`}
               style={{
-                left: `${indentLevel * 2.5 + 0.5}rem`,
+                left: `${Math.max(0, indentLevel) * 2.5 + 0.5}rem`,
                 height: '100%'
               }}
             ></div>
