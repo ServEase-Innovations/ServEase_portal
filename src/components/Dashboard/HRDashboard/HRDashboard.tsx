@@ -45,6 +45,7 @@ import ChatWindow from '../../Chat/ChatWindow';
 // import { PayslipsTab } from './payslips/PayslipsTab';
 import { LeaveRequestModal } from './modals/LeaveRequestModal';
 import { SuccessMessage } from './shared/SuccessMessage';
+import EmployeeManagementTab from './employees/EmployeeManagementTab';
 
 // Icons
 import { 
@@ -675,6 +676,7 @@ const HRDashboard = () => {
     if (path === '/dashboard/onboarding') return 'onboarding';
     if (path === '/dashboard/attendance') return 'attendance';
     if (path === '/dashboard/leaves') return 'leaves';
+    if (path === '/dashboard/employees') return 'employees';
     if (path === '/dashboard/salary') return 'salary';
     if (path === '/dashboard/holidays') return 'holidays';
     if (path === '/dashboard/announcements') return 'announcements';
@@ -837,6 +839,8 @@ const HRDashboard = () => {
         return <AttendanceTab themeClasses={tc} />;
       case 'leaves':
         return <LeaveManagementTab themeClasses={tc} />;
+      case 'employees':
+        return <EmployeeManagementTab themeClasses={tc} />;
       case 'salary':
         return <SalaryTab themeClasses={tc} />;
       case 'holidays':

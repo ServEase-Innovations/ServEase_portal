@@ -192,6 +192,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             { icon: UserPlusIcon, label: 'Onboarding', path: '/dashboard/onboarding', description: 'New hires' },
             { icon: UserGroupIcon, label: 'Attendance', path: '/dashboard/attendance', description: 'Track attendance' },
             { icon: ClipboardDocumentCheckIcon, label: 'Leave Management', path: '/dashboard/leaves', description: 'Manage leaves' },
+            { icon: UsersIcon, label: 'Employees', path: '/dashboard/employees', description: 'Manage employees' },
             { icon: BanknotesIcon, label: 'Salary & Attendance', path: '/dashboard/salary', description: 'Payroll & attendance' },
             { icon: CalendarDaysIcon, label: 'My Leave', path: '/dashboard/leave', description: 'Apply for leave' },
             { icon: CreditCardIcon, label: 'Payslips', path: '/dashboard/payslips', description: 'Salary payslips' }
