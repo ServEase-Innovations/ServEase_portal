@@ -60,10 +60,21 @@ const EmployeeManagementTab: React.FC<EmployeeManagementTabProps> = ({ themeClas
       }
 
       const data = await response.json();
+      console.log('Employees API Response:', data);
+      
+      // Check if data is array or object with employees property
+      const employeesList = Array.isArray(data) ? data : (data.employees || []);
+      
+      if (!Array.isArray(employeesList)) {
+        console.error('Unexpected employees data format:', data);
+        toast.error('Unexpected data format from server');
+        setEmployees([]);
+        return;
+      }
       
       // Fetch manager names for employees who have managers
       const employeesWithManagers = await Promise.all(
-        data.employees.map(async (emp: Employee) => {
+        employeesList.map(async (emp: Employee) => {
           if (emp.managerId) {
             try {
               const managerResponse = await fetch(`${API_BASE_URL}/employees/${emp.managerId}`, {
@@ -71,7 +82,8 @@ const EmployeeManagementTab: React.FC<EmployeeManagementTabProps> = ({ themeClas
               });
               if (managerResponse.ok) {
                 const managerData = await managerResponse.json();
-                return { ...emp, managerName: managerData.employee.fullName };
+                const managerInfo = Array.isArray(managerData) ? managerData[0] : (managerData.employee || managerData);
+                return { ...emp, managerName: managerInfo.fullName };
               }
             } catch (error) {
               console.error('Error fetching manager:', error);
@@ -85,6 +97,7 @@ const EmployeeManagementTab: React.FC<EmployeeManagementTabProps> = ({ themeClas
     } catch (error: any) {
       console.error('Error fetching employees:', error);
       toast.error(error.message || 'Failed to load employees');
+      setEmployees([]);
     } finally {
       setLoading(false);
     }
@@ -102,9 +115,19 @@ const EmployeeManagementTab: React.FC<EmployeeManagementTabProps> = ({ themeClas
       }
 
       const data = await response.json();
+      console.log('Managers API Response:', data);
+      
+      // Check if data is array or object with employees property
+      const employeesList = Array.isArray(data) ? data : (data.employees || []);
+      
+      if (!Array.isArray(employeesList)) {
+        console.error('Unexpected managers data format:', data);
+        setManagers([]);
+        return;
+      }
       
       // Filter employees who can be managers
-      const managerList = data.employees.filter((emp: Employee) => 
+      const managerList = employeesList.filter((emp: Employee) => 
         emp.assignedRole === 'Manager' || 
         emp.assignedRole === 'SuperAdmin' || 
         emp.assignedRole === 'CEO' ||
@@ -114,6 +137,7 @@ const EmployeeManagementTab: React.FC<EmployeeManagementTabProps> = ({ themeClas
       setManagers(managerList);
     } catch (error: any) {
       console.error('Error fetching managers:', error);
+      setManagers([]);
     }
   };
 
