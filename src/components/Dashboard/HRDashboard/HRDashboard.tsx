@@ -836,18 +836,9 @@ const HRDashboard = () => {
       case 'attendance':
         return <AttendanceTab themeClasses={tc} />;
       case 'leaves':
-        return (
-          <LeaveManagementTab
-            leaveRequests={initialLeaveRequests}
-            themeClasses={tc}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            getLeaveTypeColor={getLeaveTypeColor}
-            getStatusColor={getStatusColor}
-          />
-        );
+        return <LeaveManagementTab themeClasses={tc} />;
       case 'salary':
-        return <SalaryTab salaryRecords={salaryRecords} themeClasses={tc} />;
+        return <SalaryTab themeClasses={tc} />;
       case 'holidays':
         return <HolidaysTab holidays={holidays} themeClasses={tc} getStatusColor={getStatusColor} />;
       case 'announcements':
@@ -891,14 +882,7 @@ const HRDashboard = () => {
       case 'messages':
         return <ChatWindow theme={theme} />;
       case 'leave':
-        return (
-          <MyLeaveTab
-            leaveHistory={leaveManagement.leaveHistory}
-            themeClasses={tc}
-            getLeaveStatusColor={getLeaveStatusColor}
-            onApplyLeave={() => leaveManagement.setShowLeaveModal(true)}
-          />
-        );
+        return <MyLeaveTab themeClasses={tc} />;
       case 'payslips':
   return (
     <PayslipsTab
