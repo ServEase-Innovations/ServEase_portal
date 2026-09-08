@@ -257,126 +257,211 @@ const MyTeamTab: React.FC<MyTeamTabProps> = ({ theme, attendance }) => {
     }).length;
   };
 
-  // Recursive component to render hierarchy
-  const HierarchyNodeComponent: React.FC<{ node: HierarchyNode }> = ({ node }) => {
+  // Recursive component to render hierarchy in graph format
+  const HierarchyNodeComponent: React.FC<{ node: HierarchyNode; isLast?: boolean }> = ({ node, isLast = false }) => {
     const isExpanded = expandedNodes.has(node.employeeId);
     const hasReportees = node.reportees.length > 0;
     const indentLevel = node.level;
 
     return (
       <div className="relative">
-        {/* Horizontal line connecting to parent */}
+        {/* Connection lines */}
         {indentLevel > 0 && (
-          <div
-            className={`absolute left-0 top-8 w-6 h-px ${tc.border}`}
-            style={{ left: `${(indentLevel - 1) * 2}rem` }}
-          ></div>
+          <>
+            {/* Vertical line from parent */}
+            <div
+              className={`absolute top-0 w-px bg-gradient-to-b from-indigo-500/30 to-purple-500/30`}
+              style={{
+                left: `${(indentLevel - 1) * 2.5 + 0.5}rem`,
+                height: '2.5rem'
+              }}
+            ></div>
+            {/* Horizontal line to card */}
+            <div
+              className={`absolute top-10 h-px bg-gradient-to-r from-indigo-500/30 to-purple-500/30`}
+              style={{
+                left: `${(indentLevel - 1) * 2.5 + 0.5}rem`,
+                width: '2rem'
+              }}
+            ></div>
+            {/* Connection dot */}
+            <div
+              className="absolute w-2 h-2 rounded-full bg-indigo-500/50 border-2 border-indigo-400/50"
+              style={{
+                left: `${(indentLevel - 1) * 2.5 + 0.5}rem`,
+                top: '2.5rem',
+                transform: 'translate(-50%, -50%)'
+              }}
+            ></div>
+          </>
         )}
 
-        {/* Employee Card */}
+        {/* Employee Card with enhanced styling */}
         <div
-          className={`relative ${tc.bgCard} rounded-xl ${tc.border} ${tc.shadow} mb-3 transition-all duration-300 hover:scale-[1.01]`}
-          style={{ marginLeft: `${indentLevel * 2}rem` }}
+          className={`relative ${tc.bgCard} rounded-2xl ${tc.border} ${tc.shadow} mb-4 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-indigo-500/10 group`}
+          style={{ 
+            marginLeft: `${indentLevel * 2.5}rem`,
+            background: indentLevel === 0 
+              ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%)'
+              : undefined
+          }}
         >
-          <div className="p-3 sm:p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 flex-1 min-w-0">
+          {/* Role indicator bar */}
+          <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl ${
+            indentLevel === 0 ? 'bg-gradient-to-b from-indigo-500 to-purple-500' :
+            indentLevel === 1 ? 'bg-gradient-to-b from-blue-500 to-cyan-500' :
+            'bg-gradient-to-b from-emerald-500 to-teal-500'
+          }`}></div>
+
+          <div className="p-4 sm:p-5 pl-5 sm:pl-6">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-4 flex-1 min-w-0">
                 {/* Expand/Collapse Button */}
                 {hasReportees && (
                   <button
                     onClick={() => toggleNode(node.employeeId)}
-                    className={`flex-shrink-0 p-1 rounded-lg ${tc.bgCardHover} hover:bg-indigo-500/10 transition-colors`}
+                    className={`flex-shrink-0 p-2 rounded-xl ${tc.bgCardHover} hover:bg-indigo-500/20 transition-all duration-200 mt-1 ring-2 ${
+                      isExpanded ? 'ring-indigo-500/50 bg-indigo-500/10' : 'ring-transparent'
+                    }`}
                   >
                     {isExpanded ? (
-                      <ChevronDownIcon className="w-4 h-4 text-indigo-400" />
+                      <ChevronDownIcon className="w-5 h-5 text-indigo-400" />
                     ) : (
-                      <ChevronRightIcon className="w-4 h-4 text-indigo-400" />
+                      <ChevronRightIcon className="w-5 h-5 text-indigo-400" />
                     )}
                   </button>
                 )}
 
-                {/* Avatar */}
-                <div className="relative flex-shrink-0">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm sm:text-base">
+                {/* Avatar with level-based styling */}
+                <div className="relative flex-shrink-0 mt-1">
+                  <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl ${
+                    indentLevel === 0 ? 'bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500' :
+                    indentLevel === 1 ? 'bg-gradient-to-br from-blue-500 via-cyan-500 to-teal-500' :
+                    'bg-gradient-to-br from-emerald-500 via-green-500 to-lime-500'
+                  } flex items-center justify-center text-white font-bold text-lg sm:text-xl shadow-lg ${
+                    indentLevel === 0 ? 'shadow-indigo-500/50' : 'shadow-blue-500/30'
+                  }`}>
                     {node.fullName.split(' ').map(n => n[0]).join('')}
                   </div>
-                  <div className="absolute -bottom-0.5 -right-0.5">
+                  <div className="absolute -bottom-1 -right-1 ring-2 ring-white dark:ring-gray-800 rounded-full">
                     {getStatusDot(node.isActive, node.lastLogin)}
                   </div>
+                  {/* Level badge */}
+                  {indentLevel === 0 && (
+                    <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-white text-xs font-bold shadow-lg">
+                      👑
+                    </div>
+                  )}
                 </div>
 
                 {/* Employee Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className={`font-semibold ${tc.text} text-sm sm:text-base truncate`}>
+                <div className="flex-1 min-w-0 pt-1">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <h3 className={`font-bold ${tc.text} text-base sm:text-lg truncate`}>
                       {node.fullName}
                     </h3>
                     {node.employeeId === user?.id && (
-                      <span className="px-2 py-0.5 bg-indigo-500/20 text-indigo-400 text-[10px] sm:text-xs rounded-full">
+                      <span className="px-2.5 py-1 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 text-indigo-400 text-xs rounded-full border border-indigo-500/30 font-semibold">
                         You
                       </span>
                     )}
+                    {getStatusBadge(node.isActive, node.lastLogin)}
                   </div>
-                  <p className={`text-xs sm:text-sm ${tc.textSecondary} truncate`}>
-                    {node.assignedRole}
-                  </p>
-                  <div className="flex items-center gap-3 mt-1">
-                    <p className={`text-[10px] sm:text-xs ${tc.textMuted} truncate`}>
-                      {node.username}
+                  
+                  <div className="flex items-center gap-2 mb-2">
+                    <BriefcaseIcon className="w-4 h-4 text-indigo-400/70" />
+                    <p className={`text-sm sm:text-base ${tc.textSecondary} font-medium truncate`}>
+                      {node.assignedRole}
                     </p>
-                    <span className={`text-[10px] sm:text-xs ${tc.textMuted}`}>•</span>
-                    <p className={`text-[10px] sm:text-xs ${tc.textMuted} truncate`}>
-                      {node.assignedDepartment}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <div className="flex items-center gap-1.5">
+                      <UsersIcon className="w-3.5 h-3.5 text-gray-400" />
+                      <p className={`text-xs sm:text-sm ${tc.textMuted}`}>
+                        {node.username}
+                      </p>
+                    </div>
+                    <span className={`text-xs ${tc.textMuted}`}>•</span>
+                    <div className="flex items-center gap-1.5">
+                      <BuildingOfficeIcon className="w-3.5 h-3.5 text-gray-400" />
+                      <p className={`text-xs sm:text-sm ${tc.textMuted}`}>
+                        {node.assignedDepartment}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Email */}
+                  <div className="flex items-center gap-1.5 mt-2">
+                    <EnvelopeIcon className="w-3.5 h-3.5 text-gray-400" />
+                    <p className={`text-xs ${tc.textMuted} truncate`}>
+                      {node.emailAddress}
                     </p>
                   </div>
                 </div>
+              </div>
 
-                {/* Status & Actions */}
-                <div className="flex items-center gap-2">
-                  {getStatusBadge(node.isActive, node.lastLogin)}
-                  
-                  <div className="hidden sm:flex gap-1">
-                    <button
-                      className="p-1.5 rounded-lg hover:bg-indigo-500/10 text-indigo-400 transition-colors"
-                      aria-label={`Chat with ${node.fullName}`}
-                    >
-                      <ChatBubbleLeftRightIcon className="w-4 h-4" />
-                    </button>
-                    <button
-                      className="p-1.5 rounded-lg hover:bg-indigo-500/10 text-indigo-400 transition-colors"
-                      aria-label={`Email ${node.fullName}`}
-                    >
-                      <EnvelopeIcon className="w-4 h-4" />
-                    </button>
-                  </div>
+              {/* Actions */}
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <button
+                    className="p-2 rounded-xl hover:bg-indigo-500/10 text-indigo-400 transition-all duration-200 hover:scale-110"
+                    aria-label={`Chat with ${node.fullName}`}
+                    title="Send Message"
+                  >
+                    <ChatBubbleLeftRightIcon className="w-5 h-5" />
+                  </button>
+                  <button
+                    className="p-2 rounded-xl hover:bg-blue-500/10 text-blue-400 transition-all duration-200 hover:scale-110"
+                    aria-label={`Email ${node.fullName}`}
+                    title="Send Email"
+                  >
+                    <EnvelopeIcon className="w-5 h-5" />
+                  </button>
                 </div>
               </div>
             </div>
 
             {/* Reportees Count Badge */}
             {hasReportees && (
-              <div className="mt-2 flex items-center gap-2">
-                <span className={`text-[10px] sm:text-xs ${tc.textMuted} flex items-center gap-1`}>
-                  <UserGroupIcon className="w-3 h-3" />
-                  {node.reportees.length} {node.reportees.length === 1 ? 'Direct Report' : 'Direct Reports'}
-                </span>
+              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700/50">
+                <div className="flex items-center justify-between">
+                  <span className={`text-sm ${tc.textMuted} flex items-center gap-2`}>
+                    <UserGroupIcon className="w-4 h-4" />
+                    <span className="font-medium">
+                      {node.reportees.length} {node.reportees.length === 1 ? 'Direct Report' : 'Direct Reports'}
+                    </span>
+                  </span>
+                  {isExpanded && (
+                    <span className="text-xs text-indigo-400 font-medium">
+                      Click to collapse ↑
+                    </span>
+                  )}
+                </div>
               </div>
             )}
           </div>
         </div>
 
-        {/* Reportees */}
+        {/* Reportees with connection lines */}
         {hasReportees && isExpanded && (
-          <div className="relative">
-            {/* Vertical line for children */}
+          <div className="relative pl-5">
+            {/* Main vertical line for all children */}
             <div
-              className={`absolute top-0 bottom-3 w-px ${tc.border}`}
-              style={{ left: `${indentLevel * 2 + 1.5}rem` }}
+              className={`absolute top-0 w-px bg-gradient-to-b from-indigo-500/30 to-transparent`}
+              style={{
+                left: `${indentLevel * 2.5 + 0.5}rem`,
+                height: '100%'
+              }}
             ></div>
             
             <div className="space-y-0">
-              {node.reportees.map(reportee => (
-                <HierarchyNodeComponent key={reportee.employeeId} node={reportee} />
+              {node.reportees.map((reportee, idx) => (
+                <HierarchyNodeComponent 
+                  key={reportee.employeeId} 
+                  node={reportee}
+                  isLast={idx === node.reportees.length - 1}
+                />
               ))}
             </div>
           </div>
@@ -529,24 +614,48 @@ const MyTeamTab: React.FC<MyTeamTabProps> = ({ theme, attendance }) => {
         </div>
       </div>
 
-      {/* Hierarchy View */}
-      {hierarchy.length > 0 ? (
-        <div className="space-y-0">
-          {hierarchy.map(node => (
-            <HierarchyNodeComponent key={node.employeeId} node={node} />
-          ))}
+      {/* Hierarchy View with enhanced header */}
+      <div className={`${tc.bgCard} p-4 sm:p-6 rounded-2xl ${tc.border} ${tc.shadow}`}>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20">
+              <UserGroupIcon className="w-6 h-6 text-indigo-400" />
+            </div>
+            <div>
+              <h3 className={`text-lg font-bold ${tc.text}`}>Organization Chart</h3>
+              <p className={`text-sm ${tc.textMuted}`}>Hierarchical structure showing reporting relationships</p>
+            </div>
+          </div>
+          
+          <div className={`px-4 py-2 rounded-xl ${tc.bgCardHover} ${tc.border}`}>
+            <p className={`text-xs ${tc.textMuted}`}>Levels: <span className={`font-bold ${tc.text}`}>{Math.max(...hierarchy.map(h => getMaxDepth(h))) + 1}</span></p>
+          </div>
         </div>
-      ) : (
-        <div className={`${tc.bgCard} p-8 sm:p-12 rounded-2xl ${tc.border} ${tc.shadow} text-center`}>
-          <UserGroupIcon className={`w-10 h-10 sm:w-12 sm:h-12 ${tc.textMuted} mx-auto mb-3`} />
-          <p className={tc.textSecondary}>No team members found matching your filters</p>
-          {allEmployees.length === 0 && (
-            <p className={`${tc.textMuted} text-sm mt-2`}>You are not assigned to any team yet.</p>
-          )}
-        </div>
-      )}
+
+        {hierarchy.length > 0 ? (
+          <div className="space-y-0 overflow-x-auto">
+            {hierarchy.map(node => (
+              <HierarchyNodeComponent key={node.employeeId} node={node} />
+            ))}
+          </div>
+        ) : (
+          <div className={`${tc.bgCardHover} p-8 sm:p-12 rounded-2xl ${tc.border} text-center`}>
+            <UserGroupIcon className={`w-10 h-10 sm:w-12 sm:h-12 ${tc.textMuted} mx-auto mb-3`} />
+            <p className={tc.textSecondary}>No team members found matching your filters</p>
+            {allEmployees.length === 0 && (
+              <p className={`${tc.textMuted} text-sm mt-2`}>You are not assigned to any team yet.</p>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
+};
+
+// Helper function to get max depth
+const getMaxDepth = (node: HierarchyNode): number => {
+  if (node.reportees.length === 0) return node.level;
+  return Math.max(...node.reportees.map(r => getMaxDepth(r)));
 };
 
 export default MyTeamTab;
