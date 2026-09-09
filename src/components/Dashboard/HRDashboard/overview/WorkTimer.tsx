@@ -16,12 +16,12 @@ interface WorkTimerProps {
   workHours: number;
   workMinutes: number;
   workSeconds: number;
-  totalHoursToday: number;
+  totalWorkedToday: number;
   startTime: moment.Moment | null;
-  attendanceLoading: boolean;
+  isLoading: boolean;
   themeClasses: ThemeClasses;
-  onStartWork: () => void;
-  onStopWork: () => void;
+  onClockIn: () => void;
+  onClockOut: () => void;
   formatTime: (hours: number, minutes: number, seconds: number) => string;
   getTodayHoursDisplay: () => string;
 }
@@ -33,14 +33,14 @@ export const WorkTimer: React.FC<WorkTimerProps> = ({
   workHours,
   workMinutes,
   workSeconds,
-  totalHoursToday,
+  totalWorkedToday,
   startTime,
-  attendanceLoading,
+  isLoading,
   themeClasses,
-  onStartWork,
-  onStopWork,
+  onClockIn,
+  onClockOut,
   formatTime,
-  getTodayHoursDisplay
+  getTodayHoursDisplay,
 }) => {
   const getStatusBadge = () => {
     if (isClockedIn) {
@@ -59,7 +59,7 @@ export const WorkTimer: React.FC<WorkTimerProps> = ({
     if (isClockedIn) {
       return formatTime(workHours, workMinutes, workSeconds);
     } else if (isClockedOut) {
-      return `${Math.floor(totalHoursToday)}h ${Math.round((totalHoursToday - Math.floor(totalHoursToday)) * 60)}m`;
+      return `${Math.floor(totalWorkedToday || 0)}h ${Math.round(((totalWorkedToday || 0) - Math.floor(totalWorkedToday || 0)) * 60)}m`;
     }
     return '00:00:00';
   };
@@ -80,7 +80,7 @@ export const WorkTimer: React.FC<WorkTimerProps> = ({
             <p className={`text-sm font-medium ${themeClasses.text}`}>Today's Progress</p>
             <p className={`text-xs ${themeClasses.textSecondary}`}>
               {isClockedIn ? 'Click stop when you finish' : 
-               isClockedOut ? `Total: ${totalHoursToday.toFixed(2)} hours` :
+               isClockedOut ? `Total: ${(totalWorkedToday || 0).toFixed(2)} hours` :
                workStatus === 'on-leave' ? 'On leave today' : 'Start tracking your work hours'}
             </p>
           </div>
@@ -89,22 +89,22 @@ export const WorkTimer: React.FC<WorkTimerProps> = ({
           {!isClockedIn && !isClockedOut && workStatus === 'not-working' ? (
             <button
               type="button"
-              onClick={onStartWork}
-              disabled={attendanceLoading}
+              onClick={onClockIn}
+              disabled={isLoading}
               className="flex-1 sm:flex-none px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-medium text-sm sm:text-base hover:from-emerald-600 hover:to-emerald-700 transition-all duration-300 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <PlayIcon className="w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform" />
-              <span>{attendanceLoading ? '⏳ Starting...' : 'Start Work'}</span>
+              <span>{isLoading ? '⏳ Starting...' : 'Start Work'}</span>
             </button>
           ) : isClockedIn ? (
             <button
               type="button"
-              onClick={onStopWork}
-              disabled={attendanceLoading}
+              onClick={onClockOut}
+              disabled={isLoading}
               className="flex-1 sm:flex-none px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-rose-500 to-rose-600 text-white rounded-xl font-medium text-sm sm:text-base hover:from-rose-600 hover:to-rose-700 transition-all duration-300 shadow-lg shadow-rose-500/25 hover:shadow-rose-500/40 flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <StopIcon className="w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform" />
-              <span>{attendanceLoading ? '⏳ Stopping...' : 'Stop Work'}</span>
+              <span>{isLoading ? '⏳ Stopping...' : 'Stop Work'}</span>
             </button>
           ) : (
             <div className={`text-sm ${themeClasses.textSecondary} px-3 py-2`}>
