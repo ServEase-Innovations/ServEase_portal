@@ -74,6 +74,16 @@ const HRDashboard = () => {
 
   // Attendance system - same as Employee dashboard
   const attendance = useAttendance();
+  
+  // Debug logging for HR Dashboard
+  console.log('🔷 [HR Dashboard] Attendance state:', {
+    isClockedIn: attendance.isClockedIn,
+    isClockedOut: attendance.isClockedOut,
+    isLoading: attendance.isLoading,
+    todayAttendance: attendance.todayAttendance,
+    error: attendance.error
+  });
+  
   const {
     workHours,
     workMinutes,
