@@ -59,9 +59,14 @@ import PayslipsTab from './payslips/PayslipsTab';
 
 const HRDashboard = () => {
   const location = useLocation();
-  const { createAccount } = useAuth();
+  const { createAccount, user } = useAuth();
   const { theme, toggleTheme, getThemeClasses } = useTheme();
   const tc = getThemeClasses();
+
+  // Debug: Check user data
+  console.log('👤 [HR Dashboard] User from auth:', user);
+  console.log('👤 [HR Dashboard] User ID:', user?.id);
+  console.log('👤 [HR Dashboard] User employeeId:', user?.employeeId);
 
   // State
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
