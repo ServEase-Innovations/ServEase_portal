@@ -35,6 +35,9 @@ export const useAttendance = (): UseAttendanceReturn => {
 
   const employeeId = user?.id || '';
 
+  console.log('🎯 [useAttendance] Hook called - User:', user);
+  console.log('🎯 [useAttendance] EmployeeId:', employeeId);
+
   // Helper function to normalize timestamp to epoch milliseconds
   const normalizeTimestamp = (timestamp: number | string | null | undefined): number | null => {
     if (!timestamp) return null;
@@ -367,8 +370,12 @@ export const useAttendance = (): UseAttendanceReturn => {
 
   // Load attendance on mount and when employee changes
   useEffect(() => {
+    console.log('🔄 [useAttendance] useEffect triggered, employeeId:', employeeId);
     if (employeeId) {
+      console.log('🔄 [useAttendance] Calling refreshAttendance...');
       refreshAttendance();
+    } else {
+      console.log('⚠️ [useAttendance] No employeeId, skipping refreshAttendance');
     }
   }, [employeeId, refreshAttendance]);
 
