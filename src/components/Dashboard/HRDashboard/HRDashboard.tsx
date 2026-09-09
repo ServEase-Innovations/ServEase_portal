@@ -11,9 +11,10 @@ import { payslipService } from '../../../services/api';
 
 // Hooks
 import { useTheme } from './hooks/useTheme';
-import { useTimer } from './hooks/useTimer';
 import { useLeaveManagement } from './hooks/useLeaveManagement';
 import { useMessages } from './hooks/useMessages';
+import { useAttendance } from '../../../hooks/useAttendance';
+import { useAttendanceTimer } from '../../../hooks/useAttendanceTimer';
 
 // Types
 import { 
@@ -44,7 +45,6 @@ import { ComposeMessageModal } from './queries/ComposeMessageModal';
 import ChatWindow from '../../Chat/ChatWindow';
 // import { PayslipsTab } from './payslips/PayslipsTab';
 import { LeaveRequestModal } from './modals/LeaveRequestModal';
-import { SuccessMessage } from './shared/SuccessMessage';
 import EmployeeManagementTab from './employees/EmployeeManagementTab';
 
 // Icons
@@ -72,8 +72,22 @@ const HRDashboard = () => {
   const [showOnboardModal, setShowOnboardModal] = useState(false);
   const [payslips, setPayslips] = useState<any[]>([]);
 
-  // Timer Hook
-  const timer = useTimer('Sanya Kapoor');
+  // Attendance system - same as Employee dashboard
+  const attendance = useAttendance();
+  const {
+    workHours,
+    workMinutes,
+    workSeconds,
+    startTime,
+    totalWorkedToday,
+    workStatus,
+    setWorkStatus,
+    previousSessionsHours,
+  } = useAttendanceTimer({
+    isClockedIn: attendance.isClockedIn,
+    isClockedOut: attendance.isClockedOut,
+    todayAttendance: attendance.todayAttendance
+  });
 
   // Load payslips data
   const loadPayslips = async () => {
@@ -689,37 +703,48 @@ const HRDashboard = () => {
 
   const activeTab = getActiveTab();
 
+  // Helper to get status badge based on attendance state
+  const getStatusBadge = () => {
+    if (attendance.isClockedIn) {
+      return { label: '🟢 Working', class: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' };
+    }
+    if (attendance.isClockedOut) {
+      return { label: '✅ Work Completed', class: 'bg-blue-500/20 text-blue-400 border border-blue-500/30' };
+    }
+    if (workStatus === 'on-leave') {
+      return { label: '🏖️ On Leave', class: 'bg-amber-500/20 text-amber-400 border border-amber-500/30' };
+    }
+    return { label: '🔴 Not Working', class: 'bg-gray-500/20 text-gray-400 border border-gray-500/30' };
+  };
+
+
   // Render Overview Tab
   const renderOverview = () => (
     <>
-      <SuccessMessage 
-        message={timer.successMessage} 
-        show={timer.showSuccessMessage} 
-      />
 
       {/* Status Card */}
       <div className={`${tc.bgCard} p-3 sm:p-4 rounded-2xl ${tc.border} ${tc.shadow} mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0`}>
         <div className="flex items-center gap-3 sm:gap-4">
-          <span className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium ${timer.getStatusBadge().class}`}>
-            {timer.getStatusBadge().label}
+          <span className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium ${getStatusBadge().class}`}>
+            {getStatusBadge().label}
           </span>
           <span className={`text-xs sm:text-sm ${tc.textSecondary}`}>
-            {timer.isClockedIn && timer.startTime && `Started at: ${timer.startTime.format('hh:mm A')}`}
-            {timer.isClockedOut && `Completed at: ${moment().format('hh:mm A')}`}
-            {timer.workStatus === 'on-leave' && 'Currently on leave'}
-            {!timer.isClockedIn && !timer.isClockedOut && timer.workStatus === 'not-working' && 'Ready to start working'}
+            {attendance.isClockedIn && startTime && `Started at: ${moment(startTime).format('hh:mm A')}`}
+            {attendance.isClockedOut && `Completed at: ${moment().format('hh:mm A')}`}
+            {workStatus === 'on-leave' && 'Currently on leave'}
+            {!attendance.isClockedIn && !attendance.isClockedOut && workStatus === 'not-working' && 'Ready to start working'}
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
-          {!timer.isClockedIn && !timer.isClockedOut && timer.workStatus === 'not-working' && (
+          {!attendance.isClockedIn && !attendance.isClockedOut && workStatus === 'not-working' && (
             <>
               <button
                 type="button"
-                onClick={timer.handleStartWork}
-                disabled={timer.attendanceLoading}
+                onClick={attendance.clockIn}
+                disabled={attendance.isLoading}
                 className="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs sm:text-sm font-medium hover:bg-emerald-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {timer.attendanceLoading ? '⏳ Processing...' : '✅ Working Today'}
+                {attendance.isLoading ? '⏳ Processing...' : '✅ Working Today'}
               </button>
               <button
                 type="button"
@@ -730,29 +755,29 @@ const HRDashboard = () => {
               </button>
             </>
           )}
-          {timer.isClockedIn && (
+          {attendance.isClockedIn && (
             <button
               type="button"
-              onClick={timer.handleStopWork}
-              disabled={timer.attendanceLoading}
+              onClick={attendance.clockOut}
+              disabled={attendance.isLoading}
               className="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl text-xs sm:text-sm font-medium hover:bg-rose-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {timer.attendanceLoading ? '⏳ Processing...' : '⏹️ Stop Working'}
+              {attendance.isLoading ? '⏳ Processing...' : '⏹️ Stop Working'}
             </button>
           )}
-          {timer.isClockedOut && (
+          {attendance.isClockedOut && (
             <button
               type="button"
               onClick={() => {
-                timer.setWorkStatus('not-working');
-                timer.setIsClockedOut(false);
+                setWorkStatus('not-working');
+                setIsClockedOut(false);
               }}
               className="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl text-xs sm:text-sm font-medium hover:bg-amber-500/30 transition-all"
             >
               🔄 Start New Session
             </button>
           )}
-          {timer.workStatus === 'on-leave' && (
+          {workStatus === 'on-leave' && (
             <button
               type="button"
               onClick={() => leaveManagement.setShowLeaveModal(true)}
@@ -771,10 +796,10 @@ const HRDashboard = () => {
         onSubmit={() => {
           const successMsg = leaveManagement.handleSubmitLeave();
           if (successMsg) {
-            timer.setShowSuccessMessage(true);
-            timer.setSuccessMessage(successMsg);
-            setTimeout(() => timer.setShowSuccessMessage(false), 3000);
-            timer.setWorkStatus('on-leave');
+            
+            
+            setTimeout(() => 
+            setWorkStatus('on-leave');
           }
         }}
         leaveRequest={leaveManagement.leaveRequest}
@@ -785,20 +810,20 @@ const HRDashboard = () => {
 
       {/* Work Timer */}
       <WorkTimer
-        isClockedIn={timer.isClockedIn}
-        isClockedOut={timer.isClockedOut}
-        workStatus={timer.workStatus}
-        workHours={timer.workHours}
-        workMinutes={timer.workMinutes}
-        workSeconds={timer.workSeconds}
-        totalHoursToday={timer.totalHoursToday}
-        startTime={timer.startTime}
-        attendanceLoading={timer.attendanceLoading}
+        isClockedIn={attendance.isClockedIn}
+        isClockedOut={attendance.isClockedOut}
+        workStatus={workStatus}
+        workHours={workHours}
+        workMinutes={workMinutes}
+        workSeconds={workSeconds}
+        totalWorkedToday={totalWorkedToday}
+        startTime={startTime}
+        isLoading={attendance.isLoading}
         themeClasses={tc}
-        onStartWork={timer.handleStartWork}
-        onStopWork={timer.handleStopWork}
-        formatTime={timer.formatTime}
-        getTodayHoursDisplay={timer.getTodayHoursDisplay}
+        onClockIn={attendance.clockIn}
+        onClockOut={attendance.clockOut}
+        formatTime={formatTime}
+        getTodayHoursDisplay={getTodayHoursDisplay}
       />
 
       {/* Stats */}
