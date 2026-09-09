@@ -717,6 +717,26 @@ const HRDashboard = () => {
     return { label: '🔴 Not Working', class: 'bg-gray-500/20 text-gray-400 border border-gray-500/30' };
   };
 
+  // Format time helper
+  const formatTime = (hours: number, minutes: number, seconds: number): string => {
+    const h = String(hours).padStart(2, '0');
+    const m = String(minutes).padStart(2, '0');
+    const s = String(seconds).padStart(2, '0');
+    return `${h}:${m}:${s}`;
+  };
+
+  // Get today's total hours display
+  const getTodayHoursDisplay = (): string => {
+    if (attendance.isClockedOut && attendance.totalHoursToday) {
+      return `${attendance.totalHoursToday.toFixed(2)}h`;
+    }
+    if (attendance.isClockedIn) {
+      const total = previousSessionsHours + (workHours + workMinutes / 60 + workSeconds / 3600);
+      return `${total.toFixed(2)}h`;
+    }
+    return '0.00h';
+  };
+
 
   // Render Overview Tab
   const renderOverview = () => (
