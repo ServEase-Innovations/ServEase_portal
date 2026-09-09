@@ -173,7 +173,7 @@ const LoginPanel: React.FC<LoginPanelProps> = ({ isOpen, onClose, isDarkMode, is
                 <label className={`block text-sm font-medium mb-1.5 ${
                   isDarkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}>
-                  Username
+                  Employee ID
                 </label>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -196,7 +196,7 @@ const LoginPanel: React.FC<LoginPanelProps> = ({ isOpen, onClose, isDarkMode, is
                         : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400 hover:border-gray-300'
                       }
                     `}
-                    placeholder="Enter your username"
+                    placeholder="Enter your employee ID"
                     required
                     disabled={loading}
                     autoComplete="username"
@@ -455,12 +455,12 @@ const LoginPanel: React.FC<LoginPanelProps> = ({ isOpen, onClose, isDarkMode, is
             isDarkMode ? 'bg-gray-800' : 'bg-white'
           }`}>
             <form onSubmit={handleLogin} className="space-y-4">
-              {/* Username Field */}
+              {/* Employee ID Field */}
               <div className="transform transition-all duration-500 hover:translate-x-1">
                 <label className={`block text-sm font-medium mb-1.5 ${
                   isDarkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}>
-                  Username
+                  Employee ID
                 </label>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -483,7 +483,7 @@ const LoginPanel: React.FC<LoginPanelProps> = ({ isOpen, onClose, isDarkMode, is
                         : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400 hover:border-gray-300'
                       }
                     `}
-                    placeholder="Enter your username"
+                    placeholder="Enter your employee ID"
                     required
                     disabled={loading}
                     autoComplete="username"

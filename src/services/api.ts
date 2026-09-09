@@ -559,3 +559,67 @@ export const payslipAutomationApi = {
     return response.data;
   },
 };
+
+// ============= NOTIFICATION API =============
+
+export interface NotificationItem {
+  notificationId: string;
+  employeeId: string;
+  title: string;
+  detail: string;
+  type: 'Success' | 'Warning' | 'Info' | 'Error';
+  actionUrl?: string;
+  actionLabel?: string;
+  isRead: boolean;
+  readAt?: string;
+  createdAt: string;
+  expiresAt?: string;
+}
+
+export interface NotificationListResponse {
+  message: string;
+  notifications: NotificationItem[];
+  unreadCount: number;
+  total: number;
+}
+
+export interface NotificationCountResponse {
+  unreadCount: number;
+}
+
+export const notificationService = {
+  // Get all notifications for the authenticated user
+  getMyNotifications: async (params?: {
+    unreadOnly?: boolean;
+    limit?: number;
+  }): Promise<NotificationListResponse> => {
+    const response = await api.get<NotificationListResponse>('/notifications/my-notifications', { params });
+    return response.data;
+  },
+
+  // Get unread notification count
+  getUnreadCount: async (): Promise<NotificationCountResponse> => {
+    const response = await api.get<NotificationCountResponse>('/notifications/unread-count');
+    return response.data;
+  },
+
+  // Mark a single notification as read
+  markAsRead: async (notificationId: string): Promise<{ message: string; notification: NotificationItem }> => {
+    const response = await api.put<{ message: string; notification: NotificationItem }>(
+      `/notifications/${notificationId}/read`
+    );
+    return response.data;
+  },
+
+  // Mark all notifications as read
+  markAllAsRead: async (): Promise<{ message: string; updatedCount: number }> => {
+    const response = await api.put<{ message: string; updatedCount: number }>('/notifications/mark-all-read');
+    return response.data;
+  },
+
+  // Delete a notification
+  deleteNotification: async (notificationId: string): Promise<{ message: string }> => {
+    const response = await api.delete<{ message: string }>(`/notifications/${notificationId}`);
+    return response.data;
+  },
+};

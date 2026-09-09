@@ -35,6 +35,9 @@ export const useAttendance = (): UseAttendanceReturn => {
 
   const employeeId = user?.id || '';
 
+  console.log('🎯🎯🎯 [useAttendance] Hook called - User:', user);
+  console.log('🎯🎯🎯 [useAttendance] EmployeeId:', employeeId);
+
   // Helper function to normalize timestamp to epoch milliseconds
   const normalizeTimestamp = (timestamp: number | string | null | undefined): number | null => {
     if (!timestamp) return null;
@@ -99,20 +102,27 @@ export const useAttendance = (): UseAttendanceReturn => {
   };
 
   const refreshAttendance = useCallback(async () => {
-    if (!employeeId) return;
+    if (!employeeId) {
+      console.log('⚠️ [useAttendance] No employeeId, skipping refresh');
+      return;
+    }
     
+    console.log('🔄 [useAttendance] Refreshing attendance for employeeId:', employeeId);
     setIsLoading(true);
     setError(null);
     
     try {
       const records = await attendanceService.getAttendanceByEmployee(employeeId);
+      console.log('✅ [useAttendance] Got attendance records:', records);
       setAttendanceRecords(records);
       
       const todayRecord = records.find(isTodayRecord);
+      console.log('📅 [useAttendance] Today record:', todayRecord);
       setTodayAttendance(todayRecord || null);
       updateStateFromRecord(todayRecord || null);
     } catch (err: any) {
-      console.error('Error fetching attendance:', err);
+      console.error('❌ [useAttendance] Error fetching attendance:', err);
+      console.error('❌ [useAttendance] Error response:', err.response?.data);
       const errorMsg = err.response?.status === 401 
         ? 'Authentication required. Please login again.'
         : err.message || 'Failed to fetch attendance records';
@@ -360,8 +370,12 @@ export const useAttendance = (): UseAttendanceReturn => {
 
   // Load attendance on mount and when employee changes
   useEffect(() => {
+    console.log('🔄 [useAttendance] useEffect triggered, employeeId:', employeeId);
     if (employeeId) {
+      console.log('🔄 [useAttendance] Calling refreshAttendance...');
       refreshAttendance();
+    } else {
+      console.log('⚠️ [useAttendance] No employeeId, skipping refreshAttendance');
     }
   }, [employeeId, refreshAttendance]);
 
