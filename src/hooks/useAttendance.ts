@@ -35,8 +35,8 @@ export const useAttendance = (): UseAttendanceReturn => {
 
   const employeeId = user?.id || '';
 
-  console.log('🎯 [useAttendance] Hook called - User:', user);
-  console.log('🎯 [useAttendance] EmployeeId:', employeeId);
+  console.log('🎯🎯🎯 [useAttendance] Hook called - User:', user);
+  console.log('🎯🎯🎯 [useAttendance] EmployeeId:', employeeId);
 
   // Helper function to normalize timestamp to epoch milliseconds
   const normalizeTimestamp = (timestamp: number | string | null | undefined): number | null => {
