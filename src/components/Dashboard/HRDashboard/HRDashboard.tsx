@@ -796,9 +796,7 @@ const HRDashboard = () => {
         onSubmit={() => {
           const successMsg = leaveManagement.handleSubmitLeave();
           if (successMsg) {
-            
-            
-            setTimeout(() => 
+            toast.success(successMsg);
             setWorkStatus('on-leave');
           }
         }}
