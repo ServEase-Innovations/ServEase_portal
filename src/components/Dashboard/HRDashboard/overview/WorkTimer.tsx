@@ -59,7 +59,7 @@ export const WorkTimer: React.FC<WorkTimerProps> = ({
     if (isClockedIn) {
       return formatTime(workHours, workMinutes, workSeconds);
     } else if (isClockedOut) {
-      return `${Math.floor(totalWorkedToday || 0)}h ${Math.round(((totalWorkedToday || 0) - Math.floor(totalWorkedToday || 0)) * 60)}m`;
+      return getTodayHoursDisplay();
     }
     return '00:00:00';
   };
@@ -80,7 +80,7 @@ export const WorkTimer: React.FC<WorkTimerProps> = ({
             <p className={`text-sm font-medium ${themeClasses.text}`}>Today's Progress</p>
             <p className={`text-xs ${themeClasses.textSecondary}`}>
               {isClockedIn ? 'Click stop when you finish' : 
-               isClockedOut ? `Total: ${(totalWorkedToday || 0).toFixed(2)} hours` :
+               isClockedOut ? `Total: ${getTodayHoursDisplay()}` :
                workStatus === 'on-leave' ? 'On leave today' : 'Start tracking your work hours'}
             </p>
           </div>
