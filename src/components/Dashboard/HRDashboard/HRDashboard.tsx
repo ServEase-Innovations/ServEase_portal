@@ -807,7 +807,6 @@ const HRDashboard = () => {
               type="button"
               onClick={() => {
                 setWorkStatus('not-working');
-                setIsClockedOut(false);
               }}
               className="flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl text-xs sm:text-sm font-medium hover:bg-amber-500/30 transition-all"
             >
